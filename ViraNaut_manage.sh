@@ -270,12 +270,14 @@ viranaut_disable_stale_vhosts() {
   done
 
   if [ -n "$domain" ]; then
-    local ssl_keep="${domain}-ssl.conf"
     for f in /etc/apache2/sites-enabled/*"${domain}"*.conf; do
       [ -f "$f" ] || continue
       base=$(basename "$f")
-      [[ "$base" == "$ssl_keep" ]] && continue
-      [[ "$base" == "${domain}.conf" ]] && continue
+      case "$base" in
+        "${domain}.conf"|"${domain}-ssl.conf"|"${domain}-le-ssl.conf")
+          continue
+          ;;
+      esac
       if grep -qiE "ServerName[[:space:]]+${domain}" "$f" 2>/dev/null; then
         a2dissite "$base" 2>/dev/null || true
         rm -f "/etc/apache2/sites-enabled/$base"
@@ -1722,27 +1724,105 @@ mirza_fix_webhook_complete() {
     echo "    Open inbound TCP 443 (and 80) in your hosting panel for ALL IPs or Telegram ranges"
     mirza_test_https_post_speed "$domain" || true
   fi
+  if echo "$last_err" | grep -qi 'SSL error\|record layer\|packet length'; then
+    warn "SSL/TLS broken on :443 — run menu 13 again; keep ${domain}-le-ssl.conf enabled"
+    echo "    Quick check: openssl s_client -connect ${domain}:443 -servername ${domain} </dev/null | head -5"
+    mirza_test_ssl_handshake "$domain" || warn "TLS handshake still failing after fix attempt"
+  fi
   [ -n "$last_err" ] && warn "Telegram last_error: $last_err"
   [ "${pending:-0}" != "0" ] && warn "pending_update_count=$pending"
   mirza_show_webhook_access_recent "$domain"
   return 0
 }
 
+mirza_test_ssl_handshake() {
+  local domain="$1"
+  local out
+  out=$(echo | timeout 12 openssl s_client -connect "${domain}:443" -servername "$domain" 2>/dev/null | head -20)
+  echo "$out" | grep -q 'BEGIN CERTIFICATE' && return 0
+  echo "$out" | grep -qi 'SSL handshake\|verify return:1' && return 0
+  return 1
+}
+
+mirza_restore_apache_vhosts_from_zip() {
+  local zip="$1" domain="$2" bot_dir="${3%/}"
+  local tmp restored=0 f base
+  [ -f "$zip" ] || return 1
+  [ -n "$domain" ] || return 1
+  tmp=$(mktemp -d)
+  unzip -q -o "$zip" \
+    "${domain}.conf" "${domain}-ssl.conf" "${domain}-le-ssl.conf" \
+    "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" \
+    -d "$tmp" 2>/dev/null || true
+  for f in "$tmp"/*.conf; do
+    [ -f "$f" ] || continue
+    base=$(basename "$f")
+    cp "$f" "/etc/apache2/sites-available/$base"
+    mirza_sanitize_vhost_conf "/etc/apache2/sites-available/$base"
+    a2ensite "$base" 2>/dev/null || true
+    restored=1
+    echo -e "  ${GREEN}✓${NC} Restored vhost from backup: $base"
+  done
+  rm -rf "$tmp"
+  if [ "$restored" -eq 1 ]; then
+    mirza_rewrite_vhost_documentroot "$domain" "$bot_dir"
+  fi
+  return 0
+}
+
+mirza_restore_vendor_from_zip_if_missing() {
+  local zip="$1" bot_dir="${2%/}"
+  [ -f "$bot_dir/vendor/autoload.php" ] && return 0
+  [ -f "$zip" ] || return 1
+  local tmp
+  tmp=$(mktemp -d)
+  if unzip -q -o "$zip" "vendor/autoload.php" -d "$tmp" 2>/dev/null \
+    || unzip -q -o "$zip" "*/vendor/autoload.php" -d "$tmp" 2>/dev/null; then
+    local vend
+    vend=$(find "$tmp" -path '*/vendor/autoload.php' -type f | head -1)
+    if [ -n "$vend" ]; then
+      rm -rf "$bot_dir/vendor"
+      cp -a "$(dirname "$vend")" "$bot_dir/vendor"
+      echo -e "  ${GREEN}✓${NC} Restored vendor/ from backup ZIP"
+    fi
+  fi
+  rm -rf "$tmp"
+}
+
 mirza_fix_ssl_and_firewall() {
   local domain="$1"
+  local bot_dir="${2:-}"
   ufw allow 80/tcp 2>/dev/null || true
   ufw allow 443/tcp 2>/dev/null || true
-  apt-get install -y certbot python3-certbot-apache >/dev/null 2>&1 || true
+  apt-get install -y certbot python3-certbot-apache openssl >/dev/null 2>&1 || true
   if ! mirza_check_dns_matches_server "$domain"; then
     warn "Skipping certbot until DNS A record matches this server"
     return 1
   fi
+  a2enmod ssl 2>/dev/null || true
+  if [ -n "$bot_dir" ]; then
+    mirza_ensure_ssl_vhost "$domain" "$bot_dir"
+  fi
   if mirza_ssl_cert_exists "$domain"; then
-    echo -e "  ${GREEN}✓${NC} SSL certificate exists for $domain"
-    return 0
+    if mirza_test_ssl_handshake "$domain"; then
+      echo -e "  ${GREEN}✓${NC} SSL certificate + TLS handshake OK for $domain"
+      return 0
+    fi
+    warn "SSL cert on disk but HTTPS handshake failed — repairing with certbot ..."
+    certbot --apache -d "$domain" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>/dev/null \
+      || certbot install --cert-name "$domain" 2>/dev/null \
+      || certbot renew --cert-name "$domain" --force-renewal 2>/dev/null || true
+    [ -n "$bot_dir" ] && mirza_ensure_ssl_vhost "$domain" "$bot_dir"
+    if mirza_test_ssl_handshake "$domain"; then
+      echo -e "  ${GREEN}✓${NC} SSL repaired"
+      return 0
+    fi
+    warn "TLS still failing — check Apache :443 vhost (le-ssl must stay enabled)"
+    return 1
   fi
   msg "Requesting SSL certificate (DNS OK, port 80 open) ..."
   if certbot --apache -d "$domain" --non-interactive --agree-tos --register-unsafely-without-email --redirect; then
+    [ -n "$bot_dir" ] && mirza_ensure_ssl_vhost "$domain" "$bot_dir"
     echo -e "  ${GREEN}✓${NC} SSL installed"
     return 0
   fi
@@ -1821,16 +1901,23 @@ do_fix_all_bot() {
   msg "Step 2/8 — DNS (domain must point to THIS server) ..."
   mirza_check_dns_matches_server "$domain" || warn "Fix DNS first — certbot/webhook will fail until A record is correct"
 
-  msg "Step 3/8 — Apache vhost (HTTP + SSL, disable stale sites) ..."
+  backup_zip=$(mirza_latest_backup_zip)
+  msg "Step 3/8 — Apache vhost (backup restore + SSL sites) ..."
+  if [ -n "$backup_zip" ]; then
+    echo -e "  ${CYAN}Backup:${NC} $(basename "$backup_zip")"
+    mirza_restore_apache_vhosts_from_zip "$backup_zip" "$domain" "$PROJECT_DIR" || true
+    mirza_restore_vendor_from_zip_if_missing "$backup_zip" "$PROJECT_DIR" || true
+  fi
   viranaut_disable_stale_vhosts "$PROJECT_DIR" "$domain"
   mirza_enable_apache_for_bot "$domain" "$PROJECT_DIR" || return 1
   viranaut_ensure_apache_documentroot "$PROJECT_DIR" "$domain"
+  mirza_rewrite_vhost_documentroot "$domain" "$PROJECT_DIR"
   local http_test
   http_test=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: ${domain}" "http://127.0.0.1/index.php" 2>/dev/null || echo "000")
   [ "$http_test" != "404" ] && echo -e "  ${GREEN}✓${NC} HTTP test: $http_test" || err "Still 404 — check Apache"
 
   msg "Step 4/8 — SSL & firewall ..."
-  mirza_fix_ssl_and_firewall "$domain" || true
+  mirza_fix_ssl_and_firewall "$domain" "$PROJECT_DIR" || true
   mirza_ensure_ssl_vhost "$domain" "$PROJECT_DIR"
   mirza_ufw_allow_telegram
   systemctl reload apache2 2>/dev/null || true
@@ -2053,6 +2140,11 @@ do_backup() {
   if [ -n "$DOMAIN" ] && [ -f "/etc/apache2/sites-available/${DOMAIN}-ssl.conf" ]; then
     cp "/etc/apache2/sites-available/${DOMAIN}-ssl.conf" "$TMP_DIR/${DOMAIN}-ssl.conf"
     echo -e "  ${GREEN}✓${NC} Apache SSL vhost saved (${DOMAIN}-ssl.conf)"
+    _vhost_saved=1
+  fi
+  if [ -n "$DOMAIN" ] && [ -f "/etc/apache2/sites-available/${DOMAIN}-le-ssl.conf" ]; then
+    cp "/etc/apache2/sites-available/${DOMAIN}-le-ssl.conf" "$TMP_DIR/${DOMAIN}-le-ssl.conf"
+    echo -e "  ${GREEN}✓${NC} Apache SSL vhost saved (${DOMAIN}-le-ssl.conf)"
     _vhost_saved=1
   fi
   if [ "$_vhost_saved" -eq 0 ]; then
