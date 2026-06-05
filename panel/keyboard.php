@@ -1,0 +1,152 @@
+<?php
+require_once __DIR__ . '/inc/config.php';
+require_once __DIR__ . '/inc/icons.php';
+require_once __DIR__ . '/inc/bot_data.php';
+require_auth();
+
+$catalog = mirza_panel_keyboard_catalog();
+$datatextbot = mirza_panel_load_datatextbot($pdo);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_check_post();
+    $action = $_POST['action'] ?? 'save';
+    if ($action === 'reset') {
+        $default = json_decode(mirza_panel_default_keyboard_json(), true);
+        mirza_panel_save_keyboardmain($pdo, $default['keyboard']);
+        flash('success', 'چیدمان به حالت پیش‌فرض بازگشت.');
+        header('Location: keyboard.php');
+        exit;
+    }
+    $raw = $_POST['keyboard_json'] ?? '[]';
+    $rows = json_decode($raw, true);
+    if (!is_array($rows)) {
+        flash('error', 'داده نامعتبر است.');
+        header('Location: keyboard.php');
+        exit;
+    }
+    $allowed = array_keys($catalog);
+    $clean = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $line = [];
+        foreach ($row as $key) {
+            $key = is_array($key) ? ($key['text'] ?? '') : (string) $key;
+            if (in_array($key, $allowed, true)) {
+                $line[] = ['text' => $key];
+            }
+        }
+        if ($line !== []) {
+            $clean[] = $line;
+        }
+    }
+    if ($clean === []) {
+        flash('error', 'حداقل یک دکمه در منو لازم است.');
+        header('Location: keyboard.php');
+        exit;
+    }
+    mirza_panel_save_keyboardmain($pdo, $clean);
+    flash('success', 'چیدمان منوی استارت ذخیره شد.');
+    header('Location: keyboard.php');
+    exit;
+}
+
+$keyboardData = mirza_panel_load_keyboardmain($pdo);
+$usedKeys = [];
+foreach ($keyboardData['keyboard'] as $row) {
+    foreach ($row as $btn) {
+        if (!empty($btn['text'])) {
+            $usedKeys[$btn['text']] = true;
+        }
+    }
+}
+$availableKeys = [];
+foreach ($catalog as $id => $title) {
+    if (!isset($usedKeys[$id])) {
+        $availableKeys[$id] = mirza_panel_keyboard_label($id, $datatextbot, $catalog);
+    }
+}
+
+$pageTitle = 'چیدمان منوی استارت';
+$pageLede = 'دکمه‌های کیبورد تلگرام را بکشید، مرتب کنید یا حذف کنید.';
+$activeNav = 'keyboard';
+$extraCss = ['css/keyboard.css'];
+$extraJs = ['js/keyboard.js'];
+include __DIR__ . '/inc/layout_head.php';
+?>
+
+<div class="kb-layout fade-up">
+    <div class="card kb-board-card">
+        <div class="card-head">
+            <div>
+                <div class="card-title">پیش‌نمایش منوی کاربر</div>
+                <div class="card-subtitle">همان چیزی که بعد از /start نمایش داده می‌شود</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <form method="post" style="display:inline" onsubmit="return confirm('بازگشت به چیدمان پیش‌فرض؟');">
+                    <input type="hidden" name="_csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
+                    <input type="hidden" name="action" value="reset">
+                    <button type="submit" class="btn btn-ghost btn-sm">بازنشانی پیش‌فرض</button>
+                </form>
+                <a href="bot-texts.php" class="btn btn-ghost btn-sm">ویرایش متن دکمه‌ها</a>
+                <a href="bot.php" class="btn btn-ghost btn-sm">مرکز ربات</a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="kbPreview" class="kb-preview">
+                <?php foreach ($keyboardData['keyboard'] as $ri => $row): ?>
+                    <div class="kb-row" data-row="<?= (int) $ri ?>">
+                        <?php foreach ($row as $btn):
+                            $kid = $btn['text'] ?? '';
+                            $label = mirza_panel_keyboard_label($kid, $datatextbot, $catalog);
+                            ?>
+                            <div class="kb-btn" draggable="true" data-key="<?= htmlspecialchars($kid) ?>" data-label="<?= htmlspecialchars($label) ?>">
+                                <span class="kb-btn-label"><?= htmlspecialchars($label) ?></span>
+                                <span class="kb-btn-id"><?= htmlspecialchars($kid) ?></span>
+                                <button type="button" class="kb-btn-remove" title="حذف" aria-label="حذف">&times;</button>
+                            </div>
+                        <?php endforeach; ?>
+                        <button type="button" class="kb-row-add" title="افزودن دکمه به این ردیف">+</button>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" id="kbAddRow" style="margin-top:12px">+ ردیف جدید</button>
+        </div>
+    </div>
+
+    <div class="kb-side">
+        <div class="card fade-up d1">
+            <div class="card-head">
+                <div class="card-title">دکمه‌های قابل افزودن</div>
+            </div>
+            <div class="card-body">
+                <p class="field-hint" style="margin-bottom:12px">روی دکمه کلیک کنید یا به ردیف منو بکشید.</p>
+                <div id="kbPalette" class="kb-palette">
+                    <?php if ($availableKeys === []): ?>
+                        <p class="cf kb-palette-empty" style="font-size:.82rem">همه دکمه‌ها در منو هستند.</p>
+                    <?php else: ?>
+                        <?php foreach ($availableKeys as $id => $label): ?>
+                            <div class="kb-palette-item" draggable="true" data-key="<?= htmlspecialchars($id) ?>" data-label="<?= htmlspecialchars($label) ?>">
+                                <span><?= htmlspecialchars($label) ?></span>
+                                <code><?= htmlspecialchars($id) ?></code>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <form method="post" id="kbSaveForm" class="card fade-up d2" style="margin-top:14px">
+            <input type="hidden" name="_csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
+            <input type="hidden" name="action" value="save">
+            <input type="hidden" name="keyboard_json" id="keyboardJson" value="">
+            <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <p class="field-hint" style="margin:0">پس از ذخیره، منو برای کاربران به‌روز می‌شود.</p>
+                <button type="submit" class="btn btn-primary">ذخیره چیدمان</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<?php include __DIR__ . '/inc/layout_foot.php'; ?>

@@ -1,0 +1,165 @@
+.auth-support {
+  position: relative;
+  z-index: 2;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  pointer-events: auto;
+}
+
+.auth-support-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 4px;
+}
+
+.auth-support-lede {
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 12px;
+}
+
+.auth-support-lede a {
+  color: #a8dafd;
+  text-decoration: none;
+}
+
+.auth-support-lede a:hover {
+  text-decoration: underline;
+}
+
+.auth-wallet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-left: 2px;
+}
+
+.auth-wallet-item {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.auth-wallet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.auth-wallet-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.auth-wallet-net {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.auth-wallet-addr {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.75);
+  word-break: break-all;
+  direction: ltr;
+  text-align: left;
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: all;
+  -webkit-user-select: all;
+  padding: 4px 0;
+}
+
+.auth-wallet-copy {
+  position: relative;
+  z-index: 3;
+  padding: 4px 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #a8dafd;
+  background: rgba(168, 218, 253, 0.1);
+  border: 1px solid rgba(168, 218, 253, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  pointer-events: auto;
+}
+
+.auth-wallet-copy:hover {
+  background: rgba(168, 218, 253, 0.18);
+}
+
+.auth-wallet-copy.is-copied {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.12);
+}
+
+.auth-wallet-copy.is-fail {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.auth-wallet-addr:hover {
+  color: #fff;
+}
+
+.auth-support--inline {
+  display: none;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--bd);
+}
+
+.auth-support--inline .auth-support-title {
+  color: var(--text);
+}
+
+.auth-support--inline .auth-support-lede {
+  color: var(--mute);
+}
+
+.auth-support--inline .auth-wallet-item {
+  background: var(--sf2);
+  border-color: var(--bd);
+}
+
+.auth-support--inline .auth-wallet-label {
+  color: var(--text);
+}
+
+.auth-support--inline .auth-wallet-net {
+  color: var(--mute);
+}
+
+.auth-support--inline .auth-wallet-addr {
+  color: var(--text);
+}
+
+.auth-support--inline .auth-wallet-copy {
+  color: var(--ac);
+  background: var(--acs);
+  border-color: var(--bd);
+}
+
+@media (max-width: 900px) {
+  .auth-support--inline {
+    display: block;
+  }
+
+  .auth-wallet-list {
+    max-height: none;
+  }
+}

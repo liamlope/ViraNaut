@@ -1,0 +1,15 @@
+body.mirza-tpl-midnight {
+  --mirza-accent: #22d3ee;
+  --mirza-accent-2: #6366f1;
+  --mirza-surface: rgba(15, 23, 42, 0.96);
+  --mirza-surface-2: rgba(30, 41, 59, 0.9);
+  --mirza-border: rgba(148, 163, 184, 0.22);
+  --mirza-glow: rgba(34, 211, 238, 0.2);
+  --mirza-text: #f8fafc;
+  --mirza-muted: #94a3b8;
+  --mirza-success: #34d399;
+  background: #0f172a !important;
+}
+body.mirza-tpl-midnight .mirza-app-loader {
+  background: #0f172a;
+}

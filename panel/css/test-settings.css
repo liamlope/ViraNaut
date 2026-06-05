@@ -1,0 +1,218 @@
+.test-settings-page {
+    max-width: 1100px;
+}
+
+.test-settings-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.test-settings-toolbar-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.test-settings-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.test-stat-card {
+    padding: 14px 16px;
+    background: var(--sf2);
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+}
+
+.test-stat-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--mute);
+    margin-bottom: 6px;
+}
+
+.test-stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.test-stat-value.is-on {
+    color: var(--ok, #22c55e);
+}
+
+.test-stat-value.is-off {
+    color: var(--warn, #f59e0b);
+}
+
+.test-global-card .card-body {
+    display: grid;
+    grid-template-columns: 1fr minmax(200px, 280px);
+    gap: 20px;
+    align-items: start;
+}
+
+.test-global-toggle {
+    padding: 16px;
+    background: var(--sf2);
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+}
+
+.test-global-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.test-panels-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.test-panels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+    padding: 16px;
+}
+
+.test-panel-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+    background: var(--sf2);
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+    transition: border-color var(--tf);
+}
+
+.test-panel-card:focus-within {
+    border-color: var(--ac);
+    box-shadow: 0 0 0 3px var(--acs);
+}
+
+.test-panel-card.is-inactive {
+    opacity: 0.72;
+}
+
+.test-panel-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.test-panel-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text);
+    word-break: break-word;
+}
+
+.test-panel-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.test-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    border-radius: 99px;
+    border: 1px solid var(--bd);
+    white-space: nowrap;
+}
+
+.test-badge.ok {
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.35);
+    color: #4ade80;
+}
+
+.test-badge.off {
+    background: rgba(148, 163, 184, 0.12);
+    border-color: var(--bd);
+    color: var(--mute);
+}
+
+.test-badge.warn {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.35);
+    color: #fbbf24;
+}
+
+.test-panel-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.test-panel-field-full {
+    grid-column: 1 / -1;
+}
+
+.test-panel-field .field-label {
+    font-size: 0.75rem;
+}
+
+.test-panel-field .input,
+.test-panel-field .select {
+    width: 100%;
+    min-width: 0;
+}
+
+.test-panels-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px 16px;
+    border-top: 1px solid var(--bd);
+}
+
+.test-panels-empty {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--mute);
+}
+
+.test-panels-empty .btn {
+    margin-top: 12px;
+}
+
+@media (max-width: 720px) {
+    .test-global-card .card-body {
+        grid-template-columns: 1fr;
+    }
+
+    .test-panels-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .test-settings-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .test-settings-toolbar .btn-primary {
+        width: 100%;
+        justify-content: center;
+    }
+}

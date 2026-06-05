@@ -1,0 +1,119 @@
+.field-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text2);
+}
+.bot-settings-page {
+    max-width: 1100px;
+}
+.bot-settings-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.bot-settings-toolbar-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.bot-settings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.bot-settings-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.bot-settings-section-icon {
+    display: inline-flex;
+    color: var(--ac);
+}
+.bot-settings-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px 20px;
+}
+.bot-settings-field {
+    min-width: 0;
+}
+.bot-settings-toggle-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    background: var(--sf2);
+    border: 1px solid var(--bd);
+    border-radius: 10px;
+    transition: border-color var(--tf);
+}
+.bot-settings-toggle-row:focus-within {
+    border-color: var(--ac);
+    box-shadow: 0 0 0 3px var(--acs);
+}
+.bot-settings-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+}
+.bot-settings-toggle-meta .field-hint {
+    display: block;
+    margin-top: 4px;
+}
+.toggle-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.toggle-chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--mute);
+    background: var(--sf3);
+    border: 1.5px solid var(--bd);
+    border-radius: 99px;
+    cursor: pointer;
+    transition: all var(--tf);
+    user-select: none;
+}
+.toggle-chip input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.toggle-chip:hover {
+    border-color: var(--bds);
+    color: var(--text2);
+}
+.toggle-chip.active {
+    background: var(--acs);
+    border-color: var(--ac);
+    color: var(--ach);
+    box-shadow: 0 0 12px var(--acg);
+}
+.bot-settings-footer {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--bd);
+}
+@media (max-width: 600px) {
+    .bot-settings-fields {
+        grid-template-columns: 1fr;
+    }
+    .bot-settings-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .bot-settings-toolbar .btn-primary {
+        width: 100%;
+        justify-content: center;
+    }
+}

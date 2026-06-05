@@ -1,0 +1,33 @@
+.inbound-picker-box {
+    border: 1px solid var(--border, #334155);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--surface-2, rgba(15, 23, 42, 0.4));
+    max-height: 220px;
+    overflow-y: auto;
+}
+.inbound-picker-hint {
+    margin: 0 0 8px;
+    font-size: 0.78rem;
+}
+.inbound-default-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.inbound-check-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.inbound-check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    padding: 4px 0;
+}

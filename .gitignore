@@ -1,0 +1,33 @@
+# Secrets & runtime config
+config.php
+.env
+.env.*
+
+# Logs
+error_log
+*.log
+log.txt
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Uploads & generated storage
+panel/storage/*
+!panel/storage/.gitkeep
+storage/*
+!storage/.gitkeep
+
+# PHP / Composer (if used locally)
+vendor/
+
+# Server-side credentials (never commit)
+/root/confmirza/
+
+# Backups created on server
+*.sql.gz
+*_backup_*.zip

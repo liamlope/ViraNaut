@@ -1,0 +1,12 @@
+.shop-settings-page {
+    max-width: 1100px;
+}
+.shop-settings-note {
+    font-size: 0.78rem;
+    color: var(--dim);
+    margin: 12px 0 8px;
+    padding: 12px 14px;
+    background: var(--sf2);
+    border-radius: 8px;
+    border: 1px solid var(--bd);
+}

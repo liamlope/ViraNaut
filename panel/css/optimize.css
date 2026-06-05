@@ -1,0 +1,134 @@
+.opt-page {
+    max-width: 900px;
+}
+
+.opt-hero {
+    padding: 18px 20px;
+    margin-bottom: 14px;
+}
+
+.opt-hero-title {
+    font-size: 1rem;
+    font-weight: 800;
+    margin: 0 0 6px;
+}
+
+.opt-hero-lede {
+    font-size: 0.82rem;
+    color: var(--mute);
+    line-height: 1.65;
+    margin: 0;
+}
+
+.opt-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.opt-stats.is-loading {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.btn.is-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.opt-stat {
+    padding: 12px 14px;
+    background: var(--sf2);
+    border: 1px solid var(--bd);
+    border-radius: 10px;
+}
+
+.opt-stat-val {
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.opt-stat-label {
+    font-size: 0.72rem;
+    color: var(--mute);
+    margin-top: 4px;
+}
+
+.opt-stat.is-safe .opt-stat-val {
+    color: var(--ok, #22c55e);
+}
+
+.opt-stat.is-warn .opt-stat-val {
+    color: var(--warn, #f59e0b);
+}
+
+.opt-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.opt-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.opt-list li::before {
+    content: '✓';
+    color: var(--ok, #22c55e);
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.opt-list li.is-protected::before {
+    content: '🔒';
+}
+
+.opt-days-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.opt-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.opt-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-top: 16px;
+}
+
+.opt-result {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--sf2);
+    border: 1px solid var(--bd);
+    font-size: 0.82rem;
+    line-height: 1.65;
+    white-space: pre-wrap;
+}
+
+.opt-safe-note {
+    font-size: 0.75rem;
+    color: var(--mute);
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--sf2);
+    border: 1px dashed var(--bd);
+}

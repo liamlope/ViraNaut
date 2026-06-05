@@ -1,0 +1,173 @@
+/* ── Global panel operation progress ── */
+.pp-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: rgba(8, 12, 20, 0.55);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: ppFadeIn 0.2s ease;
+}
+
+.pp-veil[hidden] {
+    display: none !important;
+}
+
+@keyframes ppFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.pp-card {
+    width: min(420px, 94vw);
+    padding: 22px 22px 18px;
+    background: var(--sf);
+    border: 1px solid var(--bd);
+    border-radius: 14px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+
+.pp-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.pp-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--bd);
+    border-top-color: var(--ac);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    flex-shrink: 0;
+}
+
+.pp-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.pp-sub {
+    font-size: 0.75rem;
+    color: var(--mute);
+    margin: 2px 0 0;
+}
+
+.pp-bar-wrap {
+    height: 8px;
+    background: var(--sf2);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 14px;
+    border: 1px solid var(--bd);
+}
+
+.pp-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--ac), color-mix(in srgb, var(--ac) 70%, #fff));
+    border-radius: 999px;
+    transition: width 0.45s ease;
+}
+
+.pp-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pp-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.78rem;
+    color: var(--mute);
+    padding: 6px 8px;
+    border-radius: 8px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.pp-step.is-active {
+    color: var(--text);
+    background: var(--acs);
+    font-weight: 600;
+}
+
+.pp-step.is-done {
+    color: var(--ok, #22c55e);
+}
+
+.pp-step-icon {
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 0.85rem;
+}
+
+.pp-hint {
+    margin: 12px 0 0;
+    font-size: 0.72rem;
+    color: var(--mute);
+    text-align: center;
+}
+
+.pp-veil.is-success .pp-spinner {
+    border-color: var(--ok, #22c55e);
+    border-top-color: transparent;
+    animation: none;
+    position: relative;
+}
+
+.pp-veil.is-success .pp-spinner::after {
+    content: '✓';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ok, #22c55e);
+    font-weight: 800;
+    font-size: 1rem;
+}
+
+.pp-veil.is-error .pp-bar-fill {
+    background: var(--no, #ef4444);
+}
+
+/* Stats loading shimmer */
+.opt-stats.is-loading .opt-stat-val {
+    color: transparent;
+    background: linear-gradient(90deg, var(--sf2) 25%, var(--bd) 50%, var(--sf2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: 4px;
+    min-height: 1.4em;
+}
+
+.btn.is-loading {
+    pointer-events: none;
+    opacity: 0.75;
+}
+
+.btn.is-loading::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 8px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: -2px;
+}

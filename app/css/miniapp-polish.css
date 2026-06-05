@@ -1,0 +1,93 @@
+/* Polish layer for ViraNaut Telegram Mini App (RTL, Persian, mobile-first) */
+html {
+  font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif !important;
+  direction: rtl;
+}
+body.mirza-miniapp {
+  margin: 0;
+  background: var(--tg-theme-bg-color, #0f172a);
+  color: var(--tg-theme-text-color, #f1f5f9);
+  -webkit-font-smoothing: antialiased;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+#root {
+  min-height: 100dvh;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+body.mirza-miniapp-ready #root {
+  opacity: 1;
+}
+body.mirza-miniapp-ready .mirza-app-loader {
+  opacity: 0;
+  pointer-events: none;
+}
+.mirza-app-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: grid;
+  place-items: center;
+  background: var(--tg-theme-bg-color, #0f172a);
+  transition: opacity 0.4s ease;
+}
+.mirza-app-loader-inner {
+  text-align: center;
+  padding: 24px;
+}
+.mirza-app-loader-ring {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 16px;
+  border: 3px solid rgba(148, 163, 184, 0.25);
+  border-top-color: var(--tg-theme-button-color, #06b6d4);
+  border-radius: 50%;
+  animation: mirza-spin 0.85s linear infinite;
+}
+.mirza-app-loader p {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--tg-theme-hint-color, #94a3b8);
+  margin: 0;
+}
+@keyframes mirza-spin {
+  to { transform: rotate(360deg); }
+}
+/* RTL + typography overrides for bundled UI */
+.mirza-miniapp * {
+  font-family: inherit;
+}
+.mirza-miniapp button,
+.mirza-miniapp input,
+.mirza-miniapp select,
+.mirza-miniapp textarea {
+  font-family: inherit;
+}
+/* Softer cards & spacing where bundle uses generic classes */
+.mirza-miniapp [class*='card'],
+.mirza-miniapp [class*='Card'] {
+  border-radius: 14px !important;
+}
+.mirza-miniapp [class*='product'],
+.mirza-miniapp [class*='Product'] {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+@media (hover: hover) {
+  .mirza-miniapp [class*='product']:hover,
+  .mirza-miniapp [class*='Product']:hover {
+    transform: translateY(-2px);
+  }
+}
+/* Error / empty states readability */
+.mirza-miniapp [role='alert'],
+.mirza-miniapp [class*='error'],
+.mirza-miniapp [class*='Error'] {
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+/* Bottom safe area for Telegram main button */
+.mirza-miniapp main,
+.mirza-miniapp [class*='layout'],
+.mirza-miniapp [class*='Layout'] {
+  padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+}

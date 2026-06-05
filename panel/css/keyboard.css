@@ -1,0 +1,157 @@
+.kb-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .kb-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kb-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px dashed var(--bd);
+  border-radius: 12px;
+  min-height: 120px;
+}
+
+.kb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  min-height: 52px;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.kb-row.kb-drag-over {
+  border-color: var(--ac);
+  box-shadow: 0 0 0 2px var(--acg);
+}
+
+.kb-btn {
+  position: relative;
+  flex: 1 1 120px;
+  min-width: 100px;
+  max-width: 100%;
+  padding: 10px 28px 10px 12px;
+  background: linear-gradient(180deg, var(--sf2, var(--sf)) 0%, var(--sf) 100%);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  cursor: grab;
+  user-select: none;
+  text-align: center;
+}
+
+.kb-btn:active {
+  cursor: grabbing;
+}
+
+.kb-btn.kb-dragging {
+  opacity: 0.45;
+}
+
+.kb-btn-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--txt);
+  line-height: 1.3;
+}
+
+.kb-btn-id {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--mute);
+  margin-top: 2px;
+  font-family: ui-monospace, monospace;
+  direction: ltr;
+}
+
+.kb-btn-remove {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--mute);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+}
+
+.kb-btn-remove:hover {
+  color: var(--no);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.kb-row-add {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border: 1px dashed var(--bd);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--mute);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.kb-row-add:hover {
+  border-color: var(--ac);
+  color: var(--ac);
+}
+
+.kb-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kb-palette-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  cursor: grab;
+  font-size: 0.84rem;
+  transition: border-color 0.15s, transform 0.1s;
+}
+
+.kb-palette-item:hover {
+  border-color: var(--ac);
+}
+
+.kb-palette-item code {
+  font-size: 0.68rem;
+  color: var(--mute);
+  direction: ltr;
+}
+
+.kb-palette-item.kb-dragging {
+  opacity: 0.5;
+}
+
+.kb-side .card + .card {
+  margin-top: 0;
+}
