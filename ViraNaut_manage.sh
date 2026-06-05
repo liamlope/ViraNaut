@@ -776,6 +776,13 @@ do_local_update() {
     return 1
   }
 
+  local TEMP_VENDOR="/root/mirza_local_update_vendor_backup"
+  if [ -f "$BOT_DIR/vendor/autoload.php" ]; then
+    msg "Backing up vendor/ (PHP dependencies) ..."
+    rm -rf "$TEMP_VENDOR"
+    cp -a "$BOT_DIR/vendor" "$TEMP_VENDOR" || warn "vendor backup failed"
+  fi
+
   msg "Replacing files under $BOT_DIR ..."
   find "$BOT_DIR" -mindepth 1 -maxdepth 1 ! -name 'config.php' -exec rm -rf {} +
   if [ -d "$SRC_DIR" ]; then
@@ -785,10 +792,20 @@ do_local_update() {
   fi
   mv "$TEMP_CONFIG" "$CONFIG_PATH" || {
     err "Failed to restore config.php"
-    rm -rf "$TMP_EXTRACT"
+    rm -rf "$TMP_EXTRACT" "$TEMP_VENDOR"
     return 1
   }
-  rm -rf "$TMP_EXTRACT"
+  if [ ! -f "$BOT_DIR/vendor/autoload.php" ] && [ -f "$TEMP_VENDOR/autoload.php" ]; then
+    msg "Restoring vendor/ (update package had no PHP vendor folder) ..."
+    rm -rf "$BOT_DIR/vendor"
+    cp -a "$TEMP_VENDOR" "$BOT_DIR/vendor"
+  fi
+  rm -rf "$TMP_EXTRACT" "$TEMP_VENDOR"
+
+  if [ ! -f "$BOT_DIR/vendor/autoload.php" ]; then
+    err "vendor/autoload.php MISSING — bot cannot handle /start until vendor/ is restored"
+    echo "  Fix: re-run update from a full zip with vendor/, or copy vendor/ from backup, then menu 13"
+  fi
 
   mirza_apply_php_core_fixes "$BOT_DIR"
   mirza_sync_config_domainhosts_file "$CONFIG_PATH"

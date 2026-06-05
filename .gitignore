@@ -22,9 +22,6 @@ panel/storage/*
 storage/*
 !storage/.gitkeep
 
-# PHP / Composer (if used locally)
-vendor/
-
 # Server-side credentials (never commit)
 /root/confmirza/
 

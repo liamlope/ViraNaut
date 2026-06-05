@@ -1457,6 +1457,12 @@ function update_bot() {
     else
         echo -e "\e[93mWarning: config.php not found. Proceeding without backup.\033[0m"
     fi
+    TEMP_VENDOR="/root/viranaut_vendor_backup"
+    if [ -f "$BOT_DIR/vendor/autoload.php" ]; then
+        echo -e "\e[33mBacking up vendor/ ...\033[0m"
+        rm -rf "$TEMP_VENDOR"
+        cp -a "$BOT_DIR/vendor" "$TEMP_VENDOR" || true
+    fi
     if viranaut_update_from_github "$BOT_DIR"; then
         echo -e "\e[92mUpdated from Git repository (config.php preserved).\033[0m"
     else
@@ -1467,6 +1473,15 @@ function update_bot() {
         find "$BOT_DIR" -mindepth 1 -maxdepth 1 ! -name 'config.php' -exec rm -rf {} + 2>/dev/null || true
         cp -a "$TEMP_STAGING"/. "$BOT_DIR"/
         rm -rf "$TEMP_STAGING"
+    fi
+    if [ ! -f "$BOT_DIR/vendor/autoload.php" ] && [ -f "$TEMP_VENDOR/autoload.php" ]; then
+        echo -e "\e[33mRestoring vendor/ (update package had no vendor folder)...\033[0m"
+        rm -rf "$BOT_DIR/vendor"
+        cp -a "$TEMP_VENDOR" "$BOT_DIR/vendor"
+    fi
+    rm -rf "$TEMP_VENDOR"
+    if [ ! -f "$BOT_DIR/vendor/autoload.php" ]; then
+        echo -e "\e[91mWarning: vendor/autoload.php missing — run composer install or copy vendor/ before using the bot.\033[0m"
     fi
     if [ -f "$TEMP_CONFIG" ]; then
         cp "$TEMP_CONFIG" "$CONFIG_PATH" || {
