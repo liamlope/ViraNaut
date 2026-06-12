@@ -13,7 +13,7 @@ LEGACY_PROJECT_DIR="/var/www/mirza_pro"
 ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
 MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
-VIRANAUT_MANAGE_VERSION="1.9-ViraNaut"
+VIRANAUT_MANAGE_VERSION="2.0.1-ViraNaut"
 MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
 VIRANAUT_BACKUP_PREFIX="viranaut_backup"
 VIRANAUT_VHOST_GENERIC="viranaut-pro.conf"
@@ -218,7 +218,7 @@ viranaut_ensure_apache_documentroot() {
         sed -i "s|${old}|${bot_dir}|g" "$f"
         mirza_sanitize_vhost_conf "$f"
         fixed=1
-        echo -e "  ${GREEN}✓${NC} Patched vhost $(basename "$f"): ${old} → ${bot_dir}"
+        echo -e "  ${GREEN}✓${NC} Patched vhost $(basename "$f"): ${old} → ${bot_dir}" >&2
       fi
     done
     if [ -n "$domain" ] && grep -qiE "ServerName[[:space:]]+${domain}([[:space:]]|$)" "$f" 2>/dev/null; then
@@ -226,7 +226,7 @@ viranaut_ensure_apache_documentroot() {
         sed -i "s|^[[:space:]]*DocumentRoot.*|    DocumentRoot ${bot_dir}|" "$f"
         mirza_sanitize_vhost_conf "$f"
         fixed=1
-        echo -e "  ${GREEN}✓${NC} DocumentRoot → $bot_dir in $(basename "$f")"
+        echo -e "  ${GREEN}✓${NC} DocumentRoot → $bot_dir in $(basename "$f")" >&2
       fi
     fi
   done
@@ -265,7 +265,7 @@ viranaut_disable_stale_vhosts() {
     if [ -e "/etc/apache2/sites-enabled/$base" ]; then
       a2dissite "$base" 2>/dev/null || true
       rm -f "/etc/apache2/sites-enabled/$base"
-      echo -e "  ${YELLOW}●${NC} Disabled legacy vhost: $base"
+      echo -e "  ${YELLOW}●${NC} Disabled legacy vhost: $base" >&2
     fi
   done
 
@@ -281,7 +281,7 @@ viranaut_disable_stale_vhosts() {
       if grep -qiE "ServerName[[:space:]]+${domain}" "$f" 2>/dev/null; then
         a2dissite "$base" 2>/dev/null || true
         rm -f "/etc/apache2/sites-enabled/$base"
-        echo -e "  ${YELLOW}●${NC} Disabled duplicate vhost: $base"
+        echo -e "  ${YELLOW}●${NC} Disabled duplicate vhost: $base" >&2
       fi
     done
   fi
@@ -298,7 +298,7 @@ viranaut_disable_stale_vhosts() {
         base=$(basename "$f")
         a2dissite "$base" 2>/dev/null || true
         rm -f "/etc/apache2/sites-enabled/$base"
-        echo -e "  ${YELLOW}●${NC} Disabled stale vhost: $base (was $docroot)"
+        echo -e "  ${YELLOW}●${NC} Disabled stale vhost: $base (was $docroot)" >&2
         break
       fi
     done
@@ -326,6 +326,7 @@ viranaut_apache_log_file() {
 }
 
 # Move bot to /var/www/html/viranaut when installed elsewhere (mirza_pro, viranautconfig, …)
+# Sets PROJECT_DIR + CONFIG_FILE — never print status to stdout (safe in command substitution).
 viranaut_relocate_to_canonical_path() {
   local src="${1%/}"
   local dest="${INSTALL_BOT_DIR%/}"
@@ -335,17 +336,19 @@ viranaut_relocate_to_canonical_path() {
     cfg="$dest/config.php"
     domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg")")
     viranaut_ensure_apache_documentroot "$dest" "$domain"
-    printf '%s' "$dest"
+    PROJECT_DIR="$dest"
+    CONFIG_FILE="$dest/config.php"
     return 0
   fi
 
   if ! mirza_is_valid_bot_dir "$src"; then
-    warn "Skip relocate: invalid bot dir $src"
-    printf '%s' "$src"
+    warn "Skip relocate: invalid bot dir $src" >&2
+    PROJECT_DIR="$src"
+    CONFIG_FILE="$src/config.php"
     return 1
   fi
 
-  msg "Relocating bot → $dest (from $src) ..."
+  msg "Relocating bot → $dest (from $src) ..." >&2
   mkdir -p "$dest"
   if command -v rsync >/dev/null 2>&1; then
     rsync -a "$src"/ "$dest"/
@@ -383,11 +386,12 @@ viranaut_relocate_to_canonical_path() {
 
   if [ -d "$src" ] && [ "$src" != "$dest" ]; then
     rm -rf "$src"
-    echo -e "  ${GREEN}✓${NC} Removed old install path: $src"
+    echo -e "  ${GREEN}✓${NC} Removed old install path: $src" >&2
   fi
 
-  echo -e "  ${GREEN}✓${NC} Canonical install path: $dest"
-  printf '%s' "$dest"
+  echo -e "  ${GREEN}✓${NC} Canonical install path: $dest" >&2
+  PROJECT_DIR="$dest"
+  CONFIG_FILE="$dest/config.php"
   return 0
 }
 
@@ -823,8 +827,8 @@ do_local_update() {
 
   viranaut_db_migrate "$BOT_DIR"
 
-  BOT_DIR=$(viranaut_relocate_to_canonical_path "$BOT_DIR")
-  PROJECT_DIR="$BOT_DIR"
+  viranaut_relocate_to_canonical_path "$BOT_DIR"
+  BOT_DIR="$PROJECT_DIR"
   CONFIG_FILE="$BOT_DIR/config.php"
 
   local _dom _tok
@@ -1074,8 +1078,8 @@ VHOST
 
   viranaut_db_migrate "$BOT_DIR"
 
-  BOT_DIR=$(viranaut_relocate_to_canonical_path "$BOT_DIR")
-  PROJECT_DIR="$BOT_DIR"
+  viranaut_relocate_to_canonical_path "$BOT_DIR"
+  BOT_DIR="$PROJECT_DIR"
   CONFIG_FILE="$BOT_DIR/config.php"
 
   setup_cron_jobs
@@ -1192,27 +1196,77 @@ install_dependencies() {
   echo ""
 }
 
-# Read a PHP variable from config.php (GNU sed -E; avoids BRE \( \) errors)
+# Read a PHP variable from config.php (safe parse — no execute)
 # Usage: read_php_var "varname" [path/to/config.php]
 read_php_var() {
   local var="$1"
   local file="${2:-$CONFIG_FILE}"
-  local val
   [ -f "$file" ] || return 0
+  if command -v php >/dev/null 2>&1; then
+    php -d display_errors=0 -r '
+      $f = $argv[1];
+      $v = $argv[2];
+      $c = @file_get_contents($f);
+      if ($c === false) { exit(1); }
+      $c = str_replace("\r", "", $c);
+      $q = preg_quote($v, "/");
+      if (preg_match("/^\\s*\\$" . $q . "\\s*=\\s*\'((?:\\\\\'|[^\'])*)\'\\s*;/m", $c, $m)) {
+        echo str_replace("\\\'", "\'", $m[1]);
+        exit(0);
+      }
+      if (preg_match("/^\\s*\\$" . $q . "\\s*=\\s*\"((?:\\\\\"|[^\"])*)\"\\s*;/m", $c, $m)) {
+        echo str_replace("\\\"", "\"", $m[1]);
+        exit(0);
+      }
+      if (preg_match("/^\\s*\\$" . $q . "\\s*=\\s*([^;]+);/m", $c, $m)) {
+        $val = trim($m[1]);
+        $val = trim($val, " \t\"\'");
+        if ($val !== "") { echo $val; exit(0); }
+      }
+      exit(1);
+    ' "$file" "$var" 2>/dev/null && return 0
+  fi
+  local val
   val=$(sed -En "s/^[[:space:]]*\\\$${var}[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" "$file" | head -n 1)
   if [ -n "$val" ]; then
     printf '%s' "$val"
     return 0
   fi
-  # Fallback: password/token may contain quotes — parse with PHP
-  if command -v php >/dev/null 2>&1; then
-    php -d display_errors=0 -r "
-      \$c = file_get_contents('${file//\'/\\\'}');
-      if (preg_match('/^\\s*\\\$${var}\\s*=\\s*[\"\\'](.*)[\"\\']\\s*;/m', \$c, \$m)) {
-        echo \$m[1];
-      }
-    " 2>/dev/null
+  val=$(grep -E "^[[:space:]]*\\\$${var}[[:space:]]*=" "$file" 2>/dev/null | head -1 \
+    | sed -E "s/^[[:space:]]*\\\$${var}[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/")
+  [ -n "$val" ] && printf '%s' "$val"
+}
+
+mirza_restore_config_from_zip() {
+  local zip="$1" dest_cfg="$2"
+  local tmp restored=""
+  [ -f "$zip" ] || return 1
+  [ -n "$dest_cfg" ] || return 1
+  tmp=$(mktemp -d)
+  if unzip -q -o "$zip" "config.php" -d "$tmp" 2>/dev/null \
+    || unzip -q -o "$zip" "*/config.php" -d "$tmp" 2>/dev/null; then
+    restored=$(find "$tmp" -name 'config.php' -type f | head -1)
+    if [ -n "$restored" ] && [ -f "$restored" ]; then
+      cp "$restored" "$dest_cfg"
+      chmod 640 "$dest_cfg" 2>/dev/null || true
+      chown www-data:www-data "$dest_cfg" 2>/dev/null || true
+      echo -e "  ${GREEN}✓${NC} Restored config.php from $(basename "$zip")"
+      rm -rf "$tmp"
+      return 0
+    fi
   fi
+  rm -rf "$tmp"
+  return 1
+}
+
+mirza_config_vars_ok() {
+  local cfg="$1"
+  local domain token dbname dbuser
+  domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg")")
+  token=$(read_php_var "APIKEY" "$cfg")
+  dbname=$(read_php_var "dbname" "$cfg")
+  dbuser=$(read_php_var "usernamedb" "$cfg")
+  [ -n "$domain" ] && [ -n "$token" ] && [ -n "$dbname" ] && [ -n "$dbuser" ]
 }
 
 mirza_config_mysql_ok() {
@@ -1278,8 +1332,8 @@ WHERE ValuePay LIKE '%میرزا%' OR ValuePay LIKE '%Mirza%';
 UPDATE shopSetting SET value = REPLACE(REPLACE(REPLACE(value,
   'تیم میرزا', 'تیم ویرانات'), 'میرزا', 'ویرانات'), 'Mirza', 'ViraNaut')
 WHERE value LIKE '%میرزا%' OR value LIKE '%Mirza%';
-INSERT INTO shopSetting (Namevalue, value) VALUES ('viranaut_version', '1.9-ViraNaut')
-ON DUPLICATE KEY UPDATE value='1.9-ViraNaut';
+INSERT INTO shopSetting (Namevalue, value) VALUES ('viranaut_version', '2.0.1-ViraNaut')
+ON DUPLICATE KEY UPDATE value='2.0.1-ViraNaut';
 EOSQL
 
   echo -e "  ${GREEN}✓${NC} ViraNaut database merge completed"
@@ -1293,13 +1347,13 @@ load_config() {
     mirza_list_installations || true
     exit 1
   fi
-  DB_NAME=$(read_php_var "dbname")
-  DB_USER=$(read_php_var "usernamedb")
-  DB_PASS=$(read_php_var "passworddb")
-  BOT_TOKEN=$(read_php_var "APIKEY")
-  ADMIN_ID=$(read_php_var "adminnumber")
-  BOT_USERNAME=$(mirza_normalize_bot_username "$(read_php_var "usernamebot")")
-  DOMAIN_RAW=$(read_php_var "domainhosts")
+  DB_NAME=$(read_php_var "dbname" "$CONFIG_FILE")
+  DB_USER=$(read_php_var "usernamedb" "$CONFIG_FILE")
+  DB_PASS=$(read_php_var "passworddb" "$CONFIG_FILE")
+  BOT_TOKEN=$(read_php_var "APIKEY" "$CONFIG_FILE")
+  ADMIN_ID=$(read_php_var "adminnumber" "$CONFIG_FILE")
+  BOT_USERNAME=$(mirza_normalize_bot_username "$(read_php_var "usernamebot" "$CONFIG_FILE")")
+  DOMAIN_RAW=$(read_php_var "domainhosts" "$CONFIG_FILE")
   DOMAIN=$(mirza_normalize_domainhosts "$DOMAIN_RAW")
 
   if [ -z "$DB_NAME" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ]; then
@@ -1532,7 +1586,6 @@ mirza_write_meta_cron_jobs() {
   mkdir -p "$(dirname "$out")"
   cat >"$out" <<CRON
 */15 * * * * curl -fsS https://${domain}/cronbot/statusday.php
-*/1 * * * * curl -fsS https://${domain}/cronbot/croncard.php
 */1 * * * * curl -fsS https://${domain}/cronbot/NoticationsService.php
 */5 * * * * curl -fsS https://${domain}/cronbot/payment_expire.php
 */1 * * * * curl -fsS https://${domain}/cronbot/sendmessage.php
@@ -1841,28 +1894,37 @@ do_fix_all_bot() {
     return 1
   fi
 
-  PROJECT_DIR=$(viranaut_relocate_to_canonical_path "$PROJECT_DIR")
-  CONFIG_FILE="$PROJECT_DIR/config.php"
-  viranaut_ensure_apache_documentroot "$PROJECT_DIR" ""
-
   local domain token dbname dbuser dbpass user_count backup_zip bot_user
 
-  domain=$(read_php_var "domainhosts")
-  domain=$(mirza_normalize_domainhosts "$domain")
-  token=$(read_php_var "APIKEY")
-  dbname=$(read_php_var "dbname")
-  dbuser=$(read_php_var "usernamedb")
-  dbpass=$(read_php_var "passworddb")
-  bot_user=$(mirza_normalize_bot_username "$(read_php_var "usernamebot")")
+  if ! mirza_config_vars_ok "$CONFIG_FILE"; then
+    backup_zip=$(mirza_latest_backup_zip)
+    if [ -n "$backup_zip" ]; then
+      warn "config.php unreadable or incomplete — trying backup $(basename "$backup_zip")"
+      mirza_restore_config_from_zip "$backup_zip" "$CONFIG_FILE" || true
+    fi
+  fi
+
+  domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$CONFIG_FILE")")
+  token=$(read_php_var "APIKEY" "$CONFIG_FILE")
+  dbname=$(read_php_var "dbname" "$CONFIG_FILE")
+  dbuser=$(read_php_var "usernamedb" "$CONFIG_FILE")
+  dbpass=$(read_php_var "passworddb" "$CONFIG_FILE")
+  bot_user=$(mirza_normalize_bot_username "$(read_php_var "usernamebot" "$CONFIG_FILE")")
 
   if [ -z "$domain" ] || [ -z "$token" ] || [ -z "$dbname" ] || [ -z "$dbuser" ]; then
     err "config.php incomplete — missing:"
+    echo -e "    ${CYAN}File:${NC} $CONFIG_FILE"
     [ -z "$domain" ] && echo "    • domainhosts"
     [ -z "$token" ] && echo "    • APIKEY"
     [ -z "$dbname" ] && echo "    • dbname"
     [ -z "$dbuser" ] && echo "    • usernamedb"
+    echo "    Fix: menu 14 restore, or: unzip -p ~/viranaut_backups/*.zip config.php > $CONFIG_FILE"
     return 1
   fi
+
+  viranaut_relocate_to_canonical_path "$PROJECT_DIR"
+
+  viranaut_ensure_apache_documentroot "$PROJECT_DIR" "$domain"
   if ! mirza_config_mysql_ok "$dbname" "$dbuser" "$dbpass"; then
     err "MySQL connection failed with credentials from config.php"
     return 1
@@ -2076,8 +2138,7 @@ do_restore_existing_bot() {
     viranaut_db_migrate "$PROJECT_DIR"
   fi
 
-  PROJECT_DIR=$(viranaut_relocate_to_canonical_path "$PROJECT_DIR")
-  CONFIG_FILE="$PROJECT_DIR/config.php"
+  viranaut_relocate_to_canonical_path "$PROJECT_DIR"
 
   rm -rf "$TMP_DIR"
   MIRZA_DROP_PENDING_WEBHOOK=1 mirza_fix_webhook_complete "$BOT_TOKEN" "$DOMAIN" || mirza_reload_services "$PROJECT_DIR"
@@ -2925,14 +2986,15 @@ do_diagnose_bot() {
   echo -e "    vendor:      $([ -f "$PROJECT_DIR/vendor/autoload.php" ] && echo OK || echo MISSING)"
   echo ""
 
-  domain=$(read_php_var "domainhosts")
+  domain=$(read_php_var "domainhosts" "$CONFIG_FILE")
   domain=$(mirza_normalize_domainhosts "$domain")
-  token=$(read_php_var "APIKEY")
-  dbname=$(read_php_var "dbname")
-  dbuser=$(read_php_var "usernamedb")
-  dbpass=$(read_php_var "passworddb")
+  token=$(read_php_var "APIKEY" "$CONFIG_FILE")
+  dbname=$(read_php_var "dbname" "$CONFIG_FILE")
+  dbuser=$(read_php_var "usernamedb" "$CONFIG_FILE")
+  dbpass=$(read_php_var "passworddb" "$CONFIG_FILE")
 
   echo -e "  ${CYAN}2) config.php${NC}"
+  echo -e "    File:        $CONFIG_FILE"
   echo -e "    Domain:      ${domain:-MISSING}"
   echo -e "    DB:          ${dbname:-?} / ${dbuser:-?}"
   echo -e "    Token:       $([ -n "$token" ] && echo "set (${#token} chars)" || echo MISSING)"

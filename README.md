@@ -1,6 +1,6 @@
 # ViraNaut · ویرانات
 
-[![Version](https://img.shields.io/badge/version-1.9--ViraNaut-blue)](version)
+[![Version](https://img.shields.io/badge/version-2.0.1--ViraNaut-blue)](version)
 [![GitHub](https://img.shields.io/badge/GitHub-liamlope%2FViraNaut-181717?logo=github)](https://github.com/liamlope/ViraNaut)
 [![PHP](https://img.shields.io/badge/PHP-8.2+-777BB4?logo=php)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)

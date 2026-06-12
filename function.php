@@ -866,6 +866,321 @@ function getPaySettingValue($name, $default = null)
 
     return $result['ValuePay'];
 }
+
+/** تأیید خودکار کارت از طریق SMS بانک (statuscardautoconfirm) */
+function mirza_card_sms_autoconfirm_enabled(?string $value = null): bool
+{
+    if ($value === null) {
+        $value = (string) getPaySettingValue('statuscardautoconfirm', 'offautoconfirm');
+    }
+    return $value === 'onautoconfirm';
+}
+
+function mirza_card_sms_autoconfirm_inline_keyboard(?string $value = null): string
+{
+    global $textbotlang;
+    $on = mirza_card_sms_autoconfirm_enabled($value);
+    $label = $on
+        ? ($textbotlang['Admin']['Status']['statuson'] ?? '✅ روشن')
+        : ($textbotlang['Admin']['Status']['statusoff'] ?? '❌ خاموش');
+    $callback = $on ? 'onautoconfirm' : 'offautoconfirm';
+
+    return json_encode([
+        'inline_keyboard' => [
+            [['text' => $label, 'callback_data' => $callback]],
+        ],
+    ]);
+}
+
+/** ID گروه تلگرام برای SMS Forwarder (مثل SatraGift) */
+function mirza_card_sms_effective_group_id(): ?int
+{
+    $raw = trim((string) getPaySettingValue('card_sms_telegram_group_id', ''));
+    if ($raw === '' || !preg_match('/^-?\d+$/', $raw)) {
+        return null;
+    }
+    return (int) $raw;
+}
+
+function mirza_card_sms_clean_text(string $smsText): string
+{
+    $lines = [];
+    foreach (preg_split('/\R/u', $smsText) as $line) {
+        $stripped = trim($line);
+        if ($stripped === '') {
+            continue;
+        }
+        if (preg_match('/\(Incoming\s*-/iu', $stripped)) {
+            continue;
+        }
+        if (preg_match('/^\+\d{10,}\s*$/u', $stripped)) {
+            continue;
+        }
+        $lines[] = $stripped;
+    }
+    return implode("\n", $lines);
+}
+
+function mirza_card_sms_parse_bank_amount(string $bankCode, string $smsText): ?int
+{
+    $text = mirza_card_sms_clean_text($smsText);
+    if ($text === '') {
+        return null;
+    }
+
+    $amountInteger = null;
+    switch (strtolower($bankCode)) {
+        case 'blu':
+            if (preg_match('/(\d[\d,،٬\s]+)\s*ریال\s*به\s*حساب\s*شما\s*نشست/u', $text, $m)) {
+                $amount = (int) preg_replace('/\D/u', '', $m[1]);
+                $amountInteger = (int) ($amount * 0.1);
+            }
+            break;
+        case 'meli':
+            if (preg_match('/انتقال:(.*?)[+\-]/u', $text, $m)) {
+                $amountInteger = (int) (intval(preg_replace('/[^\d]/u', '', $m[1])) * 0.1);
+            }
+            break;
+        case 'grdsh':
+            if (preg_match('/مبلغ:\s*([0-9,]+)/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+            }
+            break;
+        case 'sadhrat':
+            if (preg_match('/انتقال:\s*([\d,]+)/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+            }
+            break;
+        case 'melet':
+            if (preg_match('/واریز(\d{1,3}(?:,\d{3})*)/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+            }
+            break;
+        case 'terjart':
+            if (preg_match('/واریز\s*:\s*([\d,]+)/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+            }
+            break;
+        case 'keshavarsi':
+            if (preg_match('/واريز(\d+(?:,\d+)*)/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+            }
+            break;
+        case 'resalet':
+            if (preg_match('/\+([\d,]+)/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+            }
+            break;
+        case 'sheahr':
+            if (preg_match('/مبلغ:(\d+(?:,\d+)*)ريال/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+            }
+            break;
+        case 'maskan':
+            if (preg_match('/انتقال اينترنت:\D*([\d,]+)/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+            }
+            break;
+        case 'parsian':
+            if (preg_match('/مبلغ:(\d{1,3}(?:,\d{3})*)\+/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+            }
+            break;
+        case 'sphe':
+            if (preg_match('/مبلغ:\s*([\d,]+)\s*ريال/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+            }
+            break;
+        case 'paselc':
+            if (preg_match('/\+([0-9,]+)/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+            }
+            break;
+        case 'gharz':
+            if (preg_match('/(\d{1,3}(?:,\d{3})*)\+/u', $text, $m)) {
+                $amountInteger = (int) (str_replace(',', '', preg_replace('/\+/u', '', $m[1])) * 0.1);
+            }
+            break;
+    }
+
+    if ($amountInteger === null || $amountInteger <= 0) {
+        return null;
+    }
+    if (substr((string) $amountInteger, -3) === '000') {
+        return null;
+    }
+    return $amountInteger;
+}
+
+function mirza_card_sms_parse_from_text(string $smsText, ?string $bankCode = null): ?array
+{
+    $text = mirza_card_sms_clean_text($smsText);
+    if ($text === '') {
+        return null;
+    }
+
+    $banks = ['blu', 'meli', 'grdsh', 'sadhrat', 'melet', 'terjart', 'keshavarsi', 'resalet', 'sheahr', 'maskan', 'parsian', 'sphe', 'paselc', 'gharz'];
+    if ($bankCode !== null && $bankCode !== '') {
+        $amount = mirza_card_sms_parse_bank_amount($bankCode, $text);
+        return $amount !== null ? ['bank' => strtolower($bankCode), 'amount_toman' => $amount] : null;
+    }
+
+    foreach ($banks as $code) {
+        $amount = mirza_card_sms_parse_bank_amount($code, $text);
+        if ($amount !== null) {
+            return ['bank' => $code, 'amount_toman' => $amount];
+        }
+    }
+    return null;
+}
+
+function mirza_card_sms_extract_update_text(array $update): string
+{
+    $msg = $update['message'] ?? $update['channel_post'] ?? null;
+    if (!is_array($msg)) {
+        return '';
+    }
+    $parts = [];
+    foreach (['text', 'caption'] as $key) {
+        if (!empty($msg[$key]) && is_string($msg[$key])) {
+            $parts[] = trim($msg[$key]);
+        }
+    }
+    if (!empty($msg['quote']['text']) && is_string($msg['quote']['text'])) {
+        $parts[] = trim($msg['quote']['text']);
+    }
+    return trim(implode("\n", array_filter($parts)));
+}
+
+function mirza_card_sms_get_update_chat(array $update): ?array
+{
+    $msg = $update['message'] ?? $update['channel_post'] ?? null;
+    if (!is_array($msg) || empty($msg['chat']) || !is_array($msg['chat'])) {
+        return null;
+    }
+    return $msg['chat'];
+}
+
+/**
+ * پردازش SMS و تأیید خودکار فاکتور کارت — مشترک بین گروه تلگرام و payment/card.php
+ * @return array{ok:bool,reason?:string,order_id?:string,amount_toman?:int,bank?:string}
+ */
+function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode = null): array
+{
+    global $connect, $setting, $textbotlang;
+
+    if (!mirza_card_sms_autoconfirm_enabled()) {
+        return ['ok' => false, 'reason' => 'disabled'];
+    }
+
+    $parsed = mirza_card_sms_parse_from_text($smsText, $bankCode);
+    if ($parsed === null) {
+        return ['ok' => false, 'reason' => 'parse_failed'];
+    }
+
+    $amountInteger = (int) $parsed['amount_toman'];
+    $amountEsc = mysqli_real_escape_string($connect, (string) $amountInteger);
+    $datauser = mysqli_fetch_assoc(mysqli_query(
+        $connect,
+        "SELECT * FROM Payment_report WHERE price = '$amountEsc' AND (payment_Status = 'Unpaid' OR payment_Status = 'waiting') LIMIT 1"
+    ));
+    if (!$datauser || empty($datauser['id_order'])) {
+        return ['ok' => false, 'reason' => 'no_match', 'amount_toman' => $amountInteger, 'bank' => $parsed['bank']];
+    }
+
+    $orderId = $datauser['id_order'];
+    $Payment_report = select('Payment_report', '*', 'id_order', $orderId, 'select');
+    if (!is_array($Payment_report) || empty($Payment_report['price'])) {
+        return ['ok' => false, 'reason' => 'order_missing'];
+    }
+    if (in_array($Payment_report['payment_Status'], ['paid', 'reject'], true)) {
+        return ['ok' => false, 'reason' => 'already_reviewed', 'order_id' => $orderId];
+    }
+
+    DirectPayment($orderId, __DIR__ . '/images.jpg');
+    update('Payment_report', 'payment_Status', 'paid', 'id_order', $orderId);
+
+    if (!is_array($textbotlang)) {
+        $textbotlang = languagechange('text.json');
+    }
+    $Balance_id = select('user', '*', 'id', $Payment_report['id_user'], 'select');
+    $balanceformatsell = number_format((int) ($Balance_id['Balance'] ?? 0), 0);
+    $paymentreports = select('topicid', 'idreport', 'report', 'paymentreport', 'select')['idreport'] ?? '';
+    $text_report = sprintf(
+        $textbotlang['paymentGateway']['reportCard'] ?? '💳 %s تومان — کاربر %s',
+        $Payment_report['price'],
+        $Balance_id['id'] ?? '',
+        $Balance_id['username'] ?? '',
+        $balanceformatsell,
+        $orderId
+    );
+    if (is_array($setting) && strlen((string) ($setting['Channel_Report'] ?? '')) > 0) {
+        telegram('sendmessage', [
+            'chat_id' => $setting['Channel_Report'],
+            'message_thread_id' => $paymentreports,
+            'text' => $text_report,
+            'parse_mode' => 'HTML',
+        ]);
+    }
+
+    return [
+        'ok' => true,
+        'order_id' => $orderId,
+        'amount_toman' => $amountInteger,
+        'bank' => $parsed['bank'],
+    ];
+}
+
+/** Handler گروه تلگرام برای SMS Forwarder (SatraGift-style) */
+function mirza_try_handle_card_sms_telegram_update(array $update): bool
+{
+    if (!mirza_card_sms_autoconfirm_enabled()) {
+        return false;
+    }
+
+    $groupId = mirza_card_sms_effective_group_id();
+    if ($groupId === null) {
+        return false;
+    }
+
+    $chat = mirza_card_sms_get_update_chat($update);
+    if ($chat === null) {
+        return false;
+    }
+
+    $chatType = (string) ($chat['type'] ?? '');
+    if (!in_array($chatType, ['group', 'supergroup', 'channel'], true)) {
+        return false;
+    }
+    if ((int) ($chat['id'] ?? 0) !== $groupId) {
+        return false;
+    }
+
+    $smsText = mirza_card_sms_extract_update_text($update);
+    if ($smsText === '') {
+        return true;
+    }
+
+    $result = mirza_card_sms_process_and_approve($smsText);
+    $level = !empty($result['ok']) ? 'OK' : ($result['reason'] ?? 'fail');
+    error_log('[card-sms-telegram] ' . $level . ' ' . json_encode($result, JSON_UNESCAPED_UNICODE));
+
+    return true;
+}
+
+function mirza_card_sms_panel_info(): array
+{
+    $groupId = mirza_card_sms_effective_group_id();
+    return [
+        'sms_enabled' => mirza_card_sms_autoconfirm_enabled(),
+        'group_id' => $groupId !== null ? (string) $groupId : '',
+        'group_configured' => $groupId !== null,
+        'delivery' => $groupId !== null ? 'telegram_group' : 'http_legacy',
+        'webhook_url' => mirza_card_sms_autoconfirm_enabled()
+            ? ('https://' . ($GLOBALS['domainhosts'] ?? '') . '/payment/card.php')
+            : '',
+    ];
+}
 function generateUUID()
 {
     $data = openssl_random_pseudo_bytes(16);
@@ -1100,9 +1415,62 @@ function outputlink($text)
     }
     return null;
 }
+
+/** ManagePanel برای DirectPayment از webhook گروه SMS / payment/card.php */
+function mirza_ensure_manage_panel(): ManagePanel
+{
+    global $ManagePanel;
+    if (!isset($ManagePanel) || !($ManagePanel instanceof ManagePanel)) {
+        if (!class_exists('ManagePanel', false)) {
+            require_once __DIR__ . '/panels.php';
+        }
+        $ManagePanel = new ManagePanel();
+    }
+    return $ManagePanel;
+}
+
+/** ویرایش پیام فاکتور کاربر (private) + پیام ادمین/webhook در صورت متفاوت بودن */
+function mirza_edit_payment_status_messages(array $Payment_report, string $adminText, $adminKeyboard = null): void
+{
+    global $from_id, $message_id, $update;
+
+    $userChatId = (int) ($Payment_report['id_user'] ?? 0);
+    $userMsgId = (int) ($Payment_report['message_id'] ?? 0);
+    $orderId = (string) ($Payment_report['id_order'] ?? '');
+
+    if ($userMsgId > 0 && $userChatId > 0) {
+        $userText = "✅ پرداخت شما تأیید شد.\n🛒 کد پیگیری: {$orderId}";
+        Editmessagetext($userChatId, $userMsgId, $userText, json_encode(['inline_keyboard' => []]));
+    }
+
+    $ctxChatId = (int) $from_id;
+    if (is_array($update ?? null)) {
+        if (!empty($update['message']['chat']['id'])) {
+            $ctxChatId = (int) $update['message']['chat']['id'];
+        } elseif (!empty($update['callback_query']['message']['chat']['id'])) {
+            $ctxChatId = (int) $update['callback_query']['message']['chat']['id'];
+        } elseif (!empty($update['channel_post']['chat']['id'])) {
+            $ctxChatId = (int) $update['channel_post']['chat']['id'];
+        }
+    }
+    $ctxMsgId = (int) $message_id;
+    if ($ctxMsgId <= 0) {
+        return;
+    }
+    if ($ctxChatId === $userChatId && $ctxMsgId === $userMsgId) {
+        return;
+    }
+    // پیام گروه/کانال SMS را به متن ادمین تبدیل نکن
+    if ($ctxChatId < 0) {
+        return;
+    }
+    Editmessagetext($ctxChatId, $ctxMsgId, $adminText, $adminKeyboard);
+}
+
 function DirectPayment($order_id, $image = 'images.jpg')
 {
     global $pdo, $ManagePanel, $textbotlang, $keyboardextendfnished, $keyboard, $Confirm_pay, $from_id, $message_id, $datatextbot;
+    mirza_ensure_manage_panel();
     $buyreport = select("topicid", "idreport", "report", "buyreport", "select")['idreport'];
     $admin_ids = select("admin", "id_admin", null, null, "FETCH_COLUMN");
     $otherservice = select("topicid", "idreport", "report", "otherservice", "select")['idreport'];
@@ -1369,7 +1737,7 @@ $textonebuy
 ✍️ توضیحات : {$Payment_report['dec_not_confirmed']}
 
 ";
-            Editmessagetext($from_id, $message_id, $textconfrom, $Confirm_pay);
+            mirza_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
         }
     } elseif ($steppay[0] == "getextenduser") {
         $balanceformatsell = number_format(select("user", "Balance", "id", $Balance_id['id'], "select")['Balance'], 0);
@@ -1526,7 +1894,7 @@ $textonebuy
 ✍️ توضیحات : {$Payment_report['dec_not_confirmed']}
 
 ";
-            Editmessagetext($from_id, $message_id, $textconfrom, $Confirm_pay);
+            mirza_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
         }
     } elseif ($steppay[0] == "getextravolumeuser") {
         $steppay = explode("%", $steppay[1]);
@@ -1606,7 +1974,7 @@ $textonebuy
 💎 موجودی قبل ازافزایش موجودی : {$Balance_id['Balance']}
 💸 مبلغ پرداختی: $format_price_cart تومان
 ";
-            Editmessagetext($from_id, $message_id, $textconfrom, $Confirm_pay);
+            mirza_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
         }
         update("invoice", "Status", "active", "id_invoice", $nameloc['id_invoice']);
         $text_report = "⭕️ یک کاربر حجم اضافه خریده است
@@ -1706,7 +2074,7 @@ $textonebuy
 💎 موجودی قبل ازافزایش موجودی : {$Balance_id['Balance']}
 💸 مبلغ پرداختی: $format_price_cart تومان
 ";
-            Editmessagetext($from_id, $message_id, $textconfrom, $Confirm_pay);
+            mirza_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
         }
         update("invoice", "Status", "active", "id_invoice", $nameloc['id_invoice']);
         $text_report = "⭕️ یک کاربر زمان اضافه خریده است
@@ -1738,7 +2106,7 @@ $textonebuy
 💸 مبلغ پرداختی: $format_price_cart تومان
 💎 موجودی قبل ازافزایش موجودی : {$Balance_id['Balance']}
 ✍️ توضیحات : {$Payment_report['dec_not_confirmed']}";
-            Editmessagetext($from_id, $message_id, $textconfrom, $Confirm_pay);
+            mirza_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
         }
         sendmessage($Payment_report['id_user'], "💎 کاربر گرامی مبلغ {$Payment_report['price']} تومان به کیف پول شما واریز گردید با تشکراز پرداخت شما.
                 
@@ -2074,7 +2442,6 @@ function activecron()
 
     $cronCommands = [
         "*/15 * * * * curl https://$domainhosts/cronbot/statusday.php",
-        "*/1 * * * * curl https://$domainhosts/cronbot/croncard.php",
         "*/1 * * * * curl https://$domainhosts/cronbot/NoticationsService.php",
         "*/5 * * * * curl https://$domainhosts/cronbot/payment_expire.php",
         "*/1 * * * * curl https://$domainhosts/cronbot/sendmessage.php",

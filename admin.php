@@ -10,7 +10,7 @@ $text_panel_admin_login_template = "💎 | نسخه ربات: %s
 
 <blockquote>🔹 | <b>ویرانات ViraNaut</b> — ربات VPN رایگان و متن‌باز</blockquote>
 
-<blockquote>🔹 | توسعه‌یافته توسط تیم ویرانات · نسخه 1.9</blockquote>
+<blockquote>🔹 | توسعه‌یافته توسط تیم ویرانات · نسخه 2.0.1</blockquote>
 
 <blockquote>🔹 | هرگونه فروش یا دریافت وجه بابت این ربات تخلف محسوب می‌شود.</blockquote>
 
@@ -7193,26 +7193,28 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     outtypepanel($typepanel['type'], $textbotlang['Admin']['Algortimeextend']['SaveData']);
     step('home', $from_id);
 } elseif ($text == "♻️ تایید خودکار رسید" && $adminrulecheck['rule'] == "administrator") {
-    $paymentverify = select("PaySetting", "ValuePay", "NamePay", "autoconfirmcart", "select")['ValuePay'];
-    if ($paymentverify == "onauto") {
-        sendmessage($from_id, "❌ ابتدا تایید خودکار بدون بررسی را خاموش کنید.", null, 'HTML');
-        return;
-    }
-    $PaySetting = select("PaySetting", "ValuePay", "NamePay", "statuscardautoconfirm", "select")['ValuePay'];
-    $card_Status_auto = json_encode([
-        'inline_keyboard' => [
-            [
-                ['text' => $PaySetting, 'callback_data' => $PaySetting],
-            ],
-        ]
-    ]);
-    sendmessage($from_id, $textbotlang['Admin']['Status']['autoconfirmcard'], $card_Status_auto, 'HTML');
+    sendmessage(
+        $from_id,
+        $textbotlang['Admin']['Status']['autoconfirmcard'] . "\n\n📱 تأیید از طریق پیامک بانک (گروه تلگرام یا HTTP)",
+        mirza_card_sms_autoconfirm_inline_keyboard(),
+        'HTML'
+    );
 } elseif ($datain == "onautoconfirm" && $adminrulecheck['rule'] == "administrator") {
     update("PaySetting", "ValuePay", "offautoconfirm", "NamePay", "statuscardautoconfirm");
-    Editmessagetext($from_id, $message_id, $textbotlang['Admin']['Status']['cardStatusOffautoconfirmcard'], null);
+    Editmessagetext(
+        $from_id,
+        $message_id,
+        $textbotlang['Admin']['Status']['autoConfirmOff'],
+        mirza_card_sms_autoconfirm_inline_keyboard('offautoconfirm')
+    );
 } elseif ($datain == "offautoconfirm" && $adminrulecheck['rule'] == "administrator") {
     update("PaySetting", "ValuePay", "onautoconfirm", "NamePay", "statuscardautoconfirm");
-    Editmessagetext($from_id, $message_id, $textbotlang['Admin']['Status']['cardStatusonautoconfirmcard'], null);
+    Editmessagetext(
+        $from_id,
+        $message_id,
+        $textbotlang['Admin']['Status']['autoConfirmOn'],
+        mirza_card_sms_autoconfirm_inline_keyboard('onautoconfirm')
+    );
 } elseif ($text == "/token") {
     $secret_key = select("admin", "*", "id_admin", $from_id, "select");
     $secret_key = base64_encode($secret_key['password']);
@@ -9659,43 +9661,6 @@ f,n.n2", $backadmin, 'HTML');
     sendmessage($from_id, "✅ تغییرات با موفقیت ذخیره گردید", $setting_panel, 'HTML');
     step("home", $from_id);
     update("setting", "agentreqprice", $text, null, null);
-} elseif ($text == "🤖 تایید رسید  بدون بررسی" && $adminrulecheck['rule'] == "administrator") {
-    $paymentverify = select("PaySetting", "ValuePay", "NamePay", "statuscardautoconfirm", "select")['ValuePay'];
-    if ($paymentverify == "onautoconfirm") {
-        sendmessage($from_id, "❌ ابتدا تایید خودکار را خاموش کنید.", null, 'HTML');
-        return;
-    }
-    $paymentverify = select("PaySetting", "ValuePay", "NamePay", "autoconfirmcart", "select")['ValuePay'];
-    $keyboardverify = json_encode([
-        'inline_keyboard' => [
-            [
-                ['text' => $paymentverify, 'callback_data' => $paymentverify],
-            ],
-        ]
-    ]);
-    sendmessage($from_id, "📌 با فعال کردن این قابلیت  در زمان هایی که آنلاین نیستید ربات بصورت خودکار تمامی تراکنش های کارت به کارت را تایید می کند سپس بعد از آنلاین شدن شما رسید ها را بررسی میکنید سپس اگر رسید فیک  ارسال شده تراکنش را کنسل میکنید", $keyboardverify, 'HTML');
-} elseif ($datain == "onauto") {
-    update("PaySetting", "ValuePay", "offauto", "NamePay", "autoconfirmcart");
-    $paymentverify = select("PaySetting", "ValuePay", "NamePay", "autoconfirmcart", "select")['ValuePay'];
-    $keyboardverify = json_encode([
-        'inline_keyboard' => [
-            [
-                ['text' => $paymentverify, 'callback_data' => $paymentverify],
-            ],
-        ]
-    ]);
-    Editmessagetext($from_id, $message_id, "خاموش شد", $keyboardverify);
-} elseif ($datain == "offauto") {
-    update("PaySetting", "ValuePay", "onauto", "NamePay", "autoconfirmcart");
-    $paymentverify = select("PaySetting", "ValuePay", "NamePay", "autoconfirmcart", "select")['ValuePay'];
-    $keyboardverify = json_encode([
-        'inline_keyboard' => [
-            [
-                ['text' => $paymentverify, 'callback_data' => $paymentverify],
-            ],
-        ]
-    ]);
-    Editmessagetext($from_id, $message_id, "روشن شد", $keyboardverify);
 } elseif (preg_match('/transferaccount_(\w+)/', $datain, $dataget)) {
     $iduser = $dataget[1];
     update("user", "Processing_value", $iduser, "id", $from_id);
@@ -12069,19 +12034,6 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
     update("app", "link", $text, "name", $userdata['nameapp']);
 } elseif ($datain == "nowpaymentsetting") {
     sendmessage($from_id, $textbotlang['users']['selectoption'], $nowpayment_setting_keyboard, 'HTML');
-} elseif ($text == "⏳ زمان تایید خودکار بدون بررسی") {
-    sendmessage($from_id, "📌 در این بخش می توانید تعیین کنید که قابلیت تایید خودکار بدون بررسی  بعد از چند دقیقه رسید را تایید کند.
-زمان خود را بر حسب دقیقه ارسال کنید
-زمان فعلی : {$setting['timeauto_not_verify']}", $backadmin, 'HTML');
-    step("gettimeauto", $from_id);
-} elseif ($user['step'] == "gettimeauto") {
-    if (!is_numeric($text)) {
-        sendmessage($from_id, $textbotlang['Admin']['agent']['invalidvlue'], $backadmin, 'HTML');
-        return;
-    }
-    update("setting", "timeauto_not_verify", $text);
-    sendmessage($from_id, "✅ زمان با موفقیت ثبت گردید.", $CartManage, 'HTML');
-    step("home", $from_id);
 } elseif ($text == "نمایش برای خرید اول") {
     $panel = select("marzban_panel", "*", "code_panel", $user['Processing_value_one'], "select");
     $stmt = $pdo->prepare("SELECT * FROM product WHERE id = :name_product  AND agent = :agent AND (Location = :Location OR Location = '/all') LIMIT 1");
@@ -12135,67 +12087,6 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
         ]
     ]);
     Editmessagetext($from_id, $message_id, "📌 از طریق این قابلیت می توانید تعیین کنید این محصول برای خرید اول باشد یا خیر", $Response);
-} elseif ($text == "💳 استثناء کردن کاربر از تایید خودکار") {
-    sendmessage($from_id, "📌 یک گزینه را انتخاب کنید
-⚠️ این بخش برای تایید خودکار بدون بررسی می باشد", $Exception_auto_cart_keyboard, 'HTML');
-} elseif ($text == "➕ استثناء کردن کاربر") {
-    sendmessage($from_id, "📌 آیدی عددی کاربر را ارسال کنید", $backadmin, 'HTML');
-    step("getidExceptio", $from_id);
-} elseif ($user['step'] == "getidExceptio") {
-    if (!in_array($text, $users_ids)) {
-        sendmessage($from_id, "❌ کاربر وجود ندارد.", $backadmin, 'HTML');
-        return;
-    }
-    $list_Exceptions = select("PaySetting", "ValuePay", "NamePay", "Exception_auto_cart", "select")['ValuePay'];
-    $list_Exceptions = is_string($list_Exceptions) ? json_decode($list_Exceptions, true) : [];
-    if (in_array($text, $list_Exceptions)) {
-        sendmessage($from_id, "❌ کاربر در لیست استثناء وجود دارد", $backadmin, 'HTML');
-        return;
-    }
-    $list_Exceptions[] = $text;
-    $list_Exceptions = array_values($list_Exceptions);
-    sendmessage($from_id, "✅ کاربر با موفقیت به لیست اضافه گردید.", $Exception_auto_cart_keyboard, 'HTML');
-    update("PaySetting", "ValuePay", json_encode($list_Exceptions), "NamePay", "Exception_auto_cart");
-    step("home", $from_id);
-} elseif ($text == "❌ حذف کاربر از لیست") {
-    sendmessage($from_id, "📌 آیدی عددی کاربر را جهت حذف از لیست ارسال کنید", $backadmin, 'HTML');
-    step("getidExceptioremove", $from_id);
-} elseif ($user['step'] == "getidExceptioremove") {
-    if (!in_array($text, $users_ids)) {
-        sendmessage($from_id, "❌ کاربر وجود ندارد.", $backadmin, 'HTML');
-        return;
-    }
-    $list_Exceptions = select("PaySetting", "ValuePay", "NamePay", "Exception_auto_cart", "select")['ValuePay'];
-    $list_Exceptions = is_string($list_Exceptions) ? json_decode($list_Exceptions, true) : [];
-    if (!in_array($text, $list_Exceptions)) {
-        sendmessage($from_id, "❌ کاربر در لیست استثناء وجود ندارد", $backadmin, 'HTML');
-        return;
-    }
-    $count = 0;
-    foreach ($list_Exceptions as $list) {
-        if ($list == $text) {
-            unset($list_Exceptions[$count]);
-            break;
-        }
-        $count += 1;
-    }
-    $list_Exceptions = array_values($list_Exceptions);
-    sendmessage($from_id, "✅ کاربر با موفقیت از لیست حذف گردید.", $Exception_auto_cart_keyboard, 'HTML');
-    update("PaySetting", "ValuePay", json_encode($list_Exceptions), "NamePay", "Exception_auto_cart");
-    step("home", $from_id);
-} elseif ($text == "👁 نمایش لیست افراد") {
-    $list_Exceptions = select("PaySetting", "ValuePay", "NamePay", "Exception_auto_cart", "select")['ValuePay'];
-    $list_Exceptions = is_string($list_Exceptions) ? json_decode($list_Exceptions, true) : [];
-    if (count($list_Exceptions) == 0) {
-        sendmessage($from_id, "❌ کاربری در لیست وجود ندارد", null, 'HTML');
-        return;
-    }
-    $list = "";
-    foreach ($list_Exceptions as $list_ex) {
-        $list .= $list_ex . "\n";
-    }
-    sendmessage($from_id, "لیست افراد👇", null, 'HTML');
-    sendmessage($from_id, $list, null, 'HTML');
 } elseif ($text == "تنظیم api" && $adminrulecheck['rule'] == "administrator") {
     $PaySetting = select("PaySetting", "ValuePay", "NamePay", "marchent_floypay")['ValuePay'];
     $textaqayepardakht = "api دریافت شده را در این بخش ارسال کنید

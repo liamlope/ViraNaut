@@ -12,63 +12,73 @@ try {
 } catch (Exception $e) {
 }
 
-$pageTitle = 'مدیریت ربات';
-$pageLede = 'چیدمان منو، متن‌ها، پنل‌های VPN و تنظیمات کلیدی ربات از یکجا.';
+$pageTitle = 'مرکز ربات';
+$pageLede = 'محتوا، پنل VPN، تنظیمات و ابزارهای ربات — دسته‌بندی شده.';
 $activeNav = 'bot';
 include __DIR__ . '/inc/layout_head.php';
 
-$cards = [
+$hubSections = [
     [
-        'href' => 'keyboard.php',
-        'icon' => 'menu',
-        'title' => 'چیدمان منوی استارت',
-        'desc' => 'ترتیب و چیدمان دکمه‌های کیبورد اصلی ربات',
-        'tag' => 'پیشنهادی',
+        'title' => 'ظاهر و محتوا',
+        'items' => [
+            ['href' => 'keyboard.php', 'icon' => 'menu', 'title' => 'چیدمان منوی استارت', 'desc' => 'ترتیب دکمه‌های کیبورد اصلی', 'tag' => 'پیشنهادی'],
+            ['href' => 'bot-texts.php', 'icon' => 'edit', 'title' => 'متن‌های ربات', 'desc' => 'استارت، پرداخت، فروش و نمایندگی', 'tag' => $textCount . ' متن'],
+        ],
     ],
     [
-        'href' => 'bot-texts.php',
-        'icon' => 'edit',
-        'title' => 'متن‌های ربات',
-        'desc' => 'ویرایش متن دکمه‌ها، استارت، پرداخت و نمایندگی',
-        'tag' => $textCount . ' متن',
+        'title' => 'زیرساخت VPN',
+        'items' => [
+            ['href' => 'panels.php', 'icon' => 'server', 'title' => 'پنل‌های VPN', 'desc' => 'Marzban و 3x-ui متصل', 'tag' => $panelCount . ' پنل'],
+            ['href' => 'test-settings.php', 'icon' => 'server', 'title' => 'اکانت تست', 'desc' => 'محدودیت و پنل تست', 'tag' => 'تست'],
+        ],
     ],
     [
-        'href' => 'panels.php',
-        'icon' => 'server',
-        'title' => 'پنل‌های VPN',
-        'desc' => 'لیست Marzban و 3x-ui متصل به ربات',
-        'tag' => $panelCount . ' پنل',
-    ],
-    [
-        'href' => 'bot-settings.php',
-        'icon' => 'settings',
-        'title' => 'تنظیمات ربات',
-        'desc' => 'وضعیت ربات، کانال گزارش، اینلاین و محدودیت تست',
-        'tag' => 'سیستمی',
+        'title' => 'تنظیمات و دسترسی',
+        'items' => [
+            ['href' => 'bot-settings.php', 'icon' => 'settings', 'title' => 'تنظیمات عمومی', 'desc' => 'وضعیت ربات، فروش، cron', 'tag' => 'سیستمی'],
+            ['href' => 'channels.php', 'icon' => 'users', 'title' => 'جوین اجباری', 'desc' => 'کانال‌های اجباری', 'tag' => 'عضویت'],
+            ['href' => 'reports-settings.php', 'icon' => 'chart', 'title' => 'گزارش و کانال', 'desc' => 'کانال گزارش و Topicها', 'tag' => 'گزارش'],
+            ['href' => 'admins.php', 'icon' => 'users', 'title' => 'ادمین‌های ربات', 'desc' => 'مدیریت دسترسی تلگرام', 'tag' => 'دسترسی'],
+            ['href' => 'broadcast.php', 'icon' => 'edit', 'title' => 'ارسال همگانی', 'desc' => 'پیام به همه کاربران', 'tag' => 'مارکتینگ'],
+        ],
     ],
 ];
 ?>
 
-<div class="bot-hub-grid fade-up">
-    <?php foreach ($cards as $i => $card): ?>
-        <a href="<?= htmlspecialchars($card['href']) ?>" class="card bot-hub-card fade-up d<?= min($i + 1, 4) ?>">
-            <div class="bot-hub-icon"><?= icon($card['icon'], 22) ?></div>
-            <div class="bot-hub-body">
-                <div class="card-title"><?= htmlspecialchars($card['title']) ?></div>
-                <div class="card-subtitle"><?= htmlspecialchars($card['desc']) ?></div>
-                <span class="tag tag-ok" style="margin-top:10px;font-size:.68rem"><?= htmlspecialchars($card['tag']) ?></span>
-            </div>
-            <span class="bot-hub-arrow">←</span>
-        </a>
-    <?php endforeach; ?>
-</div>
+<?php foreach ($hubSections as $si => $section): ?>
+<section class="hub-section fade-up d<?= min($si + 1, 4) ?>">
+    <h2 class="hub-section-title"><?= htmlspecialchars($section['title']) ?></h2>
+    <div class="bot-hub-grid">
+        <?php foreach ($section['items'] as $i => $card): ?>
+            <a href="<?= htmlspecialchars($card['href']) ?>" class="card bot-hub-card">
+                <div class="bot-hub-icon"><?= icon($card['icon'], 22) ?></div>
+                <div class="bot-hub-body">
+                    <div class="card-title"><?= htmlspecialchars($card['title']) ?></div>
+                    <div class="card-subtitle"><?= htmlspecialchars($card['desc']) ?></div>
+                    <span class="tag tag-ok" style="margin-top:10px;font-size:.68rem"><?= htmlspecialchars($card['tag']) ?></span>
+                </div>
+                <span class="bot-hub-arrow">←</span>
+            </a>
+        <?php endforeach; ?>
+    </div>
+</section>
+<?php endforeach; ?>
 
-<p class="field-hint fade-up d2" style="margin-top:18px">
-    برای افزودن یا حذف پنل VPN و محصولات پیشرفته، از منوی تلگرام (پنل ادمین ربات) استفاده کنید.
-    این بخش مدیریت روزمره و چیدمان منو را پوشش می‌دهد.
+<p class="field-hint fade-up" style="margin-top:18px">
+    تنظیمات مالی و SMS خودکار: <a href="finance.php?tab=gateways">مرکز مالی → درگاه‌ها</a>.
+    بکاپ و بهینه‌سازی در بخش «نگهداری» منو.
 </p>
 
 <style>
+.hub-section { margin-bottom: 22px; }
+.hub-section-title {
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--mute);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin: 0 0 10px 2px;
+}
 .bot-hub-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -106,4 +116,4 @@ $cards = [
 }
 </style>
 
-<?php include __DIR__ . '/inc/layout_foot.php'; ?>
+<?php include __DIR__ . '/inc/layout_foot.php';

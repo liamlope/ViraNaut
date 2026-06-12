@@ -222,9 +222,6 @@ $CartManage = json_encode([
         [['text' => "🔒 نمایش کارت به کارت پس از اولین پرداخت"]],
         [['text' => "⬇️ حداقل مبلغ کارت به کارت"], ['text' => "⬆️ حداکثر مبلغ کارت به کارت"]],
         [['text' => "📚 تنظیم آموزش کارت به کارت"]],
-        [['text' => "🤖 تایید رسید  بدون بررسی"]],
-        [['text' => "💳 استثناء کردن کاربر از تایید خودکار"]],
-        [['text' => "⏳ زمان تایید خودکار بدون بررسی"]],
         [['text' => $textbotlang['Admin']['backadmin']], ['text' => $textbotlang['Admin']['backmenu']]]
     ],
     'resize_keyboard' => true
@@ -1638,14 +1635,6 @@ $nowpayment_setting_keyboard = json_encode([
         [['text' => "💰 کش بک nowpayment"], ['text' => "📚 تنظیم آموزش nowpayment"]],
         [['text' => "⬇️ حداقل مبلغ nowpayment"], ['text' => "⬆️ حداکثر مبلغ nowpayment"]],
         [['text' => $textbotlang['Admin']['backadmin']], ['text' => $textbotlang['Admin']['backmenu']]]
-    ],
-    'resize_keyboard' => true
-]);
-$Exception_auto_cart_keyboard = json_encode([
-    'keyboard' => [
-        [['text' => "➕ استثناء کردن کاربر"], ['text' => "❌ حذف کاربر از لیست"]],
-        [['text' => "👁 نمایش لیست افراد"]],
-        [['text' => "▶️ بازگشت به منوی تظنیمات کارت"]]
     ],
     'resize_keyboard' => true
 ]);

@@ -2,7 +2,7 @@
 # ViraNaut (ویرانات) — installer / updater
 # Sources: local folder, local zip/tar.gz, or GitHub (liamlope/ViraNaut)
 
-VIRANAUT_VERSION="1.9-ViraNaut"
+VIRANAUT_VERSION="2.0.1-ViraNaut"
 VIRANAUT_BOT_DIR="/var/www/html/viranaut"
 VIRANAUT_GITHUB_REPO="https://github.com/liamlope/ViraNaut.git"
 VIRANAUT_GITHUB_BRANCH="main"
@@ -234,8 +234,8 @@ WHERE ValuePay LIKE '%میرزا%' OR ValuePay LIKE '%Mirza%';
 UPDATE shopSetting SET value = REPLACE(REPLACE(REPLACE(value,
   'تیم میرزا', 'تیم ویرانات'), 'میرزا', 'ویرانات'), 'Mirza', 'ViraNaut')
 WHERE value LIKE '%میرزا%' OR value LIKE '%Mirza%';
-INSERT INTO shopSetting (Namevalue, value) VALUES ('viranaut_version', '1.9-ViraNaut')
-ON DUPLICATE KEY UPDATE value='1.9-ViraNaut';
+INSERT INTO shopSetting (Namevalue, value) VALUES ('viranaut_version', '2.0.1-ViraNaut')
+ON DUPLICATE KEY UPDATE value='2.0.1-ViraNaut';
 EOSQL
     echo -e "\033[32m✓ ViraNaut database merge completed\033[0m"
 }

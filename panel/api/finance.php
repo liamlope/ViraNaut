@@ -134,7 +134,8 @@ if ($action === 'gateways') {
             $general[] = array_merge($g, ['value' => mirza_pay_get_value($pdo, $g['key'])]);
         }
         $cards = db_fetchAll($pdo, 'SELECT cardnumber, namecard FROM card_number ORDER BY cardnumber ASC');
-        fin_json(true, '', ['profiles' => $profiles, 'general' => $general, 'cards' => $cards]);
+        $smsInfo = function_exists('mirza_card_sms_panel_info') ? mirza_card_sms_panel_info() : [];
+        fin_json(true, '', ['profiles' => $profiles, 'general' => $general, 'cards' => $cards, 'sms' => $smsInfo]);
     } catch (Exception $e) {
         fin_json(false, $e->getMessage());
     }

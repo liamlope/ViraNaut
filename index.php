@@ -13,7 +13,21 @@ require_once 'keyboard.php';
 require_once 'vendor/autoload.php';
 require_once 'panels.php';
 require_once 'viranaut_handlers.php';
+$ManagePanel = new ManagePanel();
 $textbotlang = languagechange('text.json');
+if (mirza_try_handle_card_sms_telegram_update($update)) {
+    http_response_code(200);
+    exit;
+}
+if (!empty($update['channel_post'])) {
+    http_response_code(200);
+    exit;
+}
+$earlyChat = mirza_card_sms_get_update_chat($update);
+if ($earlyChat !== null && in_array((string) ($earlyChat['type'] ?? ''), ['group', 'supergroup', 'channel'], true)) {
+    http_response_code(200);
+    exit;
+}
 if ($is_bot)
     return;
 if (isset($update['chat_member'])) {
@@ -38,7 +52,6 @@ if (isset($chat_member))
     return;
 $first_name = sanitizeUserName($first_name);
 $setting = select("setting", "*");
-$ManagePanel = new ManagePanel();
 $keyboard_check = json_decode($setting['keyboardmain'], true);
 if (is_array($keyboard_check) && preg_match('/[\x{600}-\x{6FF}\x{FB50}-\x{FDFF}]/u', $keyboard_check['keyboard'][0][0]['text'])) {
     $keyboardmain = '{"keyboard":[[{"text":"text_sell"},{"text":"text_extend"}],[{"text":"text_usertest"},{"text":"text_wheel_luck"}],[{"text":"text_Purchased_services"},{"text":"accountwallet"}],[{"text":"text_affiliates"},{"text":"text_Tariff_list"}],[{"text":"text_support"},{"text":"text_help"}]]}';
@@ -5085,7 +5098,7 @@ $textonebuy
         $PaySettingname = $card_info['namecard'];
         mysqli_free_result($cardQuery);
         $price_copy = $user['Processing_value'];
-        if ($PaySetting == "onautoconfirm") {
+        if (mirza_card_sms_autoconfirm_enabled($PaySetting)) {
             $random_number = rand(0, 2000);
             $user['Processing_value'] = intval($user['Processing_value']) + $random_number;
             if (in_array($user['Processing_value'], $pricepayment)) {

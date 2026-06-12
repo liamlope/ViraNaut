@@ -896,6 +896,7 @@ try {
         ['marchent_tronseller', '0'],
         ['walletaddress', '0'],
         ['statuscardautoconfirm', 'offautoconfirm'],
+        ['card_sms_telegram_group_id', ''],
         ['urlpaymenttron', 'https://tronseller.storeddownloader.fun/api/GetOrderToken'],
         ['statustarnado', 'offternado'],
         ['apiternado', '0'],
@@ -948,11 +949,9 @@ try {
         ['helpzarinpal', '2'],
         ['helpnowpayment', '2'],
         ['helpofflinearze', '2'],
-        ['autoconfirmcart', 'offauto'],
         ['cashbacknowpayment', '0'],
         ['statusstar', '0'],
         ['statusnowpayment', '0'],
-        ['Exception_auto_cart', '{}'],
         ['marchent_floypay', '0'],
     ];
     if (!$table_exists) {

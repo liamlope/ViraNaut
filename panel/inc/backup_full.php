@@ -35,7 +35,6 @@ function mirza_backup_cron_job_lines(): array
     $host = isset($domainhosts) ? mirza_backup_normalize_host($domainhosts) : 'YOUR_DOMAIN';
     return [
         "*/15 * * * * curl -fsS https://{$host}/cronbot/statusday.php",
-        "*/1 * * * * curl -fsS https://{$host}/cronbot/croncard.php",
         "*/1 * * * * curl -fsS https://{$host}/cronbot/NoticationsService.php",
         "*/5 * * * * curl -fsS https://{$host}/cronbot/payment_expire.php",
         "*/1 * * * * curl -fsS https://{$host}/cronbot/sendmessage.php",

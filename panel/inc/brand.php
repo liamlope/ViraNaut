@@ -6,7 +6,7 @@ define('VIRA_BRAND_NAME', 'ViraNaut');
 define('VIRA_BRAND_NAME_FA', 'ویرانات');
 define('VIRA_VERSION', '1.9');
 define('VIRA_VERSION_LABEL', '1.9 ViraNaut');
-define('VIRA_MINIAPP_VERSION', '1.9.0');
+define('VIRA_MINIAPP_VERSION', '2.0.1');
 define('VIRA_PANEL_TITLE', 'پنل مدیریت ویرانات');
 define('VIRA_PANEL_SHORT', 'ویرانات · پنل');
 define('VIRA_BRAND_MARK', 'V');

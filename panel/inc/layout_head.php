@@ -1,10 +1,11 @@
 <?php
 require_once __DIR__ . '/icons.php';
+require_once __DIR__ . '/nav_registry.php';
 $pageLede = $pageLede ?? '';
 $activeNav = $activeNav ?? '';
 $extraCss = $extraCss ?? [];
 $extraJs = $extraJs ?? [];
-$botNavIds = ['bot', 'keyboard', 'bot-texts', 'panels', 'bot-settings'];
+$botNavIds = vira_panel_bot_nav_ids();
 $botNavActive = in_array($activeNav, $botNavIds, true);
 $showPageHead = $showPageHead ?? true;
 $currentUser = $_SESSION['admin_user'] ?? 'ادمین';
@@ -79,90 +80,7 @@ $panelBasePath = rtrim(str_replace('\\', '/', $panelBasePath), '/') . '/';
         <div class="brand-name"><?= VIRA_BRAND_NAME_FA ?><span> · پنل</span></div>
       </div>
       <nav class="sidebar-nav">
-        <div class="nav-section">
-          <div class="nav-heading">عمومی</div>
-          <a href="index.php" class="nav-item <?= $activeNav === 'dashboard' ? 'active' : '' ?>" title="داشبورد">
-            <span class="nav-icon"><?= icon('dashboard') ?></span><span class="nav-label">داشبورد</span>
-          </a>
-        </div>
-        <div class="nav-section">
-          <div class="nav-heading">مدیریت</div>
-          <a href="users.php" class="nav-item <?= $activeNav === 'users' ? 'active' : '' ?>" title="کاربران">
-            <span class="nav-icon"><?= icon('users') ?></span><span class="nav-label">کاربران</span>
-          </a>
-          <a href="invoice.php" class="nav-item <?= $activeNav === 'invoice' ? 'active' : '' ?>" title="سفارشات">
-            <span class="nav-icon"><?= icon('invoice') ?></span><span class="nav-label">سفارشات</span>
-          </a>
-          <a href="service.php" class="nav-item <?= $activeNav === 'service' ? 'active' : '' ?>" title="سرویس‌ها">
-            <span class="nav-icon"><?= icon('server') ?></span><span class="nav-label">سرویس‌ها</span>
-          </a>
-          <a href="product.php" class="nav-item <?= $activeNav === 'product' ? 'active' : '' ?>" title="محصولات">
-            <span class="nav-icon"><?= icon('package') ?></span><span class="nav-label">محصولات</span>
-          </a>
-          <a href="shop-settings.php" class="nav-item <?= $activeNav === 'shop-settings' ? 'active' : '' ?>" title="تنظیمات فروشگاه">
-            <span class="nav-icon"><?= icon('package') ?></span><span class="nav-label">فروشگاه</span>
-          </a>
-          <a href="miniapp-templates.php" class="nav-item <?= $activeNav === 'miniapp-templates' ? 'active' : '' ?>" title="قالب مینی‌اپ">
-            <span class="nav-icon"><?= icon('edit') ?></span><span class="nav-label">قالب مینی‌اپ</span>
-          </a>
-          <a href="finance.php" class="nav-item <?= in_array($activeNav, ['finance', 'payment'], true) ? 'active' : '' ?>" title="مرکز مالی">
-            <span class="nav-icon"><?= icon('wallet') ?></span><span class="nav-label">مالی</span>
-          </a>
-          <a href="about.php" class="nav-item <?= $activeNav === 'about' ? 'active' : '' ?>" title="درباره">
-            <span class="nav-icon"><?= icon('chart') ?></span><span class="nav-label">درباره</span>
-          </a>
-          <a href="migration.php" class="nav-item <?= $activeNav === 'migration' ? 'active' : '' ?>" title="مهاجرت">
-            <span class="nav-icon"><?= icon('package') ?></span><span class="nav-label">مهاجرت</span>
-          </a>
-        </div>
-        <div class="nav-section">
-          <div class="nav-heading">ربات تلگرام</div>
-          <a href="bot.php" class="nav-item <?= $activeNav === 'bot' ? 'active' : '' ?>" title="مرکز ربات">
-            <span class="nav-icon"><?= icon('bot') ?></span><span class="nav-label">مرکز ربات</span>
-          </a>
-          <a href="keyboard.php" class="nav-item <?= $activeNav === 'keyboard' ? 'active' : '' ?>" title="چیدمان منوی استارت">
-            <span class="nav-icon"><?= icon('menu') ?></span><span class="nav-label">چیدمان منو</span>
-          </a>
-          <a href="bot-texts.php" class="nav-item <?= $activeNav === 'bot-texts' ? 'active' : '' ?>" title="متن‌های ربات">
-            <span class="nav-icon"><?= icon('edit') ?></span><span class="nav-label">متن‌های ربات</span>
-          </a>
-          <a href="panels.php" class="nav-item <?= $activeNav === 'panels' ? 'active' : '' ?>" title="پنل‌های VPN">
-            <span class="nav-icon"><?= icon('server') ?></span><span class="nav-label">پنل‌های VPN</span>
-          </a>
-          <a href="bot-settings.php" class="nav-item <?= $activeNav === 'bot-settings' ? 'active' : '' ?>" title="تنظیمات ربات">
-            <span class="nav-icon"><?= icon('settings') ?></span><span class="nav-label">تنظیمات ربات</span>
-          </a>
-          <a href="test-settings.php" class="nav-item <?= $activeNav === 'test-settings' ? 'active' : '' ?>" title="اکانت تست">
-            <span class="nav-icon"><?= icon('server') ?></span><span class="nav-label">اکانت تست</span>
-          </a>
-          <a href="channels.php" class="nav-item <?= $activeNav === 'channels' ? 'active' : '' ?>" title="جوین اجباری">
-            <span class="nav-icon"><?= icon('users') ?></span><span class="nav-label">جوین اجباری</span>
-          </a>
-          <a href="reports-settings.php" class="nav-item <?= $activeNav === 'reports-settings' ? 'active' : '' ?>" title="گزارش‌ها">
-            <span class="nav-icon"><?= icon('chart') ?></span><span class="nav-label">گزارش‌ها</span>
-          </a>
-          <a href="admins.php" class="nav-item <?= $activeNav === 'admins' ? 'active' : '' ?>" title="ادمین‌ها">
-            <span class="nav-icon"><?= icon('users') ?></span><span class="nav-label">ادمین‌ها</span>
-          </a>
-          <a href="broadcast.php" class="nav-item <?= $activeNav === 'broadcast' ? 'active' : '' ?>" title="ارسال همگانی">
-            <span class="nav-icon"><?= icon('edit') ?></span><span class="nav-label">همگانی</span>
-          </a>
-          <a href="optimize.php" class="nav-item <?= $activeNav === 'optimize' ? 'active' : '' ?>" title="بهینه‌سازی">
-            <span class="nav-icon"><?= icon('chart') ?></span><span class="nav-label">بهینه‌سازی</span>
-          </a>
-          <a href="backup.php" class="nav-item <?= $activeNav === 'backup' ? 'active' : '' ?>" title="بکاپ">
-            <span class="nav-icon"><?= icon('package') ?></span><span class="nav-label">بکاپ</span>
-          </a>
-        </div>
-        <div class="nav-section">
-          <div class="nav-heading">پنل</div>
-          <a href="settings.php" class="nav-item <?= $activeNav === 'settings' ? 'active' : '' ?>" title="تنظیمات">
-            <span class="nav-icon"><?= icon('settings') ?></span><span class="nav-label">تنظیمات</span>
-          </a>
-          <a href="logout.php" class="nav-item" title="خروج">
-            <span class="nav-icon"><?= icon('logout') ?></span><span class="nav-label">خروج</span>
-          </a>
-        </div>
+        <?php vira_panel_render_sidebar($activeNav); ?>
       </nav>
       <div class="sidebar-foot">
         <div class="user-pill">

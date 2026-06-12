@@ -122,7 +122,8 @@ function mirza_pay_gateway_profiles(): array
 function mirza_pay_general_defs(): array
 {
     return [
-        ['key' => 'statuscardautoconfirm', 'label' => 'تأیید خودکار کارت', 'input' => 'select', 'options' => ['onautoconfirm' => 'روشن', 'offautoconfirm' => 'خاموش']],
+        ['key' => 'statuscardautoconfirm', 'label' => 'تأیید خودکار SMS', 'input' => 'select', 'options' => ['onautoconfirm' => 'روشن', 'offautoconfirm' => 'خاموش'], 'hint' => 'مبلغ یکتا + تأیید از پیامک بانک'],
+        ['key' => 'card_sms_telegram_group_id', 'label' => 'آیدی گروه SMS (تلگرام)', 'input' => 'text', 'hint' => 'مثال: -1003635129010 — SMS Forwarder پیامک را به این گروه بفرستد'],
         ['key' => 'chashbackcart', 'label' => 'کش‌بک کارت (درصد)', 'input' => 'number'],
         ['key' => 'minbalancebuybulk', 'label' => 'حداقل موجودی خرید عمده', 'input' => 'number'],
         ['key' => 'statuscopycart', 'label' => 'دکمه کپی کارت', 'input' => 'select', 'options' => ['1' => 'فعال', '0' => 'غیرفعال']],
