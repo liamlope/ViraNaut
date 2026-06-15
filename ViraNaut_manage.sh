@@ -13,9 +13,11 @@ LEGACY_PROJECT_DIR="/var/www/mirza_pro"
 ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
 MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
-VIRANAUT_MANAGE_VERSION="2.0.1-ViraNaut"
+VIRANAUT_MANAGE_VERSION="2.0.4-ViraNaut"
 MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
 VIRANAUT_BACKUP_PREFIX="viranaut_backup"
+VIRANAUT_PREUPDATE_PREFIX="viranaut_preupdate"
+VIRANAUT_PREUPDATE_KEEP=3
 VIRANAUT_VHOST_GENERIC="viranaut-pro.conf"
 VIRANAUT_VHOST_LEGACY="mirza-pro.conf"
 VIRANAUT_LOG_ERROR="viranaut_error.log"
@@ -48,6 +50,28 @@ NC='\033[0m'
 msg()  { echo -e "${GREEN}==> ${NC}${BOLD}$1${NC}"; }
 warn() { echo -e "${YELLOW}[!] $1${NC}"; }
 err()  { echo -e "${RED}[ERROR] $1${NC}"; }
+
+# a2ensite prints "Site X already enabled" on stdout — must not pollute $(...) captures
+mirza_a2ensite()  { a2ensite "$@" >/dev/null 2>&1 || true; }
+mirza_a2dissite() { a2dissite "$@" >/dev/null 2>&1 || true; }
+
+# Strip accidental stdout (a2ensite / status lines) from command substitutions
+mirza_sanitize_bot_dir() {
+  local raw="$1" line best=""
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line//$'\r'/}"
+    if [[ "$line" =~ ^/[a-zA-Z0-9._/-]+$ ]]; then
+      best="${line%/}"
+    fi
+  done <<< "$raw"
+  if [ -n "$best" ]; then
+    printf '%s' "$best"
+  elif [ -d "$INSTALL_BOT_DIR" ]; then
+    printf '%s' "${INSTALL_BOT_DIR%/}"
+  else
+    printf '%s' "${raw%%$'\n'*}"
+  fi
+}
 line() { echo -e "${CYAN}────────────────────────────────────────────${NC}"; }
 
 check_root() {
@@ -233,7 +257,7 @@ viranaut_ensure_apache_documentroot() {
 
   if [ -n "$domain" ]; then
     mirza_write_http_vhost "$domain" "$bot_dir" >/dev/null
-    a2ensite "${domain}.conf" 2>/dev/null || true
+    mirza_a2ensite "${domain}.conf"
     mirza_rewrite_vhost_documentroot "$domain" "$bot_dir"
     mirza_ensure_ssl_vhost "$domain" "$bot_dir"
     fixed=1
@@ -263,7 +287,7 @@ viranaut_disable_stale_vhosts() {
 
   for base in "${legacy_names[@]}"; do
     if [ -e "/etc/apache2/sites-enabled/$base" ]; then
-      a2dissite "$base" 2>/dev/null || true
+      mirza_a2dissite "$base" 2>/dev/null || true
       rm -f "/etc/apache2/sites-enabled/$base"
       echo -e "  ${YELLOW}●${NC} Disabled legacy vhost: $base" >&2
     fi
@@ -279,7 +303,7 @@ viranaut_disable_stale_vhosts() {
           ;;
       esac
       if grep -qiE "ServerName[[:space:]]+${domain}" "$f" 2>/dev/null; then
-        a2dissite "$base" 2>/dev/null || true
+        mirza_a2dissite "$base" 2>/dev/null || true
         rm -f "/etc/apache2/sites-enabled/$base"
         echo -e "  ${YELLOW}●${NC} Disabled duplicate vhost: $base" >&2
       fi
@@ -296,7 +320,7 @@ viranaut_disable_stale_vhosts() {
     for stale in "${stale_roots[@]}"; do
       if [ "$docroot" = "$stale" ] || grep -qF "$stale" "$f" 2>/dev/null; then
         base=$(basename "$f")
-        a2dissite "$base" 2>/dev/null || true
+        mirza_a2dissite "$base" 2>/dev/null || true
         rm -f "/etc/apache2/sites-enabled/$base"
         echo -e "  ${YELLOW}●${NC} Disabled stale vhost: $base (was $docroot)" >&2
         break
@@ -326,7 +350,6 @@ viranaut_apache_log_file() {
 }
 
 # Move bot to /var/www/html/viranaut when installed elsewhere (mirza_pro, viranautconfig, …)
-# Sets PROJECT_DIR + CONFIG_FILE — never print status to stdout (safe in command substitution).
 viranaut_relocate_to_canonical_path() {
   local src="${1%/}"
   local dest="${INSTALL_BOT_DIR%/}"
@@ -335,16 +358,14 @@ viranaut_relocate_to_canonical_path() {
   if [ "$src" = "$dest" ]; then
     cfg="$dest/config.php"
     domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg")")
-    viranaut_ensure_apache_documentroot "$dest" "$domain"
-    PROJECT_DIR="$dest"
-    CONFIG_FILE="$dest/config.php"
+    viranaut_ensure_apache_documentroot "$dest" "$domain" >&2
+    printf '%s' "$dest"
     return 0
   fi
 
   if ! mirza_is_valid_bot_dir "$src"; then
     warn "Skip relocate: invalid bot dir $src" >&2
-    PROJECT_DIR="$src"
-    CONFIG_FILE="$src/config.php"
+    printf '%s' "$src"
     return 1
   fi
 
@@ -364,7 +385,7 @@ viranaut_relocate_to_canonical_path() {
 
   cfg="$dest/config.php"
   domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg")")
-  viranaut_ensure_apache_documentroot "$dest" "$domain"
+  viranaut_ensure_apache_documentroot "$dest" "$domain" >&2
 
   local f
   for f in "/etc/apache2/sites-available/$VIRANAUT_VHOST_GENERIC" \
@@ -390,8 +411,7 @@ viranaut_relocate_to_canonical_path() {
   fi
 
   echo -e "  ${GREEN}✓${NC} Canonical install path: $dest" >&2
-  PROJECT_DIR="$dest"
-  CONFIG_FILE="$dest/config.php"
+  printf '%s' "$dest"
   return 0
 }
 
@@ -762,9 +782,15 @@ do_local_update() {
   echo ""
   echo -e "  ${CYAN}Target:${NC} $BOT_DIR"
   echo -e "  ${CYAN}Package:${NC} $(basename "$PACKAGE")"
+  echo -e "  ${CYAN}Note:${NC}   Auto backup before update (keeps last ${VIRANAUT_PREUPDATE_KEEP} pre-update ZIPs in $BACKUP_DIR)"
   read -p "  Update bot files? config.php will be kept (y/n): " _go
   _go=${_go,,}
   [ "$_go" = "y" ] || { msg "Cancelled."; return 0; }
+
+  if ! viranaut_preupdate_backup "$BOT_DIR"; then
+    err "Pre-update backup failed — update aborted (nothing changed)."
+    return 1
+  fi
 
   local TMP_EXTRACT
   TMP_EXTRACT=$(mktemp -d)
@@ -822,26 +848,16 @@ do_local_update() {
 
   if [ -f "$BOT_DIR/table.php" ]; then
     msg "Running table.php (database migrations) ..."
-    (cd "$BOT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php 2>/dev/null) || warn "table.php had warnings (often OK)."
+    (cd "$BOT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php >/dev/null 2>&1) || warn "table.php had warnings (often OK)."
   fi
 
   viranaut_db_migrate "$BOT_DIR"
 
-  viranaut_relocate_to_canonical_path "$BOT_DIR"
-  BOT_DIR="$PROJECT_DIR"
-  CONFIG_FILE="$BOT_DIR/config.php"
-
-  local _dom _tok
-  _dom=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts")")
-  _tok=$(read_php_var "APIKEY")
-  mirza_restart_apache || true
-  if [ -n "$_tok" ] && [ -n "$_dom" ]; then
-    MIRZA_DROP_PENDING_WEBHOOK=1 mirza_fix_webhook_complete "$_tok" "$_dom" || mirza_reload_services "$BOT_DIR"
-  else
-    mirza_reload_services "$BOT_DIR"
-  fi
+  systemctl reload apache2 2>/dev/null || true
   line
   echo -e "  ${GREEN}${BOLD}✓ ViraNaut local update complete.${NC}  Bot: $BOT_DIR"
+  echo -e "  ${CYAN}Restore if needed:${NC} menu ${BOLD}14${NC} → choose latest ${VIRANAUT_PREUPDATE_PREFIX}_*.zip"
+  viranaut_list_preupdate_backups 2>/dev/null || true
   echo ""
 }
 
@@ -1041,7 +1057,7 @@ SQL
   msg "Apache VirtualHost ..."
   if mirza_vhost_use_domain_conf; then
     VHOST_FILE="/etc/apache2/sites-available/${DOMAIN}.conf"
-    a2dissite "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
+    mirza_a2dissite "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
   else
     VHOST_FILE="/etc/apache2/sites-available/$VIRANAUT_VHOST_GENERIC"
   fi
@@ -1059,8 +1075,8 @@ SQL
     CustomLog \${APACHE_LOG_DIR}/${VIRANAUT_LOG_ACCESS} combined
 </VirtualHost>
 VHOST
-  a2ensite "$(basename "$VHOST_FILE")" 2>/dev/null || true
-  a2dissite 000-default.conf 2>/dev/null || true
+  mirza_a2ensite "$(basename "$VHOST_FILE")" 2>/dev/null || true
+  mirza_a2dissite 000-default.conf 2>/dev/null || true
   a2enmod rewrite 2>/dev/null || true
   systemctl enable apache2 2>/dev/null || true
   systemctl restart apache2
@@ -1078,8 +1094,9 @@ VHOST
 
   viranaut_db_migrate "$BOT_DIR"
 
-  viranaut_relocate_to_canonical_path "$BOT_DIR"
-  BOT_DIR="$PROJECT_DIR"
+  BOT_DIR=$(viranaut_relocate_to_canonical_path "$BOT_DIR")
+  BOT_DIR=$(mirza_sanitize_bot_dir "$BOT_DIR")
+  PROJECT_DIR="$BOT_DIR"
   CONFIG_FILE="$BOT_DIR/config.php"
 
   setup_cron_jobs
@@ -1196,77 +1213,25 @@ install_dependencies() {
   echo ""
 }
 
-# Read a PHP variable from config.php (safe parse — no execute)
+# Read a PHP variable from config.php (GNU sed -E; avoids BRE \( \) errors)
 # Usage: read_php_var "varname" [path/to/config.php]
 read_php_var() {
   local var="$1"
   local file="${2:-$CONFIG_FILE}"
+  local line val
   [ -f "$file" ] || return 0
-  if command -v php >/dev/null 2>&1; then
-    php -d display_errors=0 -r '
-      $f = $argv[1];
-      $v = $argv[2];
-      $c = @file_get_contents($f);
-      if ($c === false) { exit(1); }
-      $c = str_replace("\r", "", $c);
-      $q = preg_quote($v, "/");
-      if (preg_match("/^\\s*\\$" . $q . "\\s*=\\s*\'((?:\\\\\'|[^\'])*)\'\\s*;/m", $c, $m)) {
-        echo str_replace("\\\'", "\'", $m[1]);
-        exit(0);
-      }
-      if (preg_match("/^\\s*\\$" . $q . "\\s*=\\s*\"((?:\\\\\"|[^\"])*)\"\\s*;/m", $c, $m)) {
-        echo str_replace("\\\"", "\"", $m[1]);
-        exit(0);
-      }
-      if (preg_match("/^\\s*\\$" . $q . "\\s*=\\s*([^;]+);/m", $c, $m)) {
-        $val = trim($m[1]);
-        $val = trim($val, " \t\"\'");
-        if ($val !== "") { echo $val; exit(0); }
-      }
-      exit(1);
-    ' "$file" "$var" 2>/dev/null && return 0
-  fi
-  local val
-  val=$(sed -En "s/^[[:space:]]*\\\$${var}[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" "$file" | head -n 1)
-  if [ -n "$val" ]; then
-    printf '%s' "$val"
-    return 0
-  fi
-  val=$(grep -E "^[[:space:]]*\\\$${var}[[:space:]]*=" "$file" 2>/dev/null | head -1 \
-    | sed -E "s/^[[:space:]]*\\\$${var}[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/")
-  [ -n "$val" ] && printf '%s' "$val"
-}
 
-mirza_restore_config_from_zip() {
-  local zip="$1" dest_cfg="$2"
-  local tmp restored=""
-  [ -f "$zip" ] || return 1
-  [ -n "$dest_cfg" ] || return 1
-  tmp=$(mktemp -d)
-  if unzip -q -o "$zip" "config.php" -d "$tmp" 2>/dev/null \
-    || unzip -q -o "$zip" "*/config.php" -d "$tmp" 2>/dev/null; then
-    restored=$(find "$tmp" -name 'config.php' -type f | head -1)
-    if [ -n "$restored" ] && [ -f "$restored" ]; then
-      cp "$restored" "$dest_cfg"
-      chmod 640 "$dest_cfg" 2>/dev/null || true
-      chown www-data:www-data "$dest_cfg" 2>/dev/null || true
-      echo -e "  ${GREEN}✓${NC} Restored config.php from $(basename "$zip")"
-      rm -rf "$tmp"
+  line=$(grep -E "^[[:space:]]*\\\$${var}[[:space:]]*=" "$file" 2>/dev/null | head -1)
+  if [ -n "$line" ]; then
+    val=$(printf '%s' "$line" | sed -E "s/^[[:space:]]*\\\$${var}[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*$/\1/")
+    if [ -n "$val" ]; then
+      printf '%s' "$val"
       return 0
     fi
   fi
-  rm -rf "$tmp"
-  return 1
-}
 
-mirza_config_vars_ok() {
-  local cfg="$1"
-  local domain token dbname dbuser
-  domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg")")
-  token=$(read_php_var "APIKEY" "$cfg")
-  dbname=$(read_php_var "dbname" "$cfg")
-  dbuser=$(read_php_var "usernamedb" "$cfg")
-  [ -n "$domain" ] && [ -n "$token" ] && [ -n "$dbname" ] && [ -n "$dbuser" ]
+  val=$(sed -En "s/^[[:space:]]*\\\$${var}[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/p" "$file" | head -n 1)
+  [ -n "$val" ] && printf '%s' "$val"
 }
 
 mirza_config_mysql_ok() {
@@ -1303,7 +1268,7 @@ viranaut_db_migrate() {
       || warn "Some migration SQL lines skipped (often OK on re-run)."
   fi
 
-  mysql -u "$dbuser" -p"$dbpass" "$dbname" 2>/dev/null <<EOSQL || true
+  mysql -u "$dbuser" -p"$dbpass" "$dbname" >/dev/null 2>&1 <<EOSQL || true
 SET @col := (SELECT COUNT(*) FROM information_schema.COLUMNS
   WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='setting' AND COLUMN_NAME='status_usertest');
 SET @sql := IF(@col=0, 'ALTER TABLE setting ADD COLUMN status_usertest VARCHAR(16) DEFAULT ''ontest''', 'SELECT 1');
@@ -1332,8 +1297,8 @@ WHERE ValuePay LIKE '%میرزا%' OR ValuePay LIKE '%Mirza%';
 UPDATE shopSetting SET value = REPLACE(REPLACE(REPLACE(value,
   'تیم میرزا', 'تیم ویرانات'), 'میرزا', 'ویرانات'), 'Mirza', 'ViraNaut')
 WHERE value LIKE '%میرزا%' OR value LIKE '%Mirza%';
-INSERT INTO shopSetting (Namevalue, value) VALUES ('viranaut_version', '2.0.1-ViraNaut')
-ON DUPLICATE KEY UPDATE value='2.0.1-ViraNaut';
+INSERT INTO shopSetting (Namevalue, value) VALUES ('viranaut_version', '1.9-ViraNaut')
+ON DUPLICATE KEY UPDATE value='1.9-ViraNaut';
 EOSQL
 
   echo -e "  ${GREEN}✓${NC} ViraNaut database merge completed"
@@ -1347,13 +1312,13 @@ load_config() {
     mirza_list_installations || true
     exit 1
   fi
-  DB_NAME=$(read_php_var "dbname" "$CONFIG_FILE")
-  DB_USER=$(read_php_var "usernamedb" "$CONFIG_FILE")
-  DB_PASS=$(read_php_var "passworddb" "$CONFIG_FILE")
-  BOT_TOKEN=$(read_php_var "APIKEY" "$CONFIG_FILE")
-  ADMIN_ID=$(read_php_var "adminnumber" "$CONFIG_FILE")
-  BOT_USERNAME=$(mirza_normalize_bot_username "$(read_php_var "usernamebot" "$CONFIG_FILE")")
-  DOMAIN_RAW=$(read_php_var "domainhosts" "$CONFIG_FILE")
+  DB_NAME=$(read_php_var "dbname")
+  DB_USER=$(read_php_var "usernamedb")
+  DB_PASS=$(read_php_var "passworddb")
+  BOT_TOKEN=$(read_php_var "APIKEY")
+  ADMIN_ID=$(read_php_var "adminnumber")
+  BOT_USERNAME=$(mirza_normalize_bot_username "$(read_php_var "usernamebot")")
+  DOMAIN_RAW=$(read_php_var "domainhosts")
   DOMAIN=$(mirza_normalize_domainhosts "$DOMAIN_RAW")
 
   if [ -z "$DB_NAME" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ]; then
@@ -1386,7 +1351,12 @@ mirza_sanitize_vhost_conf() {
 # After restore, vhost in ZIP may point at old path (e.g. mirzaprobotconfig) — force current bot dir
 mirza_rewrite_vhost_documentroot() {
   local domain="$1"
-  local bot_dir="${2%/}"
+  local bot_dir
+  bot_dir=$(mirza_sanitize_bot_dir "${2%/}")
+  [ -d "$bot_dir" ] || {
+    warn "Invalid bot path for vhost rewrite: ${2:-empty}"
+    return 1
+  }
   local f
   for f in /etc/apache2/sites-available/${domain}*.conf \
     /etc/apache2/sites-available/*${domain}*-ssl.conf \
@@ -1400,7 +1370,7 @@ mirza_rewrite_vhost_documentroot() {
     sed -i "s|/var/www/mirza_pro|$bot_dir|g" "$f"
     mirza_sanitize_vhost_conf "$f"
   done
-  echo -e "  ${GREEN}✓${NC} Apache DocumentRoot → $bot_dir (all vhosts for $domain)"
+  echo -e "  ${GREEN}✓${NC} Apache DocumentRoot → $bot_dir (all vhosts for $domain)" >&2
 }
 
 mirza_write_http_vhost() {
@@ -1422,12 +1392,12 @@ mirza_write_http_vhost() {
 </VirtualHost>
 VHOST
   mirza_sanitize_vhost_conf "$vhost"
-  printf '%s' "$vhost"
 }
 
 mirza_ensure_ssl_vhost() {
   local domain="$1"
-  local bot_dir="${2%/}"
+  local bot_dir
+  bot_dir=$(mirza_sanitize_bot_dir "${2%/}")
   local ssl_conf="" f
 
   if ! mirza_ssl_cert_exists "$domain"; then
@@ -1468,10 +1438,10 @@ VHOST
       sed -i "s|^[[:space:]]*DocumentRoot.*|    DocumentRoot $bot_dir|" "$f"
     fi
     mirza_sanitize_vhost_conf "$f"
-    a2ensite "$(basename "$f")" 2>/dev/null || true
+    mirza_a2ensite "$(basename "$f")" 2>/dev/null || true
   done
   mirza_sanitize_vhost_conf "$ssl_conf"
-  a2ensite "$(basename "$ssl_conf")" 2>/dev/null || true
+  mirza_a2ensite "$(basename "$ssl_conf")" 2>/dev/null || true
 }
 
 mirza_ufw_allow_telegram() {
@@ -1523,15 +1493,15 @@ mirza_enable_apache_for_bot() {
   local domain="$1"
   local bot_dir="${2%/}"
   a2enmod rewrite ssl 2>/dev/null || true
-  mirza_write_http_vhost "$domain" "$bot_dir"
-  a2ensite "${domain}.conf" 2>/dev/null || true
+  mirza_write_http_vhost "$domain" "$bot_dir" >/dev/null
+  mirza_a2ensite "${domain}.conf"
   if mirza_ssl_cert_exists "$domain"; then
     mirza_ensure_ssl_vhost "$domain" "$bot_dir"
   else
-    a2dissite "${domain}-ssl.conf" "${domain}-le-ssl.conf" 2>/dev/null || true
+    mirza_a2dissite "${domain}-ssl.conf" "${domain}-le-ssl.conf" 2>/dev/null || true
     warn "No SSL cert yet — HTTP only until certbot succeeds"
   fi
-  a2dissite 000-default.conf "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
+  mirza_a2dissite 000-default.conf "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
   apache2ctl configtest >/dev/null 2>&1 || {
     err "Apache configtest failed"
     apache2ctl configtest
@@ -1586,6 +1556,7 @@ mirza_write_meta_cron_jobs() {
   mkdir -p "$(dirname "$out")"
   cat >"$out" <<CRON
 */15 * * * * curl -fsS https://${domain}/cronbot/statusday.php
+*/1 * * * * curl -fsS https://${domain}/cronbot/card_receipt_prompt.php
 */1 * * * * curl -fsS https://${domain}/cronbot/NoticationsService.php
 */5 * * * * curl -fsS https://${domain}/cronbot/payment_expire.php
 */1 * * * * curl -fsS https://${domain}/cronbot/sendmessage.php
@@ -1812,7 +1783,7 @@ mirza_restore_apache_vhosts_from_zip() {
     base=$(basename "$f")
     cp "$f" "/etc/apache2/sites-available/$base"
     mirza_sanitize_vhost_conf "/etc/apache2/sites-available/$base"
-    a2ensite "$base" 2>/dev/null || true
+    mirza_a2ensite "$base" 2>/dev/null || true
     restored=1
     echo -e "  ${GREEN}✓${NC} Restored vhost from backup: $base"
   done
@@ -1895,36 +1866,33 @@ do_fix_all_bot() {
   fi
 
   local domain token dbname dbuser dbpass user_count backup_zip bot_user
+  local cfg_path="$CONFIG_FILE"
 
-  if ! mirza_config_vars_ok "$CONFIG_FILE"; then
-    backup_zip=$(mirza_latest_backup_zip)
-    if [ -n "$backup_zip" ]; then
-      warn "config.php unreadable or incomplete — trying backup $(basename "$backup_zip")"
-      mirza_restore_config_from_zip "$backup_zip" "$CONFIG_FILE" || true
-    fi
-  fi
-
-  domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$CONFIG_FILE")")
-  token=$(read_php_var "APIKEY" "$CONFIG_FILE")
-  dbname=$(read_php_var "dbname" "$CONFIG_FILE")
-  dbuser=$(read_php_var "usernamedb" "$CONFIG_FILE")
-  dbpass=$(read_php_var "passworddb" "$CONFIG_FILE")
-  bot_user=$(mirza_normalize_bot_username "$(read_php_var "usernamebot" "$CONFIG_FILE")")
+  # اول config را بخوان — قبل از relocate (باگ v1.9: relocate خروجی stdout را داخل PROJECT_DIR می‌ریخت)
+  domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg_path")")
+  token=$(read_php_var "APIKEY" "$cfg_path")
+  dbname=$(read_php_var "dbname" "$cfg_path")
+  dbuser=$(read_php_var "usernamedb" "$cfg_path")
+  dbpass=$(read_php_var "passworddb" "$cfg_path")
+  bot_user=$(mirza_normalize_bot_username "$(read_php_var "usernamebot" "$cfg_path")")
 
   if [ -z "$domain" ] || [ -z "$token" ] || [ -z "$dbname" ] || [ -z "$dbuser" ]; then
     err "config.php incomplete — missing:"
-    echo -e "    ${CYAN}File:${NC} $CONFIG_FILE"
+    echo -e "    ${CYAN}File:${NC} $cfg_path"
     [ -z "$domain" ] && echo "    • domainhosts"
     [ -z "$token" ] && echo "    • APIKEY"
     [ -z "$dbname" ] && echo "    • dbname"
     [ -z "$dbuser" ] && echo "    • usernamedb"
-    echo "    Fix: menu 14 restore, or: unzip -p ~/viranaut_backups/*.zip config.php > $CONFIG_FILE"
+    echo ""
+    echo -e "    ${CYAN}Test:${NC} grep -E '^\\\$domainhosts|^\\\$APIKEY|^\\\$dbname|^\\\$usernamedb' $cfg_path"
     return 1
   fi
 
-  viranaut_relocate_to_canonical_path "$PROJECT_DIR"
-
+  PROJECT_DIR=$(viranaut_relocate_to_canonical_path "$PROJECT_DIR")
+  PROJECT_DIR=$(mirza_sanitize_bot_dir "$PROJECT_DIR")
+  CONFIG_FILE="$PROJECT_DIR/config.php"
   viranaut_ensure_apache_documentroot "$PROJECT_DIR" "$domain"
+
   if ! mirza_config_mysql_ok "$dbname" "$dbuser" "$dbpass"; then
     err "MySQL connection failed with credentials from config.php"
     return 1
@@ -2138,7 +2106,9 @@ do_restore_existing_bot() {
     viranaut_db_migrate "$PROJECT_DIR"
   fi
 
-  viranaut_relocate_to_canonical_path "$PROJECT_DIR"
+  PROJECT_DIR=$(viranaut_relocate_to_canonical_path "$PROJECT_DIR")
+  PROJECT_DIR=$(mirza_sanitize_bot_dir "$PROJECT_DIR")
+  CONFIG_FILE="$PROJECT_DIR/config.php"
 
   rm -rf "$TMP_DIR"
   MIRZA_DROP_PENDING_WEBHOOK=1 mirza_fix_webhook_complete "$BOT_TOKEN" "$DOMAIN" || mirza_reload_services "$PROJECT_DIR"
@@ -2149,6 +2119,183 @@ do_restore_existing_bot() {
 }
 
 # ============================================================
+#  Backup ZIP helpers (menu 1 + pre-update menu 8)
+# ============================================================
+# stdout: path to .zip; verbose=1 prints progress
+viranaut_create_backup_zip() {
+  local BOT_DIR="${1%/}"
+  local NAME_PREFIX="${2:-$VIRANAUT_BACKUP_PREFIX}"
+  local VERBOSE="${3:-0}"
+  local CONFIG_PATH="$BOT_DIR/config.php"
+
+  [ -f "$CONFIG_PATH" ] || {
+    err "config.php not found at $CONFIG_PATH"
+    return 1
+  }
+
+  local dbname dbuser dbpass domain admin_id bot_user
+  dbname=$(read_php_var "dbname" "$CONFIG_PATH")
+  dbuser=$(read_php_var "usernamedb" "$CONFIG_PATH")
+  dbpass=$(read_php_var "passworddb" "$CONFIG_PATH")
+  domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$CONFIG_PATH")")
+  admin_id=$(read_php_var "adminnumber" "$CONFIG_PATH")
+  bot_user=$(mirza_normalize_bot_username "$(read_php_var "usernamebot" "$CONFIG_PATH")")
+
+  if [ -z "$dbname" ] || [ -z "$dbuser" ] || [ -z "$dbpass" ]; then
+    err "Could not read database credentials from config.php"
+    return 1
+  fi
+
+  mkdir -p "$BACKUP_DIR"
+  local TIMESTAMP TMP_DIR BACKUP_NAME ZIP_PATH _vhost_saved=0 _cf
+  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+  TMP_DIR=$(mktemp -d)
+  BACKUP_NAME="${NAME_PREFIX}_${TIMESTAMP}"
+
+  if [ "$VERBOSE" = "1" ]; then
+    msg "Dumping database: $dbname"
+  fi
+  if ! mysqldump -u "$dbuser" -p"$dbpass" --single-transaction --quick --no-tablespaces "$dbname" > "$TMP_DIR/database.sql" 2>/dev/null; then
+    err "mysqldump failed. Check credentials."
+    rm -rf "$TMP_DIR"
+    return 1
+  fi
+  [ "$VERBOSE" = "1" ] && echo -e "  ${GREEN}✓${NC} Database dump OK  ($(du -h "$TMP_DIR/database.sql" | cut -f1))"
+
+  if [ "$VERBOSE" = "1" ]; then
+    msg "Saving cron jobs"
+  fi
+  crontab -l 2>/dev/null > "$TMP_DIR/crontab.txt" || echo "" > "$TMP_DIR/crontab.txt"
+  [ "$VERBOSE" = "1" ] && echo -e "  ${GREEN}✓${NC} Cron saved"
+
+  if [ "$VERBOSE" = "1" ]; then
+    msg "Saving config.php"
+  fi
+  cp "$CONFIG_PATH" "$TMP_DIR/config.php"
+  [ "$VERBOSE" = "1" ] && echo -e "  ${GREEN}✓${NC} config.php saved"
+
+  if [ -f "/etc/apache2/sites-available/$VIRANAUT_VHOST_GENERIC" ]; then
+    cp "/etc/apache2/sites-available/$VIRANAUT_VHOST_GENERIC" "$TMP_DIR/$VIRANAUT_VHOST_GENERIC"
+    [ "$VERBOSE" = "1" ] && echo -e "  ${GREEN}✓${NC} Apache VirtualHost saved ($VIRANAUT_VHOST_GENERIC)"
+    _vhost_saved=1
+  fi
+  if [ -f "/etc/apache2/sites-available/$VIRANAUT_VHOST_LEGACY" ]; then
+    cp "/etc/apache2/sites-available/$VIRANAUT_VHOST_LEGACY" "$TMP_DIR/$VIRANAUT_VHOST_LEGACY"
+    [ "$VERBOSE" = "1" ] && echo -e "  ${GREEN}✓${NC} Apache VirtualHost saved ($VIRANAUT_VHOST_LEGACY, legacy)"
+    _vhost_saved=1
+  fi
+  if [ -n "$domain" ] && [ -f "/etc/apache2/sites-available/${domain}.conf" ]; then
+    cp "/etc/apache2/sites-available/${domain}.conf" "$TMP_DIR/${domain}.conf"
+    [ "$VERBOSE" = "1" ] && echo -e "  ${GREEN}✓${NC} Apache VirtualHost saved (${domain}.conf)"
+    _vhost_saved=1
+  fi
+  if [ -n "$domain" ] && [ -f "/etc/apache2/sites-available/${domain}-ssl.conf" ]; then
+    cp "/etc/apache2/sites-available/${domain}-ssl.conf" "$TMP_DIR/${domain}-ssl.conf"
+    [ "$VERBOSE" = "1" ] && echo -e "  ${GREEN}✓${NC} Apache SSL vhost saved (${domain}-ssl.conf)"
+    _vhost_saved=1
+  fi
+  if [ -n "$domain" ] && [ -f "/etc/apache2/sites-available/${domain}-le-ssl.conf" ]; then
+    cp "/etc/apache2/sites-available/${domain}-le-ssl.conf" "$TMP_DIR/${domain}-le-ssl.conf"
+    [ "$VERBOSE" = "1" ] && echo -e "  ${GREEN}✓${NC} Apache SSL vhost saved (${domain}-le-ssl.conf)"
+    _vhost_saved=1
+  fi
+  if [ "$VERBOSE" = "1" ] && [ "$_vhost_saved" -eq 0 ]; then
+    warn "No Apache site config found under sites-available (optional)."
+  fi
+
+  if [ -d "$BOT_DIR/cronbot" ]; then
+    mkdir -p "$TMP_DIR/cronbot"
+    for _cf in "$BOT_DIR/cronbot"/*; do
+      [ -f "$_cf" ] || continue
+      [[ "$(basename "$_cf")" == *.php ]] && continue
+      cp "$_cf" "$TMP_DIR/cronbot/"
+    done
+    [ "$VERBOSE" = "1" ] && echo -e "  ${GREEN}✓${NC} cronbot data files saved"
+  fi
+  [ -f "$BOT_DIR/text.json" ] && cp "$BOT_DIR/text.json" "$TMP_DIR/text.json"
+  [ "$VERBOSE" = "1" ] && [ -f "$BOT_DIR/text.json" ] && echo -e "  ${GREEN}✓${NC} text.json saved"
+  [ -f "$BOT_DIR/version" ] && cp "$BOT_DIR/version" "$TMP_DIR/version"
+  mirza_write_meta_cron_jobs "$TMP_DIR/meta/cron_jobs.txt" "$domain"
+
+  cat > "$TMP_DIR/backup_info.txt" <<INFO
+ViraNaut Backup
+Created: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+Domain:  $domain
+DB Name: $dbname
+DB User: $dbuser
+Admin:   $admin_id
+Bot:     @$bot_user
+INFO
+
+  cat > "$TMP_DIR/manifest.json" <<MANIFEST
+{"format":"viranaut-manage-backup","version":1,"created_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","domain":"$domain","path":"$BOT_DIR","kind":"$NAME_PREFIX"}
+MANIFEST
+
+  apt-get install -y zip >/dev/null 2>&1 || true
+  ZIP_PATH="$BACKUP_DIR/${BACKUP_NAME}.zip"
+  if [ "$VERBOSE" = "1" ]; then
+    msg "Creating ZIP archive ..."
+  fi
+  if ! (cd "$TMP_DIR" && zip -r "$ZIP_PATH" . >/dev/null 2>&1); then
+    err "Failed to create ZIP at $ZIP_PATH"
+    rm -rf "$TMP_DIR"
+    return 1
+  fi
+  [ "$VERBOSE" = "1" ] && echo -e "  ${GREEN}✓${NC} ZIP: database.sql, config.php, crontab.txt, cronbot/, text.json, meta/cron_jobs.txt, Apache conf"
+  rm -rf "$TMP_DIR"
+  printf '%s' "$ZIP_PATH"
+  return 0
+}
+
+viranaut_prune_backup_zips() {
+  local prefix="$1"
+  local keep="${2:-3}"
+  local -a sorted=()
+  local f removed=0
+
+  [ -d "$BACKUP_DIR" ] || return 0
+  while IFS= read -r f; do
+    [ -n "$f" ] && sorted+=("$f")
+  done < <(ls -1t "$BACKUP_DIR/${prefix}"_*.zip 2>/dev/null || true)
+
+  local i
+  for (( i=keep; i<${#sorted[@]}; i++ )); do
+    rm -f "${sorted[$i]}"
+    echo -e "  ${YELLOW}●${NC} Removed old backup: $(basename "${sorted[$i]}")" >&2
+    removed=$((removed + 1))
+  done
+  return 0
+}
+
+viranaut_list_preupdate_backups() {
+  local -a files=()
+  local f i=1
+
+  [ -d "$BACKUP_DIR" ] || return 0
+  while IFS= read -r f; do
+    [ -n "$f" ] && files+=("$f")
+  done < <(ls -1t "$BACKUP_DIR/${VIRANAUT_PREUPDATE_PREFIX}"_*.zip 2>/dev/null || true)
+  [ ${#files[@]} -gt 0 ] || return 0
+
+  echo -e "  ${CYAN}Pre-update backups kept (max ${VIRANAUT_PREUPDATE_KEEP}):${NC}"
+  for f in "${files[@]}"; do
+    echo -e "    ${BOLD}$i)${NC} $(basename "$f")  ($(du -h "$f" | cut -f1))"
+    i=$((i + 1))
+  done
+}
+
+viranaut_preupdate_backup() {
+  local BOT_DIR="${1%/}"
+  local zip
+
+  msg "Pre-update backup (database + config + cron + vhost + data) ..."
+  zip=$(viranaut_create_backup_zip "$BOT_DIR" "$VIRANAUT_PREUPDATE_PREFIX" 0) || return 1
+  echo -e "  ${GREEN}✓${NC} Backup: $zip  ($(du -h "$zip" | cut -f1))"
+  viranaut_prune_backup_zips "$VIRANAUT_PREUPDATE_PREFIX" "$VIRANAUT_PREUPDATE_KEEP"
+  return 0
+}
+
+# ============================================================
 #  1) BACKUP
 # ============================================================
 do_backup() {
@@ -2156,99 +2303,8 @@ do_backup() {
   load_config
   line
 
-  mkdir -p "$BACKUP_DIR"
-  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-  TMP_DIR=$(mktemp -d)
-  BACKUP_NAME="${VIRANAUT_BACKUP_PREFIX}_${TIMESTAMP}"
-
-  # --- Database ---
-  msg "Dumping database: $DB_NAME"
-  if mysqldump -u "$DB_USER" -p"$DB_PASS" --single-transaction --quick --no-tablespaces "$DB_NAME" > "$TMP_DIR/database.sql" 2>/dev/null; then
-    echo -e "  ${GREEN}✓${NC} Database dump OK  ($(du -h "$TMP_DIR/database.sql" | cut -f1))"
-  else
-    err "mysqldump failed. Check credentials."
-    rm -rf "$TMP_DIR"
-    return 1
-  fi
-
-  # --- Cron jobs ---
-  msg "Saving cron jobs"
-  crontab -l 2>/dev/null > "$TMP_DIR/crontab.txt" || echo "" > "$TMP_DIR/crontab.txt"
-  echo -e "  ${GREEN}✓${NC} Cron saved"
-
-  # --- Config (env) ---
-  msg "Saving config.php"
-  cp "$CONFIG_FILE" "$TMP_DIR/config.php"
-  echo -e "  ${GREEN}✓${NC} config.php saved"
-
-  # --- Apache VirtualHost (domain.conf / viranaut-pro.conf / legacy mirza-pro.conf) ---
-  _vhost_saved=0
-  if [ -f "/etc/apache2/sites-available/$VIRANAUT_VHOST_GENERIC" ]; then
-    cp "/etc/apache2/sites-available/$VIRANAUT_VHOST_GENERIC" "$TMP_DIR/$VIRANAUT_VHOST_GENERIC"
-    echo -e "  ${GREEN}✓${NC} Apache VirtualHost saved ($VIRANAUT_VHOST_GENERIC)"
-    _vhost_saved=1
-  fi
-  if [ -f "/etc/apache2/sites-available/$VIRANAUT_VHOST_LEGACY" ]; then
-    cp "/etc/apache2/sites-available/$VIRANAUT_VHOST_LEGACY" "$TMP_DIR/$VIRANAUT_VHOST_LEGACY"
-    echo -e "  ${GREEN}✓${NC} Apache VirtualHost saved ($VIRANAUT_VHOST_LEGACY, legacy)"
-    _vhost_saved=1
-  fi
-  if [ -n "$DOMAIN" ] && [ -f "/etc/apache2/sites-available/${DOMAIN}.conf" ]; then
-    cp "/etc/apache2/sites-available/${DOMAIN}.conf" "$TMP_DIR/${DOMAIN}.conf"
-    echo -e "  ${GREEN}✓${NC} Apache VirtualHost saved (${DOMAIN}.conf)"
-    _vhost_saved=1
-  fi
-  if [ -n "$DOMAIN" ] && [ -f "/etc/apache2/sites-available/${DOMAIN}-ssl.conf" ]; then
-    cp "/etc/apache2/sites-available/${DOMAIN}-ssl.conf" "$TMP_DIR/${DOMAIN}-ssl.conf"
-    echo -e "  ${GREEN}✓${NC} Apache SSL vhost saved (${DOMAIN}-ssl.conf)"
-    _vhost_saved=1
-  fi
-  if [ -n "$DOMAIN" ] && [ -f "/etc/apache2/sites-available/${DOMAIN}-le-ssl.conf" ]; then
-    cp "/etc/apache2/sites-available/${DOMAIN}-le-ssl.conf" "$TMP_DIR/${DOMAIN}-le-ssl.conf"
-    echo -e "  ${GREEN}✓${NC} Apache SSL vhost saved (${DOMAIN}-le-ssl.conf)"
-    _vhost_saved=1
-  fi
-  if [ "$_vhost_saved" -eq 0 ]; then
-    warn "No Apache site config found under sites-available (optional)."
-  fi
-
-  # --- Bot queue / texts (compatible with panel restore) ---
-  if [ -d "$PROJECT_DIR/cronbot" ]; then
-    mkdir -p "$TMP_DIR/cronbot"
-    local _cf
-    for _cf in "$PROJECT_DIR/cronbot"/*; do
-      [ -f "$_cf" ] || continue
-      [[ "$(basename "$_cf")" == *.php ]] && continue
-      cp "$_cf" "$TMP_DIR/cronbot/"
-    done
-    echo -e "  ${GREEN}✓${NC} cronbot data files saved"
-  fi
-  [ -f "$PROJECT_DIR/text.json" ] && cp "$PROJECT_DIR/text.json" "$TMP_DIR/text.json" && echo -e "  ${GREEN}✓${NC} text.json saved"
-  [ -f "$PROJECT_DIR/version" ] && cp "$PROJECT_DIR/version" "$TMP_DIR/version"
-  mirza_write_meta_cron_jobs "$TMP_DIR/meta/cron_jobs.txt" "$DOMAIN"
-
-  # --- Info file ---
-  cat > "$TMP_DIR/backup_info.txt" <<INFO
-ViraNaut Backup
-Created: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-Domain:  $DOMAIN
-DB Name: $DB_NAME
-DB User: $DB_USER
-Admin:   $ADMIN_ID
-Bot:     @$BOT_USERNAME
-INFO
-
-  cat > "$TMP_DIR/manifest.json" <<MANIFEST
-{"format":"viranaut-manage-backup","version":1,"created_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","domain":"$DOMAIN","path":"$PROJECT_DIR"}
-MANIFEST
-
-  # --- Create ZIP ---
-  msg "Creating ZIP archive ..."
-  apt-get install -y zip >/dev/null 2>&1 || true
-  ZIP_PATH="$BACKUP_DIR/${BACKUP_NAME}.zip"
-  (cd "$TMP_DIR" && zip -r "$ZIP_PATH" . >/dev/null 2>&1)
-  echo -e "  ${GREEN}✓${NC} ZIP: database.sql, config.php, crontab.txt, cronbot/, text.json, meta/cron_jobs.txt, Apache conf"
-  rm -rf "$TMP_DIR"
+  local ZIP_PATH
+  ZIP_PATH=$(viranaut_create_backup_zip "$PROJECT_DIR" "$VIRANAUT_BACKUP_PREFIX" 1) || return 1
 
   line
   echo ""
@@ -2453,20 +2509,20 @@ SQL
       cp "$TMP_DIR/${BK_DOMAIN}-ssl.conf" "/etc/apache2/sites-available/${BK_DOMAIN}-ssl.conf"
       mirza_sanitize_vhost_conf "/etc/apache2/sites-available/${BK_DOMAIN}-ssl.conf"
       if mirza_ssl_cert_exists "$BK_DOMAIN"; then
-        a2ensite "${BK_DOMAIN}-ssl.conf" 2>/dev/null || true
+        mirza_a2ensite "${BK_DOMAIN}-ssl.conf" 2>/dev/null || true
       else
-        a2dissite "${BK_DOMAIN}-ssl.conf" 2>/dev/null || true
+        mirza_a2dissite "${BK_DOMAIN}-ssl.conf" 2>/dev/null || true
       fi
     fi
-    a2ensite "${BK_DOMAIN}.conf" 2>/dev/null || true
+    mirza_a2ensite "${BK_DOMAIN}.conf" 2>/dev/null || true
   elif [ -f "$TMP_DIR/$VIRANAUT_VHOST_GENERIC" ]; then
     msg "Restoring Apache VirtualHost ($VIRANAUT_VHOST_GENERIC) ..."
     cp "$TMP_DIR/$VIRANAUT_VHOST_GENERIC" "/etc/apache2/sites-available/$VIRANAUT_VHOST_GENERIC"
-    a2ensite "$VIRANAUT_VHOST_GENERIC" 2>/dev/null || true
+    mirza_a2ensite "$VIRANAUT_VHOST_GENERIC" 2>/dev/null || true
   elif [ -f "$TMP_DIR/$VIRANAUT_VHOST_LEGACY" ]; then
     msg "Restoring Apache VirtualHost ($VIRANAUT_VHOST_LEGACY, legacy) ..."
     cp "$TMP_DIR/$VIRANAUT_VHOST_LEGACY" "/etc/apache2/sites-available/$VIRANAUT_VHOST_LEGACY"
-    a2ensite "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
+    mirza_a2ensite "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
   elif [ -n "$BK_DOMAIN" ]; then
     if mirza_vhost_use_domain_conf; then
       msg "Creating Apache VirtualHost for $BK_DOMAIN ($BK_DOMAIN.conf) ..."
@@ -2489,9 +2545,9 @@ SQL
     CustomLog \${APACHE_LOG_DIR}/${VIRANAUT_LOG_ACCESS} combined
 </VirtualHost>
 VHOST
-    a2ensite "$VHOST_BASENAME" 2>/dev/null || true
+    mirza_a2ensite "$VHOST_BASENAME" 2>/dev/null || true
   fi
-  a2dissite 000-default.conf 2>/dev/null || true
+  mirza_a2dissite 000-default.conf 2>/dev/null || true
   a2enmod rewrite 2>/dev/null || true
   if [ -n "$BK_DOMAIN" ]; then
     mirza_rewrite_vhost_documentroot "$BK_DOMAIN" "$PROJECT_DIR"
@@ -2614,7 +2670,7 @@ mirza_remove_apache_vhosts_for_bot() {
   for _vf in "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY"; do
     if [ -f "/etc/apache2/sites-available/$_vf" ]; then
       if grep -qF "$BOT_DIR" "/etc/apache2/sites-available/$_vf" 2>/dev/null; then
-        a2dissite "$_vf" 2>/dev/null || true
+        mirza_a2dissite "$_vf" 2>/dev/null || true
         rm -f "/etc/apache2/sites-enabled/$_vf"
         rm -f "/etc/apache2/sites-available/$_vf"
         echo -e "  ${GREEN}✓${NC} Removed $_vf"
@@ -2622,8 +2678,8 @@ mirza_remove_apache_vhosts_for_bot() {
     fi
   done
   if [ -n "$domain" ]; then
-    a2dissite "${domain}.conf" 2>/dev/null || true
-    a2dissite "${domain}-ssl.conf" 2>/dev/null || true
+    mirza_a2dissite "${domain}.conf" 2>/dev/null || true
+    mirza_a2dissite "${domain}-ssl.conf" 2>/dev/null || true
     rm -f "/etc/apache2/sites-enabled/${domain}.conf"
     rm -f "/etc/apache2/sites-enabled/${domain}-ssl.conf"
     rm -f "/etc/apache2/sites-available/${domain}.conf"
@@ -2904,7 +2960,7 @@ SQL
   msg "Updating Apache VirtualHost ..."
   if mirza_vhost_use_domain_conf; then
     VHOST_FILE="/etc/apache2/sites-available/${NEW_DOMAIN}.conf"
-    a2dissite "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
+    mirza_a2dissite "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
   else
     VHOST_FILE="/etc/apache2/sites-available/$VIRANAUT_VHOST_GENERIC"
   fi
@@ -2922,8 +2978,8 @@ SQL
     CustomLog \${APACHE_LOG_DIR}/${VIRANAUT_LOG_ACCESS} combined
 </VirtualHost>
 VHOST
-  a2ensite "$(basename "$VHOST_FILE")" 2>/dev/null || true
-  a2dissite 000-default.conf 2>/dev/null || true
+  mirza_a2ensite "$(basename "$VHOST_FILE")" 2>/dev/null || true
+  mirza_a2dissite 000-default.conf 2>/dev/null || true
   a2enmod rewrite 2>/dev/null || true
   systemctl reload apache2
   echo -e "  ${GREEN}✓${NC} Apache configured for $NEW_DOMAIN"
@@ -2986,15 +3042,14 @@ do_diagnose_bot() {
   echo -e "    vendor:      $([ -f "$PROJECT_DIR/vendor/autoload.php" ] && echo OK || echo MISSING)"
   echo ""
 
-  domain=$(read_php_var "domainhosts" "$CONFIG_FILE")
+  domain=$(read_php_var "domainhosts")
   domain=$(mirza_normalize_domainhosts "$domain")
-  token=$(read_php_var "APIKEY" "$CONFIG_FILE")
-  dbname=$(read_php_var "dbname" "$CONFIG_FILE")
-  dbuser=$(read_php_var "usernamedb" "$CONFIG_FILE")
-  dbpass=$(read_php_var "passworddb" "$CONFIG_FILE")
+  token=$(read_php_var "APIKEY")
+  dbname=$(read_php_var "dbname")
+  dbuser=$(read_php_var "usernamedb")
+  dbpass=$(read_php_var "passworddb")
 
   echo -e "  ${CYAN}2) config.php${NC}"
-  echo -e "    File:        $CONFIG_FILE"
   echo -e "    Domain:      ${domain:-MISSING}"
   echo -e "    DB:          ${dbname:-?} / ${dbuser:-?}"
   echo -e "    Token:       $([ -n "$token" ] && echo "set (${#token} chars)" || echo MISSING)"
@@ -3335,6 +3390,7 @@ do_logs() {
 setup_cron_jobs() {
   MIRZA_CRON_LINES=(
     "* * * * * php $PROJECT_DIR/cronbot/NoticationsService.php >/dev/null 2>&1"
+    "*/1 * * * * php $PROJECT_DIR/cronbot/card_receipt_prompt.php >/dev/null 2>&1"
     "*/5 * * * * php $PROJECT_DIR/cronbot/uptime_panel.php >/dev/null 2>&1"
     "*/5 * * * * php $PROJECT_DIR/cronbot/uptime_node.php >/dev/null 2>&1"
     "*/10 * * * * php $PROJECT_DIR/cronbot/expireagent.php >/dev/null 2>&1"
@@ -3345,7 +3401,7 @@ setup_cron_jobs() {
     "*/15 * * * * php $PROJECT_DIR/cronbot/plisio.php >/dev/null 2>&1"
   )
   TMP_CRON=$(mktemp)
-  crontab -l 2>/dev/null > "$TMP_CRON" || true
+  crontab -l 2>/dev/null | grep -Fv 'cronbot/croncard.php' | grep -Fv 'cronbot/card_receipt_prompt.php' > "$TMP_CRON" || true
   for cron_line in "${MIRZA_CRON_LINES[@]}"; do
     if ! grep -Fqx "$cron_line" "$TMP_CRON"; then
       echo "$cron_line" >> "$TMP_CRON"
@@ -3408,7 +3464,7 @@ show_menu() {
   echo -e "  ${BOLD}12)${NC} Diagnose bot (webhook / Apache / DB / why no /start)"
   echo -e "  ${GREEN}${BOLD}13)${NC} Auto-fix all ${GREEN}(DB + vhost + SSL + webhook)${NC}"
   echo -e "  ${BOLD}7)${NC} Update bot files (ViraNaut zip beside script, keeps config.php + DB merge)"
-  echo -e "  ${BOLD}8)${NC} Local update    (ViraNaut-*.zip / mirzabot-*.zip, keeps config.php + DB merge)"
+  echo -e "  ${BOLD}8)${NC} Local update    (auto backup → ZIP update; keeps last ${VIRANAUT_PREUPDATE_KEEP} pre-update ZIPs)"
   echo -e "  ${BOLD}9)${NC} Local install   (zip + optional restore from backup)"
   echo -e "  ${BOLD}10)${NC} Select bot path"
   echo -e "  ${RED}${BOLD}11)${NC} Full remove bot ${RED}(files + DB + cron + vhost)${NC}"

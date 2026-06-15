@@ -240,7 +240,11 @@ function isDuplicateUpdate($updateId)
     return false;
 }
 // #-----------------------------#
-$update = json_decode(file_get_contents("php://input"), true);
+$rawUpdate = file_get_contents('php://input');
+$update = (is_string($rawUpdate) && $rawUpdate !== '') ? json_decode($rawUpdate, true) : null;
+if (!is_array($update)) {
+    $update = [];
+}
 $update_id = $update['update_id'] ?? 0;
 if (isDuplicateUpdate($update_id)) {
     http_response_code(200);

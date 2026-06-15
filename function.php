@@ -574,9 +574,18 @@ function copyDirectoryContents($source, $destination)
 }
 
 #-----------function------------#
-function step($step, $from_id)
+function step($step, $from_id, array $options = [])
 {
     global $pdo;
+
+    if ($step === 'home' && empty($options['skip_card_cancel'])) {
+        $prev = select('user', 'step', 'id', $from_id, 'select');
+        $prevStep = is_array($prev) ? (string) ($prev['step'] ?? '') : '';
+        if ($prevStep === 'get_step_payment') {
+            mirza_card_cancel_unpaid_invoices((string) $from_id);
+        }
+    }
+
     $stmt = $pdo->prepare('UPDATE user SET step = ? WHERE id = ?');
     $stmt->execute([$step, $from_id]);
     clearSelectCache('user');
@@ -921,6 +930,36 @@ function mirza_card_sms_clean_text(string $smsText): string
     return implode("\n", $lines);
 }
 
+/** مبلغ ریالی خط «21,000,000+» (مهر / قرض‌الحسنه و مشابه) → تومان */
+function mirza_card_sms_parse_amount_suffix_plus(string $text): ?int
+{
+    foreach (preg_split('/\R/u', $text) as $line) {
+        $line = trim($line);
+        if ($line === '' || preg_match('/مانده\s*:/u', $line)) {
+            continue;
+        }
+        if (preg_match('/^([\d,]+)\+$/u', $line, $m)) {
+            $rial = (int) str_replace(',', '', $m[1]);
+            if ($rial > 0) {
+                return (int) ($rial * 0.1);
+            }
+        }
+    }
+    if (preg_match('/(\d{1,3}(?:,\d{3})*)\+/u', $text, $m)) {
+        $rial = (int) str_replace(',', '', $m[1]);
+        if ($rial > 0) {
+            return (int) ($rial * 0.1);
+        }
+    }
+    return null;
+}
+
+/** بانک‌هایی که مبلغ با «+» در انتهای خط مشخص است — فیلتر 000 اعمال نشود */
+function mirza_card_sms_skip_round_toman_reject(string $bankCode): bool
+{
+    return in_array(strtolower($bankCode), ['gharz', 'mehr', 'parsian'], true);
+}
+
 function mirza_card_sms_parse_bank_amount(string $bankCode, string $smsText): ?int
 {
     $text = mirza_card_sms_clean_text($smsText);
@@ -997,16 +1036,15 @@ function mirza_card_sms_parse_bank_amount(string $bankCode, string $smsText): ?i
             }
             break;
         case 'gharz':
-            if (preg_match('/(\d{1,3}(?:,\d{3})*)\+/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', preg_replace('/\+/u', '', $m[1])) * 0.1);
-            }
+        case 'mehr':
+            $amountInteger = mirza_card_sms_parse_amount_suffix_plus($text);
             break;
     }
 
     if ($amountInteger === null || $amountInteger <= 0) {
         return null;
     }
-    if (substr((string) $amountInteger, -3) === '000') {
+    if (!mirza_card_sms_skip_round_toman_reject($bankCode) && substr((string) $amountInteger, -3) === '000') {
         return null;
     }
     return $amountInteger;
@@ -1019,10 +1057,24 @@ function mirza_card_sms_parse_from_text(string $smsText, ?string $bankCode = nul
         return null;
     }
 
-    $banks = ['blu', 'meli', 'grdsh', 'sadhrat', 'melet', 'terjart', 'keshavarsi', 'resalet', 'sheahr', 'maskan', 'parsian', 'sphe', 'paselc', 'gharz'];
+    $banks = ['blu', 'meli', 'grdsh', 'sadhrat', 'melet', 'terjart', 'keshavarsi', 'resalet', 'sheahr', 'maskan', 'parsian', 'sphe', 'paselc', 'mehr', 'gharz'];
     if ($bankCode !== null && $bankCode !== '') {
-        $amount = mirza_card_sms_parse_bank_amount($bankCode, $text);
-        return $amount !== null ? ['bank' => strtolower($bankCode), 'amount_toman' => $amount] : null;
+        $code = strtolower($bankCode);
+        if ($code === 'gharz') {
+            $code = 'mehr';
+        }
+        $amount = mirza_card_sms_parse_bank_amount($code, $text);
+        return $amount !== null ? ['bank' => $code, 'amount_toman' => $amount] : null;
+    }
+
+    // مهر / قرض‌الحسنه: «21,000,000+» + «مانده:» — اولویت parse
+    if (preg_match('/مانده\s*:/u', $text) && preg_match('/[\d,]+\+/u', $text)) {
+        foreach (['mehr', 'gharz'] as $code) {
+            $amount = mirza_card_sms_parse_bank_amount($code, $text);
+            if ($amount !== null) {
+                return ['bank' => $code, 'amount_toman' => $amount];
+            }
+        }
     }
 
     foreach ($banks as $code) {
@@ -1132,8 +1184,12 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
 }
 
 /** Handler گروه تلگرام برای SMS Forwarder (SatraGift-style) */
-function mirza_try_handle_card_sms_telegram_update(array $update): bool
+function mirza_try_handle_card_sms_telegram_update(?array $update): bool
 {
+    if ($update === null || $update === []) {
+        return false;
+    }
+
     if (!mirza_card_sms_autoconfirm_enabled()) {
         return false;
     }
@@ -1179,8 +1235,408 @@ function mirza_card_sms_panel_info(): array
         'webhook_url' => mirza_card_sms_autoconfirm_enabled()
             ? ('https://' . ($GLOBALS['domainhosts'] ?? '') . '/payment/card.php')
             : '',
+        'receipt_delay_min' => mirza_card_receipt_delay_minutes(),
+        'receipt_delay_label' => mirza_card_receipt_delay_label_fa(),
     ];
 }
+
+/** تأخیر نمایش دکمه «ارسال رسید» — دقیقه (پیش‌فرض ۱۰، از PaySetting: cardreceiptdelaymin) */
+function mirza_card_receipt_delay_minutes(): int
+{
+    $min = (int) getPaySettingValue('cardreceiptdelaymin', '10');
+    if ($min < 1) {
+        $min = 1;
+    }
+    if ($min > 1440) {
+        $min = 1440;
+    }
+    return $min;
+}
+
+function mirza_card_autoconfirm_receipt_delay_sec(): int
+{
+    return mirza_card_receipt_delay_minutes() * 60;
+}
+
+/** برچسب فارسی تأخیر برای پیام‌های ربات، مثلاً «10 دقیقه» */
+function mirza_card_receipt_delay_label_fa(): string
+{
+    $min = mirza_card_receipt_delay_minutes();
+    if ($min >= 60 && $min % 60 === 0) {
+        $hours = intdiv($min, 60);
+        return $hours === 1 ? '۱ ساعت' : ($hours . ' ساعت');
+    }
+    return $min . ' دقیقه';
+}
+
+function mirza_card_receipt_wait_user_message(): string
+{
+    $delay = mirza_card_receipt_delay_label_fa();
+    return "⏳ تأیید خودکار در حال انجام است.\nلطفاً تا {$delay} صبر کنید — بعد از آن دکمه «ارسال رسید» ظاهر می‌شود.";
+}
+
+function mirza_card_sms_auto_pending_marker(): string
+{
+    return 'sms_auto:' . (time() + mirza_card_autoconfirm_receipt_delay_sec());
+}
+
+function mirza_card_is_sms_auto_pending(?string $dec): bool
+{
+    $dec = trim((string) $dec);
+    return $dec === 'sms_auto' || str_starts_with($dec, 'sms_auto:');
+}
+
+function mirza_card_sms_auto_receipt_due(?string $dec, array $row): bool
+{
+    $dec = trim((string) $dec);
+    if (str_starts_with($dec, 'sms_auto:')) {
+        $due = (int) substr($dec, 9);
+        if ($due > 0) {
+            return time() >= $due;
+        }
+    }
+    if (!mirza_card_is_sms_auto_pending($dec)) {
+        return false;
+    }
+    $ts = mirza_parse_payment_report_time($row['time'] ?? null)
+        ?? mirza_parse_payment_report_time($row['at_updated'] ?? null);
+    if ($ts === null) {
+        return false;
+    }
+    return $ts <= time() - mirza_card_autoconfirm_receipt_delay_sec();
+}
+
+function mirza_card_receipt_prompt_sql_pending(): string
+{
+    return "(dec_not_confirmed = 'sms_auto' OR dec_not_confirmed LIKE 'sms_auto:%')";
+}
+
+/** متن قدیمی/طولانی کارت خودکار (Mirza legacy) */
+function mirza_is_legacy_cart_auto_text(string $text): bool
+{
+    return str_contains($text, 'تایید فوری')
+        || str_contains($text, '====================')
+        || str_contains($text, 'لزومی به ارسال رسید')
+        || str_contains($text, 'واریز با تأیید خودکار')
+        || (str_contains($text, 'شارژ کیف پول · تأیید خودکار') && !str_contains($text, '48 ساعت'))
+        || str_contains($text, '۱۰ دقیقه') || str_contains($text, '10 دقیقه')
+        || str_contains($text, 'بعد از ۱ دقیقه') || str_contains($text, 'بعد از 1 دقیقه');
+}
+
+/** متن فاکتور کارت خودکار — legacy را با نسخهٔ جدید جایگزین می‌کند */
+function mirza_resolve_cart_auto_text(string $stored, array $textbotlang): string
+{
+    $stored = trim($stored);
+    if ($stored === '' || mirza_is_legacy_cart_auto_text($stored)) {
+        $stored = mirza_lang_str($textbotlang, 'textbot.cartAuto', '');
+    }
+    return strtr($stored, ['{receipt_delay}' => mirza_card_receipt_delay_label_fa()]);
+}
+
+/** کیبورد inline فاکتور کارت */
+function mirza_card_payment_inline_keyboard(string $orderId, string $cardNumber, $priceCopy, bool $showReceipt, bool $showCopy): ?string
+{
+    $rows = [];
+    if ($showCopy && $cardNumber !== '') {
+        $rows[] = [
+            ['text' => 'کپی شماره کارت', 'copy_text' => ['text' => $cardNumber]],
+            ['text' => 'کپی مبلغ', 'copy_text' => ['text' => (string) $priceCopy]],
+        ];
+    }
+    if ($showReceipt) {
+        $rows[] = [
+            ['text' => '✅ پرداخت کردم | ارسال رسید', 'callback_data' => 'sendresidcart-' . $orderId],
+        ];
+    }
+    if ($rows === []) {
+        return null;
+    }
+    return json_encode(['inline_keyboard' => $rows]);
+}
+
+/** زمان ثبت فاکتور Payment_report → timestamp */
+function mirza_parse_payment_report_time(?string $timeStr): ?int
+{
+    $timeStr = trim((string) $timeStr);
+    if ($timeStr === '') {
+        return null;
+    }
+    $tz = new DateTimeZone('Asia/Tehran');
+    foreach (['Y/m/d H:i:s', 'Y-m-d H:i:s', 'Y/m/d H:i', 'Y-m-d H:i'] as $fmt) {
+        $dt = DateTime::createFromFormat($fmt, $timeStr, $tz);
+        if ($dt instanceof DateTime) {
+            return $dt->getTimestamp();
+        }
+    }
+    $ts = strtotime($timeStr);
+    return $ts !== false ? (int) $ts : null;
+}
+
+function mirza_card_payment_receipt_due(array $row): bool
+{
+    return mirza_card_sms_auto_receipt_due($row['dec_not_confirmed'] ?? '', $row);
+}
+
+/** دکمه «ارسال رسید» را روی پیام فاکتور می‌گذارد (یا پیام یادآور) */
+function mirza_card_receipt_prompt_apply_row(array $row): bool
+{
+    if (!mirza_card_is_sms_auto_pending($row['dec_not_confirmed'] ?? '')) {
+        return false;
+    }
+    if (!in_array((string) ($row['payment_Status'] ?? ''), ['Unpaid', 'waiting'], true)) {
+        return false;
+    }
+    if (!mirza_card_payment_receipt_due($row)) {
+        return false;
+    }
+
+    $msgId = (int) ($row['message_id'] ?? 0);
+    $chatId = (int) ($row['id_user'] ?? 0);
+    if ($chatId <= 0) {
+        return false;
+    }
+
+    global $connect, $setting;
+    if (!isset($setting) || !is_array($setting)) {
+        $setting = select('setting', '*');
+    }
+    $showCopy = (($setting['statuscopycart'] ?? '0') == '1');
+    $cardNumber = '';
+    $priceCopy = (string) ((int) ($row['price'] ?? 0)) . '0';
+    if ($showCopy && isset($connect)) {
+        $cardQuery = mysqli_query($connect, 'SELECT cardnumber FROM card_number ORDER BY RAND() LIMIT 1');
+        if ($cardQuery) {
+            $cardRow = mysqli_fetch_assoc($cardQuery);
+            $cardNumber = (string) ($cardRow['cardnumber'] ?? '');
+            mysqli_free_result($cardQuery);
+        }
+    }
+
+    $keyboard = mirza_card_payment_inline_keyboard(
+        (string) $row['id_order'],
+        $cardNumber,
+        $priceCopy,
+        true,
+        $showCopy && $cardNumber !== ''
+    );
+    if ($keyboard === null) {
+        return false;
+    }
+
+    $orderId = (string) ($row['id_order'] ?? '');
+    if ($msgId > 0) {
+        $response = telegram('editMessageReplyMarkup', [
+            'chat_id' => $chatId,
+            'message_id' => $msgId,
+            'reply_markup' => $keyboard,
+        ]);
+        if (!empty($response['ok'])) {
+            update('Payment_report', 'dec_not_confirmed', 'receipt_ready', 'id_order', $orderId);
+            return true;
+        }
+        error_log('[card-receipt-prompt] edit failed order=' . $orderId . ' ' . json_encode($response, JSON_UNESCAPED_UNICODE));
+    }
+
+    $fallback = sendmessage(
+        $chatId,
+        "⏱ اگر واریز شما هنوز تأیید نشده، روی دکمه زیر بزنید و رسید را ارسال کنید:",
+        $keyboard,
+        'HTML'
+    );
+    if (!empty($fallback['ok'])) {
+        update('Payment_report', 'dec_not_confirmed', 'receipt_ready', 'id_order', $orderId);
+        return true;
+    }
+
+    error_log('[card-receipt-prompt] fallback failed order=' . $orderId . ' ' . json_encode($fallback, JSON_UNESCAPED_UNICODE));
+    return false;
+}
+
+function mirza_card_receipt_prompt_for_user(string $userId): void
+{
+    global $pdo;
+
+    if (!mirza_card_sms_autoconfirm_enabled() || $userId === '' || $userId === '0') {
+        return;
+    }
+
+    $pendingSql = mirza_card_receipt_prompt_sql_pending();
+    $stmt = $pdo->prepare(
+        "SELECT * FROM Payment_report
+         WHERE id_user = :uid
+           AND Payment_Method = 'cart to cart'
+           AND payment_Status IN ('Unpaid', 'waiting')
+           AND {$pendingSql}"
+    );
+    $stmt->bindValue(':uid', $userId, PDO::PARAM_STR);
+    $stmt->execute();
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        mirza_card_receipt_prompt_apply_row($row);
+    }
+}
+
+/** بعد از تأخیر تنظیم‌شده، دکمه ارسال رسید را به پیام فاکتور اضافه می‌کند */
+function mirza_card_receipt_prompt_run(): void
+{
+    global $pdo;
+
+    if (!mirza_card_sms_autoconfirm_enabled()) {
+        return;
+    }
+
+    $pendingSql = mirza_card_receipt_prompt_sql_pending();
+    $stmt = $pdo->prepare(
+        "SELECT * FROM Payment_report
+         WHERE Payment_Method = 'cart to cart'
+           AND payment_Status IN ('Unpaid', 'waiting')
+           AND {$pendingSql}"
+    );
+    $stmt->execute();
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        mirza_card_receipt_prompt_apply_row($row);
+    }
+}
+
+/** مراحل جریان پرداخت که با خروج کاربر باید فاکتور کارت لغو شود */
+function mirza_card_payment_flow_steps(): array
+{
+    return ['get_step_payment', 'cart_to_cart_user'];
+}
+
+/** callback_data انتخاب روش پرداخت در get_step_payment */
+function mirza_is_payment_method_datain(?string $datain): bool
+{
+    if ($datain === null || $datain === '') {
+        return false;
+    }
+    static $methods = [
+        'cart_to_offline', 'aqayepardakht', 'zarinpal', 'plisio', 'nowpayment',
+        'iranpay1', 'iranpay2', 'iranpay3', 'digitaltron', 'startelegrams',
+    ];
+    return in_array($datain, $methods, true);
+}
+
+/**
+ * لغو فاکتورهای کارت به کارت Unpaid کاربر (خروج از منو / منصرف شدن)
+ * @return int تعداد فاکتورهای لغو‌شده
+ */
+function mirza_card_cancel_unpaid_invoices(string $userId, bool $notifyUser = false): int
+{
+    global $pdo;
+
+    if ($userId === '' || $userId === '0') {
+        return 0;
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT id_order, message_id FROM Payment_report
+         WHERE id_user = :uid
+           AND Payment_Method = 'cart to cart'
+           AND payment_Status = 'Unpaid'"
+    );
+    $stmt->bindValue(':uid', $userId, PDO::PARAM_STR);
+    $stmt->execute();
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if ($rows === []) {
+        return 0;
+    }
+
+    $cancelled = 0;
+    foreach ($rows as $row) {
+        $orderId = (string) ($row['id_order'] ?? '');
+        if ($orderId === '') {
+            continue;
+        }
+        update('Payment_report', 'payment_Status', 'expire', 'id_order', $orderId);
+        update('Payment_report', 'dec_not_confirmed', 'user_cancelled', 'id_order', $orderId);
+        $msgId = (int) ($row['message_id'] ?? 0);
+        if ($msgId > 0) {
+            deletemessage((int) $userId, $msgId);
+        }
+        $cancelled++;
+    }
+
+    if ($notifyUser && $cancelled > 0) {
+        sendmessage(
+            (int) $userId,
+            "ℹ️ فاکتور پرداخت کارت به کارت لغو شد.",
+            null,
+            'HTML'
+        );
+    }
+
+    return $cancelled;
+}
+
+/** آیا کاربر از جریان پرداخت خارج شده (منو / برگشت / start)؟ */
+function mirza_card_cancel_if_user_left_payment_flow(
+    string $userId,
+    array $user,
+    ?string $text,
+    ?string $datain,
+    array $update,
+    array $datatextbot,
+    array $textbotlang
+): void {
+    $step = (string) ($user['step'] ?? '');
+    if (!in_array($step, mirza_card_payment_flow_steps(), true)) {
+        return;
+    }
+
+    // ارسال رسید — لغو نکن
+    if ($step === 'cart_to_cart_user' && !empty($update['message']['photo'])) {
+        return;
+    }
+    if (preg_match('/^sendresidcart-/', (string) $datain)) {
+        return;
+    }
+    if ($step === 'get_step_payment' && mirza_is_payment_method_datain($datain)) {
+        return;
+    }
+
+    $notify = false;
+    $left = false;
+
+    if ($text === '/start' || $text === 'start' || $datain === 'start') {
+        $left = true;
+        $notify = true;
+    } elseif ($datain === 'backuser' || $text === ($textbotlang['users']['backbtn'] ?? '')) {
+        $left = true;
+        $notify = true;
+    } else {
+        $menuKeys = [
+            'text_sell', 'text_extend', 'text_usertest', 'text_wheel_luck',
+            'text_Purchased_services', 'accountwallet', 'text_affiliates',
+            'text_Tariff_list', 'text_support', 'text_help',
+        ];
+        foreach ($menuKeys as $key) {
+            $label = (string) ($datatextbot[$key] ?? '');
+            if ($label !== '' && $text === $label) {
+                $left = true;
+                break;
+            }
+        }
+        if (!$left) {
+            $menuDatain = ['buy', 'buyback', 'buybacktow', 'account', 'Add_Balance', 'support', 'backorder'];
+            if (in_array((string) $datain, $menuDatain, true)) {
+                $left = true;
+            }
+        }
+        if (!$left && $text !== '') {
+            $menuCommands = ['/buy', '/wallet', '/services', 'buy'];
+            if (in_array($text, $menuCommands, true)) {
+                $left = true;
+            }
+        }
+    }
+
+    if ($left) {
+        mirza_card_cancel_unpaid_invoices($userId, $notify);
+    }
+}
+
 function generateUUID()
 {
     $data = openssl_random_pseudo_bytes(16);
@@ -2443,6 +2899,7 @@ function activecron()
     $cronCommands = [
         "*/15 * * * * curl https://$domainhosts/cronbot/statusday.php",
         "*/1 * * * * curl https://$domainhosts/cronbot/NoticationsService.php",
+        "*/1 * * * * curl https://$domainhosts/cronbot/card_receipt_prompt.php",
         "*/5 * * * * curl https://$domainhosts/cronbot/payment_expire.php",
         "*/1 * * * * curl https://$domainhosts/cronbot/sendmessage.php",
         "*/3 * * * * curl https://$domainhosts/cronbot/plisio.php",

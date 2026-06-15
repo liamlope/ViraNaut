@@ -131,7 +131,11 @@ if ($action === 'gateways') {
         }
         $general = [];
         foreach (mirza_pay_general_defs() as $g) {
-            $general[] = array_merge($g, ['value' => mirza_pay_get_value($pdo, $g['key'])]);
+            $val = mirza_pay_get_value($pdo, $g['key']);
+            if ($g['key'] === 'cardreceiptdelaymin' && ($val === '' || $val === '0')) {
+                $val = '10';
+            }
+            $general[] = array_merge($g, ['value' => $val]);
         }
         $cards = db_fetchAll($pdo, 'SELECT cardnumber, namecard FROM card_number ORDER BY cardnumber ASC');
         $smsInfo = function_exists('mirza_card_sms_panel_info') ? mirza_card_sms_panel_info() : [];
@@ -177,7 +181,11 @@ if ($action === 'general_pay_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         foreach ($fields as $k => $v) {
             if (in_array($k, $allowed, true)) {
-                mirza_pay_set_value($pdo, $k, trim((string) $v));
+                $val = trim((string) $v);
+                if ($k === 'cardreceiptdelaymin') {
+                    $val = (string) max(1, min(1440, (int) $val));
+                }
+                mirza_pay_set_value($pdo, $k, $val);
             }
         }
         fin_json(true, 'تنظیمات عمومی ذخیره شد');

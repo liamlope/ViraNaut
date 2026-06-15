@@ -131,13 +131,15 @@
                     '۳. آیدی گروه را اینجا وارد کنید (از @userinfobot یا getUpdates).',
                     '۴. اپ SMS Forwarder را طوری تنظیم کنید که SMS بانک را به همان گروه بفرستد.',
                     '۵. کاربر باید دقیقاً مبلغ یکتای ربات را واریز کند.',
-                    '۶. اگر SMS نیامد: کاربر رسید می‌فرستد → ادمین دستی تأیید می‌کند (تب «در انتظار»).'
+                    '۶. بانک مهر/قرض‌الحسنه (HTTP): کلید POST با پسوند <code>_mehr</code> یا <code>_gharz</code>.',
+                    '۷. اگر SMS نیامد: کاربر رسید می‌فرستد → ادمین دستی تأیید می‌کند (تب «در انتظار»).'
                 ];
                 smsBox.innerHTML = '<div class="card-head"><div class="card-title">📱 تأیید خودکار SMS</div>' +
                     '<span class="tag ' + (s.sms_enabled ? 'tag-ok' : 'tag-warn') + '">' + (s.sms_enabled ? 'فعال' : 'غیرفعال') + '</span></div>' +
                     '<div class="card-body"><p class="field-hint">دو روش: <strong>گروه تلگرام</strong> (پیشنهادی) یا <strong>HTTP</strong>. تأیید بدون بررسی cron حذف شده است.</p>' +
                     '<ul class="finance-sms-steps">' + steps.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' +
                     '<p class="cf" style="margin-top:10px;font-size:.85rem">وضعیت گروه: <strong>' + (s.group_configured ? 'تنظیم شده (' + s.group_id + ')' : 'تنظیم نشده') + '</strong></p>' +
+                    (s.receipt_delay_label ? '<p class="cf" style="font-size:.85rem">تأخیر دکمه «ارسال رسید»: <strong>' + s.receipt_delay_label + '</strong> (تنظیم در بخش عمومی پایین)</p>' : '') +
                     (s.webhook_url ? '<p class="cf" style="font-size:.8rem">روش جایگزین (HTTP): <code dir="ltr">' + s.webhook_url + '</code></p>' : '') +
                     '</div>';
             }
@@ -194,7 +196,9 @@
                     }
                     var inp = g.input === 'textarea'
                         ? '<textarea class="input gen-f" data-k="' + g.key + '" rows="2">' + (g.value || '') + '</textarea>'
-                        : '<input type="text" class="input gen-f" data-k="' + g.key + '" value="' + (g.value || '').replace(/"/g, '&quot;') + '">';
+                        : (g.input === 'number'
+                            ? '<input type="number" class="input gen-f" data-k="' + g.key + '" min="1" max="1440" step="1" value="' + (g.value || '10') + '">'
+                            : '<input type="text" class="input gen-f" data-k="' + g.key + '" value="' + (g.value || '').replace(/"/g, '&quot;') + '">');
                     return '<label class="field"><span class="field-label">' + g.label + '</span>' + hint + inp + '</label>';
                 }).join('');
             }

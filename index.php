@@ -15,6 +15,10 @@ require_once 'panels.php';
 require_once 'viranaut_handlers.php';
 $ManagePanel = new ManagePanel();
 $textbotlang = languagechange('text.json');
+if (!isset($update['update_id'])) {
+    http_response_code(200);
+    exit;
+}
 if (mirza_try_handle_card_sms_telegram_update($update)) {
     http_response_code(200);
     exit;
@@ -48,6 +52,9 @@ if (isset($update['chat_member'])) {
 }
 if (!in_array($Chat_type, ["private", "supergroup"]))
     return;
+if ($Chat_type === 'private' && !empty($from_id)) {
+    mirza_card_receipt_prompt_for_user((string) $from_id);
+}
 if (isset($chat_member))
     return;
 $first_name = sanitizeUserName($first_name);
@@ -238,6 +245,15 @@ if (floor($TimeLastMessage / 60) >= 1) {
     }
 }
 
+mirza_card_cancel_if_user_left_payment_flow(
+    (string) $from_id,
+    $user,
+    $text ?? null,
+    $datain ?? null,
+    $update,
+    $datatextbot,
+    $textbotlang
+);
 
 if (strpos($text, "/start ") !== false && $user['step'] != "gettextSystemMessage") {
     $affiliatesid = explode(" ", $text)[1];
@@ -5065,9 +5081,12 @@ $textonebuy
     sendmessage($from_id, mirza_lang_str($textbotlang, 'users.Balance.selectPayment', '💵 روش پرداخت خود را انتخاب نمایید'), $step_payment, 'HTML');
     step('get_step_payment', $from_id);
 } elseif ($user['step'] == "get_step_payment") {
+    if ($datain !== '' && $datain !== 'cart_to_offline' && mirza_is_payment_method_datain($datain)) {
+        mirza_card_cancel_unpaid_invoices((string) $from_id);
+    }
     if ($datain == "cart_to_offline") {
         $PaySetting = select("PaySetting", "ValuePay", "NamePay", "statuscardautoconfirm", "select")['ValuePay'];
-        $checkpay = mysqli_query($connect, "SELECT * FROM Payment_report WHERE id = '$from_id' AND payment_Status = 'Unpaid'");
+        $checkpay = mysqli_query($connect, "SELECT * FROM Payment_report WHERE id_user = '$from_id' AND payment_Status = 'Unpaid' AND Payment_Method = 'cart to cart'");
         if (mysqli_num_rows($checkpay) != 0) {
             sendmessage($from_id, $textbotlang['Admin']['SettingPayment']['issetpay'], null, 'HTML');
             return;
@@ -5098,7 +5117,8 @@ $textonebuy
         $PaySettingname = $card_info['namecard'];
         mysqli_free_result($cardQuery);
         $price_copy = $user['Processing_value'];
-        if (mirza_card_sms_autoconfirm_enabled($PaySetting)) {
+        $autoCardSms = mirza_card_sms_autoconfirm_enabled($PaySetting);
+        if ($autoCardSms) {
             $random_number = rand(0, 2000);
             $user['Processing_value'] = intval($user['Processing_value']) + $random_number;
             if (in_array($user['Processing_value'], $pricepayment)) {
@@ -5110,9 +5130,13 @@ $textonebuy
                 '{price}' => $valueshow,
                 '{card_number}' => $card_number,
                 '{name_card}' => $PaySettingname,
+                '{receipt_delay}' => mirza_card_receipt_delay_label_fa(),
             ];
             $price_copy = $valueshow;
-            $textcart = strtr($datatextbot['text_cart_auto'] ?? mirza_lang_str($textbotlang, 'textbot.cartAuto', ''), $replacements);
+            $textcart = strtr(
+                mirza_resolve_cart_auto_text($datatextbot['text_cart_auto'] ?? '', $textbotlang),
+                $replacements
+            );
             update("user", "Processing_value", $user['Processing_value'], "id", $from_id);
         } else {
             $valueprice = number_format($user['Processing_value']);
@@ -5127,33 +5151,16 @@ $textonebuy
         $invoice = "{$user['Processing_value_tow']}|{$user['Processing_value_one']}";
         $dateacc = date('Y/m/d H:i:s');
         $randomString = bin2hex(random_bytes(5));
-        $stmt = $connect->prepare("INSERT INTO Payment_report (id_user,id_order,time,price,payment_Status,Payment_Method,id_invoice) VALUES (?,?,?,?,?,?,?)");
+        $dec_not_confirmed = $autoCardSms ? mirza_card_sms_auto_pending_marker() : '';
+        $stmt = $connect->prepare("INSERT INTO Payment_report (id_user,id_order,time,price,payment_Status,Payment_Method,id_invoice,dec_not_confirmed,at_updated) VALUES (?,?,?,?,?,?,?,?,?)");
         $payment_Status = "Unpaid";
         $Payment_Method = "cart to cart";
-        $stmt->bind_param("sssssss", $from_id, $randomString, $dateacc, $user['Processing_value'], $payment_Status, $Payment_Method, $invoice);
+        $stmt->bind_param("sssssssss", $from_id, $randomString, $dateacc, $user['Processing_value'], $payment_Status, $Payment_Method, $invoice, $dec_not_confirmed, $dateacc);
         $stmt->execute();
         deletemessage($from_id, $message_id);
-        if ($setting['statuscopycart'] == "1") {
-            $sendresidcart = json_encode([
-                'inline_keyboard' => [
-                    [
-                        ['text' => "کپی شماره کارت", 'copy_text' => ["text" => $card_number]],
-                        ['text' => "کپی مبلغ", 'copy_text' => ["text" => $price_copy]]
-                    ],
-                    [
-                        ['text' => "✅ پرداخت کردم | ارسال رسید.", 'callback_data' => "sendresidcart-" . $randomString]
-                    ]
-                ]
-            ]);
-        } else {
-            $sendresidcart = json_encode([
-                'inline_keyboard' => [
-                    [
-                        ['text' => "✅ پرداخت کردم | ارسال رسید.", 'callback_data' => "sendresidcart-" . $randomString]
-                    ]
-                ]
-            ]);
-        }
+        $showCopy = ($setting['statuscopycart'] == "1");
+        $showReceipt = !$autoCardSms;
+        $sendresidcart = mirza_card_payment_inline_keyboard($randomString, $card_number, $price_copy, $showReceipt, $showCopy);
         $gethelp = select("PaySetting", "ValuePay", "NamePay", "helpcart", "select")['ValuePay'];
         if ($gethelp != 2) {
             $data = json_decode($gethelp, true);
@@ -5165,12 +5172,15 @@ $textonebuy
                 sendvideo($from_id, $data['videoid'], $data['text']);
             }
         }
-        $message_id = telegram('sendmessage', [
+        $payMsg = [
             'chat_id' => $from_id,
             'text' => $textcart,
-            'reply_markup' => $sendresidcart,
-            'parse_mode' => "html",
-        ]);
+            'parse_mode' => 'html',
+        ];
+        if ($sendresidcart !== null) {
+            $payMsg['reply_markup'] = $sendresidcart;
+        }
+        $message_id = telegram('sendmessage', $payMsg);
         updatePaymentMessageId($message_id, $randomString);
     } elseif ($datain == "aqayepardakht") {
         if ($user['Processing_value'] < 5000) {
@@ -6053,6 +6063,14 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         sendmessage($from_id, "❗زمان این تراکنش به پایان رسیده و امکان پرداخت این تراکنش وجود ندارد.", null, 'HTML');
         return;
     }
+    if (
+        mirza_card_sms_autoconfirm_enabled()
+        && mirza_card_is_sms_auto_pending($payemntcheck['dec_not_confirmed'] ?? '')
+        && !mirza_card_sms_auto_receipt_due($payemntcheck['dec_not_confirmed'] ?? '', $payemntcheck)
+    ) {
+        sendmessage($from_id, mirza_card_receipt_wait_user_message(), null, 'HTML');
+        return;
+    }
     deletemessage($from_id, $message_id);
     sendmessage($from_id, "🖼 تصویر رسید خود را ارسال نمایید", $backuser, 'HTML');
     step('cart_to_cart_user', $from_id);
@@ -6073,7 +6091,7 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
     update("user", "Processing_value", $dataget[1], "id", $from_id);
 } elseif ($user['step'] == "getresidcurrency") {
     $format_balance = number_format($user['Balance'], 0);
-    step('home', $from_id);
+    step('home', $from_id, ['skip_card_cancel' => true]);
     $PaymentReport = select("Payment_report", "*", "id_order", $user['Processing_value'], "select");
     $Paymentusercount = select("Payment_report", "*", "id_user", $PaymentReport['id_user'], "count");
     if ($PaymentReport == false) {
@@ -6272,7 +6290,7 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         sendmessage($from_id, "❌  فقط مجاز به ارسال یک تصویر هستید", null, 'HTML');
         return;
     }
-    step('home', $from_id);
+    step('home', $from_id, ['skip_card_cancel' => true]);
     $PaymentReport = select("Payment_report", "*", "id_order", $user['Processing_value']);
     if ($PaymentReport == false) {
         sendmessage($from_id, '❌ خطایی در هنگام دریافت اطلاعات رخ داده است لطفا مراحل را از اول انجام دهید', $keyboard, 'HTML');

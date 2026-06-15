@@ -42,3 +42,21 @@ INSERT INTO textbot (id_text, text) VALUES
 ('text_service_select_first', '📌 ابتدا سرویس مورد نظر را انتخاب نمایید'),
 ('text_sell_notestep', '📝 نام دلخواه سرویس خود را ارسال کنید')
 ON DUPLICATE KEY UPDATE text = IF(text = '' OR text IS NULL, VALUES(text), text);
+
+-- متن کوتاه کارت خودکار (جایگزینی قالب قدیمی Mirza)
+UPDATE textbot SET text = '💳 <b>شارژ کیف پول · تأیید خودکار</b>
+
+<b>مبلغ دقیق (ریال):</b> <code>{price}</code>
+
+<code>{card_number}</code>
+{name_card}
+
+⚡ مبلغ دقیق = تأیید خودکار (معمولاً چند دقیقه)
+⚠️ مبلغ غیردقیق → تأیید دستی تا ۴۸ ساعت
+⏱ تأیید نشد؟ بعد از {receipt_delay} دکمه «ارسال رسید» فعال می‌شود.'
+WHERE id_text = 'text_cart_auto'
+  AND (text LIKE '%تایید فوری%' OR text LIKE '%====================%' OR text LIKE '%لزومی به ارسال رسید%' OR text LIKE '%واریز با تأیید خودکار%' OR text LIKE '%۱۰ دقیقه%' OR text LIKE '%10 دقیقه%' OR text LIKE '%بعد از ۱ دقیقه%' OR text LIKE '%بعد از 1 دقیقه%' OR (text LIKE '%شارژ کیف پول · تأیید خودکار%' AND text NOT LIKE '%{receipt_delay}%'));
+
+INSERT INTO PaySetting (NamePay, ValuePay) VALUES
+('cardreceiptdelaymin', '10')
+ON DUPLICATE KEY UPDATE ValuePay = IF(ValuePay = '' OR ValuePay IS NULL OR ValuePay = '0', VALUES(ValuePay), ValuePay);

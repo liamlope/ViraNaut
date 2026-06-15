@@ -36,6 +36,7 @@ function mirza_backup_cron_job_lines(): array
     return [
         "*/15 * * * * curl -fsS https://{$host}/cronbot/statusday.php",
         "*/1 * * * * curl -fsS https://{$host}/cronbot/NoticationsService.php",
+        "*/1 * * * * curl -fsS https://{$host}/cronbot/card_receipt_prompt.php",
         "*/5 * * * * curl -fsS https://{$host}/cronbot/payment_expire.php",
         "*/1 * * * * curl -fsS https://{$host}/cronbot/sendmessage.php",
         "*/3 * * * * curl -fsS https://{$host}/cronbot/plisio.php",
