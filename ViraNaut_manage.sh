@@ -13,7 +13,7 @@ LEGACY_PROJECT_DIR="/var/www/mirza_pro"
 ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
 MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
-VIRANAUT_MANAGE_VERSION="2.1.2-ViraNaut"
+VIRANAUT_MANAGE_VERSION="2.1.3-ViraNaut"
 MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
 VIRANAUT_GITHUB_REPO="${VIRANAUT_GITHUB_REPO:-https://github.com/liamlope/ViraNaut.git}"
 VIRANAUT_GITHUB_BRANCH="${VIRANAUT_GITHUB_BRANCH:-main}"
@@ -572,18 +572,38 @@ viranaut_ensure_git() {
   apt-get install -y git >/dev/null 2>&1 || return 1
 }
 
-# Git refuses pull as root when repo is owned by www-data — trust bot path
+# Git refuses pull as root when repo is owned by www-data
 viranaut_git_trust_dir() {
   local dir="${1%/}"
-  [ -n "$dir" ] || return 0
-  git config --global --add safe.directory "$dir" 2>/dev/null || true
+  git config --global --add safe.directory '*' 2>/dev/null || true
+  [ -n "$dir" ] && git config --global --add safe.directory "$dir" 2>/dev/null || true
+}
+
+# Run git in bot dir as repo owner (www-data) — avoids dubious ownership
+viranaut_git_in_bot_dir() {
+  local bot_dir="${1%/}"
+  shift
+  local owner="www-data"
+
+  viranaut_git_trust_dir "$bot_dir"
+  [ -d "$bot_dir/.git" ] || return 1
+
+  if [ -f "$bot_dir/.git/config" ]; then
+    owner=$(stat -c '%U' "$bot_dir/.git" 2>/dev/null) || owner="www-data"
+  fi
+
+  if [ -n "$owner" ] && [ "$owner" != "root" ] && id "$owner" >/dev/null 2>&1; then
+    sudo -u "$owner" env HOME="${HOME:-/root}" GIT_TERMINAL_PROMPT=0 \
+      git -C "$bot_dir" -c "safe.directory=${bot_dir}" -c "safe.directory=*" "$@"
+  else
+    git -C "$bot_dir" -c "safe.directory=${bot_dir}" -c "safe.directory=*" "$@"
+  fi
 }
 
 viranaut_git() {
   local dir="${1%/}"
   shift
-  viranaut_git_trust_dir "$dir"
-  git -c "safe.directory=${dir}" "$@"
+  viranaut_git_in_bot_dir "$dir" "$@"
 }
 
 viranaut_is_bot_source() {
@@ -592,14 +612,59 @@ viranaut_is_bot_source() {
 }
 
 viranaut_link_cli() {
-  local src
-  src="$(mirza_manage_script_dir)/ViraNaut_manage.sh"
-  [ -f "$src" ] || src="${BASH_SOURCE[0]:-$0}"
-  [ -f "$src" ] || return 0
-  cp -f "$src" /root/ViraNaut_manage.sh 2>/dev/null || true
-  chmod +x /root/ViraNaut_manage.sh 2>/dev/null || true
-  ln -sf /root/ViraNaut_manage.sh /usr/local/bin/viranaut 2>/dev/null || true
-  ln -sf /root/ViraNaut_manage.sh /usr/local/bin/mirza 2>/dev/null || true
+  local src self
+  self="${BASH_SOURCE[0]:-$0}"
+  if command -v readlink >/dev/null 2>&1; then
+    self=$(readlink -f "$self" 2>/dev/null) || self="$self"
+  fi
+
+  # /root/ViraNaut_manage.sh is canonical — never overwrite it from a stale /usr/local/bin copy
+  if [ -f "/root/ViraNaut_manage.sh" ]; then
+    src="/root/ViraNaut_manage.sh"
+  elif [ -f "$self" ]; then
+    cp -f "$self" /root/ViraNaut_manage.sh 2>/dev/null || true
+    src="/root/ViraNaut_manage.sh"
+  else
+    return 0
+  fi
+
+  chmod +x "$src" 2>/dev/null || true
+  ln -sf "$src" /root/ViraNaut_manage.sh 2>/dev/null || true
+  ln -sf "$src" /usr/local/bin/viranaut 2>/dev/null || true
+  ln -sf "$src" /usr/local/bin/mirza 2>/dev/null || true
+  ln -sf "$src" /usr/local/bin/ViraNaut_manage.sh 2>/dev/null || true
+}
+
+# Pull latest manage script from GitHub (fixes servers stuck on old /usr/local/bin copy)
+viranaut_self_update_manage_script() {
+  local dest="/root/ViraNaut_manage.sh"
+  local url tmp old_ver new_ver branch
+  branch="${VIRANAUT_GITHUB_BRANCH:-main}"
+  url="https://raw.githubusercontent.com/liamlope/ViraNaut/${branch}/ViraNaut_manage.sh"
+
+  command -v curl >/dev/null 2>&1 || return 1
+  tmp=$(mktemp)
+  if ! curl -fsSL "$url" -o "$tmp" 2>/dev/null; then
+    rm -f "$tmp"
+    return 1
+  fi
+  [ -s "$tmp" ] || { rm -f "$tmp"; return 1; }
+  head -1 "$tmp" | grep -q '#!/usr/bin/env bash' || { rm -f "$tmp"; return 1; }
+  grep -q 'VIRANAUT_MANAGE_VERSION' "$tmp" || { rm -f "$tmp"; return 1; }
+
+  if [ -f "$dest" ] && cmp -s "$tmp" "$dest" 2>/dev/null; then
+    rm -f "$tmp"
+    viranaut_link_cli
+    return 0
+  fi
+
+  old_ver=$(grep -m1 'VIRANAUT_MANAGE_VERSION=' "$dest" 2>/dev/null | sed -n 's/.*"\([^"]*\)".*/\1/p') || old_ver="?"
+  new_ver=$(grep -m1 'VIRANAUT_MANAGE_VERSION=' "$tmp" | sed -n 's/.*"\([^"]*\)".*/\1/p')
+  chmod +x "$tmp"
+  mv -f "$tmp" "$dest"
+  viranaut_link_cli
+  echo -e "  ${GREEN}✓${NC} Manage script updated: ${old_ver} → ${new_ver}" >&2
+  return 0
 }
 
 viranaut_sync_manage_script_from_bot() {
@@ -619,20 +684,19 @@ viranaut_update_from_github() {
   [ -d "$bot_dir/.git" ] || return 1
 
   msg "Git pull — ${VIRANAUT_GITHUB_PAGE} (${branch}) ..."
-  viranaut_git_trust_dir "$bot_dir"
-  (
-    cd "$bot_dir" || exit 1
-    viranaut_git "$bot_dir" fetch origin "$branch" || viranaut_git "$bot_dir" fetch origin || exit 1
-    viranaut_git "$bot_dir" checkout "$branch" 2>/dev/null || true
-    viranaut_git "$bot_dir" pull --ff-only origin "$branch" || viranaut_git "$bot_dir" pull --ff-only || exit 1
-  ) || return 1
+  viranaut_git_in_bot_dir "$bot_dir" fetch origin "$branch" \
+    || viranaut_git_in_bot_dir "$bot_dir" fetch origin || return 1
+  viranaut_git_in_bot_dir "$bot_dir" checkout "$branch" 2>/dev/null || true
+  viranaut_git_in_bot_dir "$bot_dir" pull --ff-only origin "$branch" \
+    || viranaut_git_in_bot_dir "$bot_dir" pull --ff-only || return 1
   echo -e "  ${GREEN}✓${NC} Git pull completed"
   return 0
 }
 
-# Clone repo to a temp dir; stdout = bot source directory (parent temp in $2 variable name passed as ref)
+# Clone repo to temp; sets tmp dir in $1 and source path in $2 (no stdout — safe for callers)
 viranaut_github_clone_staging() {
   local _tmp_ref="${1:-}"
+  local _src_ref="${2:-}"
   local branch="${VIRANAUT_GITHUB_BRANCH:-main}"
   local tmp inner repo_dir
 
@@ -661,10 +725,8 @@ viranaut_github_clone_staging() {
     fi
   fi
 
-  if [ -n "$_tmp_ref" ]; then
-    printf -v "$_tmp_ref" '%s' "$tmp"
-  fi
-  printf '%s' "$inner"
+  [ -n "$_tmp_ref" ] && printf -v "$_tmp_ref" '%s' "$tmp"
+  [ -n "$_src_ref" ] && printf -v "$_src_ref" '%s' "$inner"
   return 0
 }
 
@@ -963,6 +1025,34 @@ do_github_update() {
     return 1
   fi
 
+  # Always trust bot path (fixes dubious ownership when running as root)
+  git config --global --add safe.directory '*' 2>/dev/null || true
+  git config --global --add safe.directory "${BOT_DIR}" 2>/dev/null || true
+
+  # Refresh manage script from GitHub if server still runs an old /usr/local/bin copy
+  if [ "${VIRANAUT_SKIP_SCRIPT_BOOTSTRAP:-0}" != "1" ] && command -v curl >/dev/null 2>&1; then
+    local _ms_tmp _ms_url
+    _ms_url="https://raw.githubusercontent.com/liamlope/ViraNaut/${VIRANAUT_GITHUB_BRANCH:-main}/ViraNaut_manage.sh"
+    _ms_tmp=$(mktemp)
+    if curl -fsSL "$_ms_url" -o "$_ms_tmp" 2>/dev/null \
+        && grep -q 'viranaut_git_in_bot_dir' "$_ms_tmp" 2>/dev/null \
+        && { [ ! -f /root/ViraNaut_manage.sh ] || ! cmp -s "$_ms_tmp" /root/ViraNaut_manage.sh 2>/dev/null; }; then
+      chmod +x "$_ms_tmp"
+      mv -f "$_ms_tmp" /root/ViraNaut_manage.sh
+      ln -sf /root/ViraNaut_manage.sh /usr/local/bin/viranaut 2>/dev/null || true
+      ln -sf /root/ViraNaut_manage.sh /usr/local/bin/mirza 2>/dev/null || true
+      ln -sf /root/ViraNaut_manage.sh /usr/local/bin/ViraNaut_manage.sh 2>/dev/null || true
+      msg "Manage script updated from GitHub — continuing ..."
+      export VIRANAUT_SKIP_SCRIPT_BOOTSTRAP=1
+      if [ "$AUTO_YES" = "1" ]; then
+        exec /root/ViraNaut_manage.sh update -y
+      else
+        exec /root/ViraNaut_manage.sh update
+      fi
+    fi
+    rm -f "$_ms_tmp"
+  fi
+
   echo ""
   echo -e "  ${CYAN}Target:${NC} $BOT_DIR"
   echo -e "  ${CYAN}Source:${NC} ${VIRANAUT_GITHUB_PAGE} (${VIRANAUT_GITHUB_BRANCH})"
@@ -978,12 +1068,13 @@ do_github_update() {
     return 1
   fi
 
+  viranaut_self_update_manage_script 2>/dev/null || true
+
   if [ -d "$BOT_DIR/.git" ] && viranaut_update_from_github "$BOT_DIR"; then
     UPDATE_SRC="GitHub git pull"
   else
     local gh_tmp="" gh_src=""
-    gh_src=$(viranaut_github_clone_staging gh_tmp) && [ -n "$gh_src" ] || gh_src=""
-    if [ -z "$gh_src" ]; then
+    if ! viranaut_github_clone_staging gh_tmp gh_src || [ -z "$gh_src" ]; then
       err "GitHub update failed — check network, git, and ${VIRANAUT_GITHUB_REPO}"
       viranaut_github_staging_cleanup "$gh_tmp"
       echo -e "  ${CYAN}Restore:${NC} ${BACKUP_DIR}/${VIRANAUT_PREUPDATE_PREFIX}_*.zip"
@@ -3700,6 +3791,7 @@ if viranaut_cli_entry "$@"; then
 fi
 
 check_root
+viranaut_self_update_manage_script 2>/dev/null || true
 viranaut_link_cli
 
 while true; do
