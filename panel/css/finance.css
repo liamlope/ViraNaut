@@ -165,19 +165,48 @@
     color: var(--dim);
     font-size: 0.85rem;
 }
-.finance-sms-guide .card-head {
+.finance-sms-status {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--surface-2, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
 }
-.finance-sms-steps {
-    margin: 12px 0 0;
-    padding-right: 1.2rem;
-    font-size: 0.88rem;
-    line-height: 1.7;
-    color: var(--text);
+.finance-sms-status.hidden {
+    display: none;
 }
-.finance-sms-steps li {
-    margin-bottom: 4px;
+.finance-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.finance-pill.is-on {
+    color: #0d7a45;
+    background: rgba(34, 197, 94, 0.14);
+}
+.finance-pill.is-off {
+    color: var(--dim);
+    background: rgba(148, 163, 184, 0.12);
+}
+.finance-pill.is-ok {
+    color: #0369a1;
+    background: rgba(56, 189, 248, 0.14);
+}
+.finance-pill.is-warn {
+    color: #b45309;
+    background: rgba(251, 191, 36, 0.16);
+}
+.finance-pill.is-dim {
+    color: var(--dim);
+    background: transparent;
+    font-weight: 500;
 }

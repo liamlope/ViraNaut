@@ -97,7 +97,7 @@ include __DIR__ . '/inc/layout_head.php';
         </div>
 
         <div class="card-body finance-tab-panel hidden" id="financeTabGateways">
-            <div id="financeSmsGuide" class="card finance-sms-guide full" style="margin-bottom:16px"></div>
+            <div id="financeSmsStatus" class="finance-sms-status hidden" aria-live="polite"></div>
             <div id="financeGatewayProfiles" class="finance-gw-profiles"></div>
             <div class="card finance-gw-card full" style="margin-top:16px">
                 <div class="card-head"><div class="card-title">تنظیمات عمومی پرداخت</div></div>

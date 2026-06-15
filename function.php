@@ -1229,13 +1229,7 @@ function mirza_card_sms_panel_info(): array
     $groupId = mirza_card_sms_effective_group_id();
     return [
         'sms_enabled' => mirza_card_sms_autoconfirm_enabled(),
-        'group_id' => $groupId !== null ? (string) $groupId : '',
         'group_configured' => $groupId !== null,
-        'delivery' => $groupId !== null ? 'telegram_group' : 'http_legacy',
-        'webhook_url' => mirza_card_sms_autoconfirm_enabled()
-            ? ('https://' . ($GLOBALS['domainhosts'] ?? '') . '/payment/card.php')
-            : '',
-        'receipt_delay_min' => mirza_card_receipt_delay_minutes(),
         'receipt_delay_label' => mirza_card_receipt_delay_label_fa(),
     ];
 }

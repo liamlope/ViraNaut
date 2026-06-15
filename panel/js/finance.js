@@ -122,26 +122,25 @@
                 return;
             }
             var box = document.getElementById('financeGatewayProfiles');
-            var smsBox = document.getElementById('financeSmsGuide');
-            if (smsBox && d.sms) {
+            var smsStatus = document.getElementById('financeSmsStatus');
+            if (smsStatus && d.sms) {
                 var s = d.sms;
-                var steps = [
-                    '۱. «تأیید خودکار SMS» را روشن کنید و ذخیره بزنید.',
-                    '۲. ربات را به گروه اضافه کنید و در BotFather دستور /setprivacy → Disable.',
-                    '۳. آیدی گروه را اینجا وارد کنید (از @userinfobot یا getUpdates).',
-                    '۴. اپ SMS Forwarder را طوری تنظیم کنید که SMS بانک را به همان گروه بفرستد.',
-                    '۵. کاربر باید دقیقاً مبلغ یکتای ربات را واریز کند.',
-                    '۶. بانک مهر/قرض‌الحسنه (HTTP): کلید POST با پسوند <code>_mehr</code> یا <code>_gharz</code>.',
-                    '۷. اگر SMS نیامد: کاربر رسید می‌فرستد → ادمین دستی تأیید می‌کند (تب «در انتظار»).'
+                var pills = [
+                    '<span class="finance-pill ' + (s.sms_enabled ? 'is-on' : 'is-off') + '">' +
+                    (s.sms_enabled ? 'تأیید SMS فعال' : 'تأیید SMS خاموش') + '</span>'
                 ];
-                smsBox.innerHTML = '<div class="card-head"><div class="card-title">📱 تأیید خودکار SMS</div>' +
-                    '<span class="tag ' + (s.sms_enabled ? 'tag-ok' : 'tag-warn') + '">' + (s.sms_enabled ? 'فعال' : 'غیرفعال') + '</span></div>' +
-                    '<div class="card-body"><p class="field-hint">دو روش: <strong>گروه تلگرام</strong> (پیشنهادی) یا <strong>HTTP</strong>. تأیید بدون بررسی cron حذف شده است.</p>' +
-                    '<ul class="finance-sms-steps">' + steps.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' +
-                    '<p class="cf" style="margin-top:10px;font-size:.85rem">وضعیت گروه: <strong>' + (s.group_configured ? 'تنظیم شده (' + s.group_id + ')' : 'تنظیم نشده') + '</strong></p>' +
-                    (s.receipt_delay_label ? '<p class="cf" style="font-size:.85rem">تأخیر دکمه «ارسال رسید»: <strong>' + s.receipt_delay_label + '</strong> (تنظیم در بخش عمومی پایین)</p>' : '') +
-                    (s.webhook_url ? '<p class="cf" style="font-size:.8rem">روش جایگزین (HTTP): <code dir="ltr">' + s.webhook_url + '</code></p>' : '') +
-                    '</div>';
+                if (s.sms_enabled) {
+                    pills.push('<span class="finance-pill ' + (s.group_configured ? 'is-ok' : 'is-warn') + '">' +
+                        (s.group_configured ? 'گروه SMS تنظیم شده' : 'گروه SMS تنظیم نشده') + '</span>');
+                    if (s.receipt_delay_label) {
+                        pills.push('<span class="finance-pill is-dim">تأخیر رسید: ' + s.receipt_delay_label + '</span>');
+                    }
+                }
+                smsStatus.innerHTML = pills.join('');
+                smsStatus.classList.remove('hidden');
+            } else if (smsStatus) {
+                smsStatus.innerHTML = '';
+                smsStatus.classList.add('hidden');
             }
             if (box) {
                 box.innerHTML = (d.profiles || []).map(function (p) {

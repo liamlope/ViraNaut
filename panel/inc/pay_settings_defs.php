@@ -122,9 +122,9 @@ function mirza_pay_gateway_profiles(): array
 function mirza_pay_general_defs(): array
 {
     return [
-        ['key' => 'statuscardautoconfirm', 'label' => 'تأیید خودکار SMS', 'input' => 'select', 'options' => ['onautoconfirm' => 'روشن', 'offautoconfirm' => 'خاموش'], 'hint' => 'مبلغ یکتا + تأیید از پیامک بانک'],
-        ['key' => 'cardreceiptdelaymin', 'label' => 'تأخیر دکمه «ارسال رسید» (دقیقه)', 'input' => 'number', 'hint' => 'پس از صدور فاکتور SMS خودکار؛ پیش‌فرض ۱۰ — بازه ۱ تا ۱۴۴۰'],
-        ['key' => 'card_sms_telegram_group_id', 'label' => 'آیدی گروه SMS (تلگرام)', 'input' => 'text', 'hint' => 'مثال: -1003635129010 — SMS Forwarder پیامک را به این گروه بفرستد'],
+        ['key' => 'statuscardautoconfirm', 'label' => 'تأیید خودکار SMS', 'input' => 'select', 'options' => ['onautoconfirm' => 'روشن', 'offautoconfirm' => 'خاموش'], 'hint' => 'پیامک واریز بانک → گروه تلگرام → تطبیق با مبلغ یکتای فاکتور'],
+        ['key' => 'cardreceiptdelaymin', 'label' => 'تأخیر دکمه «ارسال رسید» (دقیقه)', 'input' => 'number', 'hint' => 'پیش‌فرض ۱۰ — تا قبل از آن دکمه رسید نمایش داده نمی‌شود (۱ تا ۱۴۴۰)'],
+        ['key' => 'card_sms_telegram_group_id', 'label' => 'آیدی گروه SMS (تلگرام)', 'input' => 'text', 'hint' => 'ربات فروش + @IDFindeerBot را به گروه SMS اضافه کنید؛ آیدی را از IDFindeerBot بگیرید. BotFather → Group Privacy خاموش. SMS Forwarder پیامک را به همین گروه بفرستد.'],
         ['key' => 'chashbackcart', 'label' => 'کش‌بک کارت (درصد)', 'input' => 'number'],
         ['key' => 'minbalancebuybulk', 'label' => 'حداقل موجودی خرید عمده', 'input' => 'number'],
         ['key' => 'statuscopycart', 'label' => 'دکمه کپی کارت', 'input' => 'select', 'options' => ['1' => 'فعال', '0' => 'غیرفعال']],

@@ -13,8 +13,11 @@ LEGACY_PROJECT_DIR="/var/www/mirza_pro"
 ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
 MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
-VIRANAUT_MANAGE_VERSION="2.0.4-ViraNaut"
+VIRANAUT_MANAGE_VERSION="2.1.0-ViraNaut"
 MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
+VIRANAUT_GITHUB_REPO="${VIRANAUT_GITHUB_REPO:-https://github.com/liamlope/ViraNaut.git}"
+VIRANAUT_GITHUB_BRANCH="${VIRANAUT_GITHUB_BRANCH:-main}"
+VIRANAUT_GITHUB_PAGE="${VIRANAUT_GITHUB_PAGE:-https://github.com/liamlope/ViraNaut}"
 VIRANAUT_BACKUP_PREFIX="viranaut_backup"
 VIRANAUT_PREUPDATE_PREFIX="viranaut_preupdate"
 VIRANAUT_PREUPDATE_KEEP=3
@@ -516,6 +519,155 @@ mirza_extract_package() {
   fi
 }
 
+# --- GitHub (liamlope/ViraNaut) — clone / pull for install & update ---
+viranaut_ensure_git() {
+  command -v git >/dev/null 2>&1 && return 0
+  msg "Installing git ..."
+  apt-get install -y git >/dev/null 2>&1 || return 1
+}
+
+viranaut_is_bot_source() {
+  local d="${1%/}"
+  [ -f "$d/index.php" ] && { [ -f "$d/version" ] || [ -f "$d/config.sample.php" ] || [ -f "$d/config.php" ]; }
+}
+
+viranaut_link_cli() {
+  local src
+  src="$(mirza_manage_script_dir)/ViraNaut_manage.sh"
+  [ -f "$src" ] || src="${BASH_SOURCE[0]:-$0}"
+  [ -f "$src" ] || return 0
+  cp -f "$src" /root/ViraNaut_manage.sh 2>/dev/null || true
+  chmod +x /root/ViraNaut_manage.sh 2>/dev/null || true
+  ln -sf /root/ViraNaut_manage.sh /usr/local/bin/viranaut 2>/dev/null || true
+  ln -sf /root/ViraNaut_manage.sh /usr/local/bin/mirza 2>/dev/null || true
+}
+
+viranaut_sync_manage_script_from_bot() {
+  local bot_dir="${1%/}"
+  if [ -f "$bot_dir/ViraNaut_manage.sh" ]; then
+    cp -f "$bot_dir/ViraNaut_manage.sh" /root/ViraNaut_manage.sh 2>/dev/null || true
+    chmod +x /root/ViraNaut_manage.sh 2>/dev/null || true
+  fi
+  viranaut_link_cli
+}
+
+viranaut_update_from_github() {
+  local bot_dir="${1%/}"
+  local branch="${VIRANAUT_GITHUB_BRANCH:-main}"
+
+  viranaut_ensure_git || return 1
+  [ -d "$bot_dir/.git" ] || return 1
+
+  msg "Git pull — ${VIRANAUT_GITHUB_PAGE} (${branch}) ..."
+  (
+    cd "$bot_dir" || exit 1
+    git fetch origin "$branch" 2>/dev/null || git fetch origin
+    git checkout "$branch" 2>/dev/null || true
+    git pull --ff-only origin "$branch" 2>/dev/null || git pull --ff-only
+  ) || return 1
+  echo -e "  ${GREEN}✓${NC} Git pull completed"
+  return 0
+}
+
+# Clone repo to a temp dir; stdout = bot source directory (parent temp in $2 variable name passed as ref)
+viranaut_github_clone_staging() {
+  local _tmp_ref="${1:-}"
+  local branch="${VIRANAUT_GITHUB_BRANCH:-main}"
+  local tmp inner repo_dir
+
+  viranaut_ensure_git || return 1
+  tmp=$(mktemp -d)
+  repo_dir="$tmp/repo"
+
+  msg "Fetching ${VIRANAUT_GITHUB_PAGE} (${branch}) ..."
+  if ! git clone --depth 1 -b "$branch" "$VIRANAUT_GITHUB_REPO" "$repo_dir" 2>/dev/null; then
+    rm -rf "$tmp"
+    tmp=$(mktemp -d)
+    repo_dir="$tmp/repo"
+    git clone --depth 1 "$VIRANAUT_GITHUB_REPO" "$repo_dir" || {
+      rm -rf "$tmp"
+      return 1
+    }
+  fi
+
+  if viranaut_is_bot_source "$repo_dir"; then
+    inner="$repo_dir"
+  else
+    inner=$(find "$repo_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -1)
+    if [ -z "$inner" ] || ! viranaut_is_bot_source "$inner"; then
+      rm -rf "$tmp"
+      return 1
+    fi
+  fi
+
+  if [ -n "$_tmp_ref" ]; then
+    printf -v "$_tmp_ref" '%s' "$tmp"
+  fi
+  printf '%s' "$inner"
+  return 0
+}
+
+viranaut_github_staging_cleanup() {
+  local tmp="${1:-}"
+  [ -n "$tmp" ] && [ -d "$tmp" ] && rm -rf "$tmp"
+}
+
+# Replace bot tree from SRC; keeps config.php (+ vendor fallback)
+viranaut_swap_bot_files_preserve_config() {
+  local BOT_DIR="${1%/}" SRC_DIR="${2%/}"
+  local CONFIG_PATH="$BOT_DIR/config.php"
+  local TEMP_CONFIG="/root/mirza_local_update_config_backup.php"
+  local TEMP_VENDOR="/root/mirza_local_update_vendor_backup"
+
+  [ -f "$CONFIG_PATH" ] || { err "config.php missing at $CONFIG_PATH"; return 1; }
+  [ -d "$SRC_DIR" ] || { err "Invalid update source: $SRC_DIR"; return 1; }
+
+  cp "$CONFIG_PATH" "$TEMP_CONFIG" || return 1
+
+  if [ -f "$BOT_DIR/vendor/autoload.php" ]; then
+    rm -rf "$TEMP_VENDOR"
+    cp -a "$BOT_DIR/vendor" "$TEMP_VENDOR" 2>/dev/null || warn "vendor backup failed"
+  fi
+
+  msg "Replacing files under $BOT_DIR ..."
+  find "$BOT_DIR" -mindepth 1 -maxdepth 1 ! -name 'config.php' -exec rm -rf {} +
+  cp -a "$SRC_DIR"/. "$BOT_DIR"/
+
+  mv "$TEMP_CONFIG" "$CONFIG_PATH" || {
+    err "Failed to restore config.php"
+    return 1
+  }
+
+  if [ ! -f "$BOT_DIR/vendor/autoload.php" ] && [ -f "$TEMP_VENDOR/autoload.php" ]; then
+    msg "Restoring vendor/ (update source had no vendor folder) ..."
+    rm -rf "$BOT_DIR/vendor"
+    cp -a "$TEMP_VENDOR" "$BOT_DIR/vendor"
+  fi
+  rm -rf "$TEMP_VENDOR"
+  return 0
+}
+
+viranaut_finish_bot_update() {
+  local BOT_DIR="${1%/}"
+  local CONFIG_PATH="$BOT_DIR/config.php"
+
+  mirza_apply_php_core_fixes "$BOT_DIR"
+  mirza_sync_config_domainhosts_file "$CONFIG_PATH"
+  chown -R www-data:www-data "$BOT_DIR"
+  find "$BOT_DIR" -type d -exec chmod 755 {} \;
+  find "$BOT_DIR" -type f -exec chmod 644 {} \;
+  chmod 640 "$CONFIG_PATH"
+
+  if [ -f "$BOT_DIR/table.php" ]; then
+    msg "Running table.php (database migrations) ..."
+    (cd "$BOT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php >/dev/null 2>&1) || warn "table.php had warnings (often OK)."
+  fi
+
+  viranaut_db_migrate "$BOT_DIR"
+  viranaut_sync_manage_script_from_bot "$BOT_DIR"
+  systemctl reload apache2 2>/dev/null || true
+}
+
 mirza_ssl_cert_exists() {
   local domain="$1"
   [ -n "$domain" ] && [ -f "/etc/letsencrypt/live/${domain}/fullchain.pem" ]
@@ -736,305 +888,243 @@ mirza_reload_services() {
   fi
 }
 
-# Replace bot files from local archive; keeps config.php
-do_local_update() {
+# Safe update: pre-backup → GitHub only (pull or clone deploy)
+do_github_update() {
   local BOT_DIR="${1%/}"
+  local AUTO_YES="${2:-0}"
   local CONFIG_PATH="$BOT_DIR/config.php"
-  local TEMP_CONFIG="/root/mirza_local_update_config_backup.php"
+  local UPDATE_SRC=""
 
   if [ ! -f "$CONFIG_PATH" ]; then
-    err "No config.php at $CONFIG_PATH — use Local install (menu 9) first."
+    err "No config.php at $CONFIG_PATH — use menu 1 (Install) first."
     return 1
-  fi
-
-  local script_dir
-  script_dir=$(mirza_manage_script_dir)
-  local -a packages=()
-  while IFS= read -r _p; do
-    [ -n "$_p" ] && packages+=("$_p")
-  done < <(mirza_find_local_packages "$script_dir")
-
-  if [ ${#packages[@]} -eq 0 ]; then
-    err "No package found in: $script_dir"
-    echo -e "  Put ${BOLD}ViraNaut-1.9.zip${NC} or mirzabot-*.zip next to ViraNaut_manage.sh"
-    return 1
-  fi
-
-  local PACKAGE=""
-  if [ ${#packages[@]} -eq 1 ]; then
-    PACKAGE="${packages[0]}"
-    echo -e "  ${GREEN}Package:${NC} $(basename "$PACKAGE")"
-  else
-    echo -e "  ${CYAN}Multiple packages found:${NC}"
-    local i=1
-    for _p in "${packages[@]}"; do
-      echo -e "    ${BOLD}$i)${NC} $(basename "$_p")"
-      i=$((i + 1))
-    done
-    read -p "  Select package number: " _pn
-    if ! [[ "$_pn" =~ ^[0-9]+$ ]] || [ "$_pn" -lt 1 ] || [ "$_pn" -gt "${#packages[@]}" ]; then
-      err "Invalid selection."
-      return 1
-    fi
-    PACKAGE="${packages[$((_pn - 1))]}"
   fi
 
   echo ""
   echo -e "  ${CYAN}Target:${NC} $BOT_DIR"
-  echo -e "  ${CYAN}Package:${NC} $(basename "$PACKAGE")"
-  echo -e "  ${CYAN}Note:${NC}   Auto backup before update (keeps last ${VIRANAUT_PREUPDATE_KEEP} pre-update ZIPs in $BACKUP_DIR)"
-  read -p "  Update bot files? config.php will be kept (y/n): " _go
-  _go=${_go,,}
-  [ "$_go" = "y" ] || { msg "Cancelled."; return 0; }
+  echo -e "  ${CYAN}Source:${NC} ${VIRANAUT_GITHUB_PAGE} (${VIRANAUT_GITHUB_BRANCH})"
+  echo -e "  ${CYAN}Backup:${NC} auto before update (keeps last ${VIRANAUT_PREUPDATE_KEEP} × ${VIRANAUT_PREUPDATE_PREFIX}_*.zip)"
+  if [ "$AUTO_YES" != "1" ]; then
+    read -p "  Update from GitHub? config.php + DB kept (y/n): " _go
+    _go=${_go,,}
+    [ "$_go" = "y" ] || { msg "Cancelled."; return 0; }
+  fi
 
   if ! viranaut_preupdate_backup "$BOT_DIR"; then
     err "Pre-update backup failed — update aborted (nothing changed)."
     return 1
   fi
 
-  local TMP_EXTRACT
-  TMP_EXTRACT=$(mktemp -d)
-  msg "Extracting $(basename "$PACKAGE") ..."
-  local SRC_DIR
-  SRC_DIR=$(mirza_extract_package "$PACKAGE" "$TMP_EXTRACT") || {
-    rm -rf "$TMP_EXTRACT"
-    return 1
-  }
-
-  msg "Backing up config.php ..."
-  cp "$CONFIG_PATH" "$TEMP_CONFIG" || {
-    err "Config backup failed."
-    rm -rf "$TMP_EXTRACT"
-    return 1
-  }
-
-  local TEMP_VENDOR="/root/mirza_local_update_vendor_backup"
-  if [ -f "$BOT_DIR/vendor/autoload.php" ]; then
-    msg "Backing up vendor/ (PHP dependencies) ..."
-    rm -rf "$TEMP_VENDOR"
-    cp -a "$BOT_DIR/vendor" "$TEMP_VENDOR" || warn "vendor backup failed"
-  fi
-
-  msg "Replacing files under $BOT_DIR ..."
-  find "$BOT_DIR" -mindepth 1 -maxdepth 1 ! -name 'config.php' -exec rm -rf {} +
-  if [ -d "$SRC_DIR" ]; then
-    cp -a "$SRC_DIR"/. "$BOT_DIR/"
+  if [ -d "$BOT_DIR/.git" ] && viranaut_update_from_github "$BOT_DIR"; then
+    UPDATE_SRC="GitHub git pull"
   else
-    cp -a "$TMP_EXTRACT"/. "$BOT_DIR/"
+    local gh_tmp="" gh_src=""
+    gh_src=$(viranaut_github_clone_staging gh_tmp) && [ -n "$gh_src" ] || gh_src=""
+    if [ -z "$gh_src" ]; then
+      err "GitHub update failed — check network, git, and ${VIRANAUT_GITHUB_REPO}"
+      viranaut_github_staging_cleanup "$gh_tmp"
+      echo -e "  ${CYAN}Restore:${NC} ${BACKUP_DIR}/${VIRANAUT_PREUPDATE_PREFIX}_*.zip"
+      return 1
+    fi
+    if ! viranaut_swap_bot_files_preserve_config "$BOT_DIR" "$gh_src"; then
+      err "GitHub file deploy failed."
+      viranaut_github_staging_cleanup "$gh_tmp"
+      return 1
+    fi
+    viranaut_github_staging_cleanup "$gh_tmp"
+    UPDATE_SRC="GitHub clone deploy"
   fi
-  mv "$TEMP_CONFIG" "$CONFIG_PATH" || {
-    err "Failed to restore config.php"
-    rm -rf "$TMP_EXTRACT" "$TEMP_VENDOR"
-    return 1
-  }
-  if [ ! -f "$BOT_DIR/vendor/autoload.php" ] && [ -f "$TEMP_VENDOR/autoload.php" ]; then
-    msg "Restoring vendor/ (update package had no PHP vendor folder) ..."
-    rm -rf "$BOT_DIR/vendor"
-    cp -a "$TEMP_VENDOR" "$BOT_DIR/vendor"
-  fi
-  rm -rf "$TMP_EXTRACT" "$TEMP_VENDOR"
 
   if [ ! -f "$BOT_DIR/vendor/autoload.php" ]; then
-    err "vendor/autoload.php MISSING — bot cannot handle /start until vendor/ is restored"
-    echo "  Fix: re-run update from a full zip with vendor/, or copy vendor/ from backup, then menu 13"
+    err "vendor/autoload.php MISSING — restore latest pre-update ZIP from ${BACKUP_DIR}"
   fi
 
-  mirza_apply_php_core_fixes "$BOT_DIR"
-  mirza_sync_config_domainhosts_file "$CONFIG_PATH"
-  chown -R www-data:www-data "$BOT_DIR"
-  find "$BOT_DIR" -type d -exec chmod 755 {} \;
-  find "$BOT_DIR" -type f -exec chmod 644 {} \;
-  chmod 640 "$CONFIG_PATH"
+  viranaut_finish_bot_update "$BOT_DIR"
 
-  if [ -f "$BOT_DIR/table.php" ]; then
-    msg "Running table.php (database migrations) ..."
-    (cd "$BOT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php >/dev/null 2>&1) || warn "table.php had warnings (often OK)."
-  fi
-
-  viranaut_db_migrate "$BOT_DIR"
-
-  systemctl reload apache2 2>/dev/null || true
   line
-  echo -e "  ${GREEN}${BOLD}✓ ViraNaut local update complete.${NC}  Bot: $BOT_DIR"
-  echo -e "  ${CYAN}Restore if needed:${NC} menu ${BOLD}14${NC} → choose latest ${VIRANAUT_PREUPDATE_PREFIX}_*.zip"
+  echo -e "  ${GREEN}${BOLD}✓ ViraNaut update complete.${NC}  Source: ${UPDATE_SRC}"
+  echo -e "  ${CYAN}Bot:${NC} $BOT_DIR"
+  echo -e "  ${CYAN}Restore if needed:${NC} ${BACKUP_DIR}/${VIRANAUT_PREUPDATE_PREFIX}_*.zip"
   viranaut_list_preupdate_backups 2>/dev/null || true
   echo ""
 }
 
-do_local_update_bot() {
+do_update_bot() {
   line
   resolve_project_paths
   if [ ! -f "$CONFIG_FILE" ]; then
-    err "No ViraNaut installation found (config.php missing)."
-    mirza_list_installations
+    local legacy
+    legacy=$(mirza_find_legacy_mirza_dir 2>/dev/null) || legacy=""
+    if [ -n "$legacy" ]; then
+      warn "Mirza found at $legacy — run Install (menu 1) to migrate to ViraNaut."
+    else
+      err "No installation found — use menu 1 (Install) first."
+    fi
     return 1
   fi
-  msg "Local update at: ${BOLD}$PROJECT_DIR${NC}"
-  do_local_update "$PROJECT_DIR"
+  msg "GitHub update — ${BOLD}$PROJECT_DIR${NC}"
+  do_github_update "$PROJECT_DIR" "${VIRANAUT_AUTO_YES:-0}"
 }
 
-# Full local install from zip/tar.gz beside mirza_manage.sh
-do_local_install() {
-  line
-  msg "Local install — ViraNaut from archive in script folder"
-  echo ""
-
-  install_dependencies
-
-  local USE_BACKUP=0
-  local BACKUP_ZIP=""
-  if mirza_has_backup_zips; then
-    echo -e "  ${YELLOW}●${NC} Backup ZIP file(s) found in ${BOLD}$BACKUP_DIR${NC}"
-    echo ""
-    local _bf
-    for _bf in "$BACKUP_DIR"/*.zip; do
-      echo -e "    • $(basename "$_bf")  ($(du -h "$_bf" | cut -f1))"
-    done
-    echo ""
-    echo -e "  ${BOLD}1)${NC} Install using backup (restore DB, config, cron, Apache)"
-    echo -e "  ${BOLD}2)${NC} New configuration (fresh install)"
-    echo ""
-    read -p "  Your choice [2]: " _install_mode
-    _install_mode=${_install_mode:-2}
-    if [ "$_install_mode" = "1" ]; then
-      USE_BACKUP=1
-      mirza_select_backup_zip || return 1
-      BACKUP_ZIP="$ZIP_PATH"
-      echo -e "  ${GREEN}Backup:${NC} $(basename "$BACKUP_ZIP")"
-      echo ""
-    fi
-  fi
-
-  local script_dir
-  script_dir=$(mirza_manage_script_dir)
-  local -a packages=()
-  while IFS= read -r _p; do
-    [ -n "$_p" ] && packages+=("$_p")
-  done < <(mirza_find_local_packages "$script_dir")
-
-  if [ ${#packages[@]} -eq 0 ]; then
-    err "No package found in: $script_dir"
-    echo -e "  Put ${BOLD}ViraNaut-1.9.zip${NC} (or .tar.gz) next to ViraNaut_manage.sh, e.g.:"
-    echo "    $script_dir/ViraNaut-1.9.zip"
-    return 1
-  fi
-
-  local PACKAGE=""
-  if [ ${#packages[@]} -eq 1 ]; then
-    PACKAGE="${packages[0]}"
-    echo -e "  ${GREEN}Package:${NC} $(basename "$PACKAGE")"
-  else
-    echo -e "  ${CYAN}Multiple packages found:${NC}"
-    local i=1
-    for _p in "${packages[@]}"; do
-      echo -e "    ${BOLD}$i)${NC} $(basename "$_p")"
-      i=$((i + 1))
-    done
-    read -p "  Select package number: " _pn
-    if ! [[ "$_pn" =~ ^[0-9]+$ ]] || [ "$_pn" -lt 1 ] || [ "$_pn" -gt "${#packages[@]}" ]; then
-      err "Invalid selection."
-      return 1
-    fi
-    PACKAGE="${packages[$((_pn - 1))]}"
-  fi
-
-  local default_dir="$INSTALL_BOT_DIR"
-  echo ""
-  read -p "  Install path [$default_dir]: " BOT_DIR
-  BOT_DIR=${BOT_DIR:-$default_dir}
-  BOT_DIR="${BOT_DIR%/}"
-
-  if [ "$USE_BACKUP" = "1" ]; then
-    if mirza_is_valid_bot_dir "$BOT_DIR"; then
-      warn "Existing install at $BOT_DIR will be replaced."
-    fi
-    echo ""
-    echo -e "  ${CYAN}Summary:${NC}"
-    echo "    Package:  $(basename "$PACKAGE")"
-    echo "    Backup:   $(basename "$BACKUP_ZIP")"
-    echo "    Path:     $BOT_DIR"
-    echo ""
-    read -p "  Start install from backup? (y/n): " _go
-    _go=${_go,,}
-    [ "$_go" = "y" ] || { msg "Cancelled."; return 0; }
-    mirza_install_files_from_package "$PACKAGE" "$BOT_DIR" || return 1
-    mirza_apply_php_core_fixes "$BOT_DIR"
-    do_restore_from_backup "$BACKUP_ZIP" "$BOT_DIR"
-    mirza_save_active_dir "$BOT_DIR"
-    resolve_project_paths
-    local _dom
-    _dom=$(read_php_var "domainhosts")
-    _dom=$(mirza_normalize_domainhosts "$_dom")
-    [ -n "$_dom" ] && mirza_rewrite_vhost_documentroot "$_dom" "$BOT_DIR"
-    MIRZA_DROP_PENDING_WEBHOOK=1 mirza_fix_webhook_complete "$(read_php_var "APIKEY")" "$_dom" || mirza_reload_services "$BOT_DIR"
-    line
-    echo ""
-    echo -e "  ${GREEN}${BOLD}✓ Local install from backup complete${NC}"
-    echo -e "  ${CYAN}Path:${NC} $BOT_DIR"
-    echo ""
-    return 0
-  fi
-
-  if mirza_is_valid_bot_dir "$BOT_DIR"; then
-    warn "Existing install at $BOT_DIR"
-    read -p "  Replace bot files? config.php will be re-created (y/n) [n]: " _rep
-    _rep=${_rep,,}
-    if [ "$_rep" != "y" ]; then
-      msg "Cancelled."
+# Legacy Mirza path (not ViraNaut)
+mirza_find_legacy_mirza_dir() {
+  local d
+  for d in "$ALT_HTML_BOT_DIR" "$LEGACY_MIRZA_DIR" "$LEGACY_PROJECT_DIR" "$LEGACY_VIRANAUT_DIR"; do
+    d="${d%/}"
+    [ "${d}" = "${INSTALL_BOT_DIR%/}" ] && continue
+    if mirza_is_valid_bot_dir "$d"; then
+      echo "$d"
       return 0
     fi
+  done
+  return 1
+}
+
+viranaut_clone_github_into() {
+  local BOT_DIR="${1%/}"
+  local branch="${VIRANAUT_GITHUB_BRANCH:-main}"
+
+  mkdir -p "$(dirname "$BOT_DIR")"
+  rm -rf "$BOT_DIR"
+  viranaut_ensure_git || return 1
+  msg "Cloning ${VIRANAUT_GITHUB_PAGE} → $BOT_DIR ..."
+  if ! git clone --depth 1 -b "$branch" "$VIRANAUT_GITHUB_REPO" "$BOT_DIR" 2>/dev/null; then
+    rm -rf "$BOT_DIR"
+    git clone --depth 1 "$VIRANAUT_GITHUB_REPO" "$BOT_DIR" || return 1
   fi
+  viranaut_is_bot_source "$BOT_DIR" || return 1
+  chown -R www-data:www-data "$BOT_DIR"
+  find "$BOT_DIR" -type d -exec chmod 755 {} \;
+  find "$BOT_DIR" -type f -exec chmod 644 {} \;
+  return 0
+}
+
+# Mirza → ViraNaut: keep DB + bot credentials, deploy from GitHub
+do_migrate_mirza_to_viranaut() {
+  local OLD_DIR="${1%/}"
+  local BOT_DIR="${INSTALL_BOT_DIR%/}"
+  local OLD_CFG="$OLD_DIR/config.php"
+
+  msg "Mirza detected: ${BOLD}$OLD_DIR${NC} → migrating to ViraNaut"
+  viranaut_preupdate_backup "$OLD_DIR" 2>/dev/null || warn "Pre-migration backup skipped."
+
+  local DB_NAME DB_USER DB_PASS BOT_TOKEN ADMIN_ID BOT_USERNAME DOMAIN
+  DB_NAME=$(read_php_var "dbname" "$OLD_CFG")
+  DB_USER=$(read_php_var "usernamedb" "$OLD_CFG")
+  DB_PASS=$(read_php_var "passworddb" "$OLD_CFG")
+  BOT_TOKEN=$(read_php_var "APIKEY" "$OLD_CFG")
+  ADMIN_ID=$(read_php_var "adminnumber" "$OLD_CFG")
+  BOT_USERNAME=$(mirza_normalize_bot_username "$(read_php_var "usernamebot" "$OLD_CFG")")
+  DOMAIN=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$OLD_CFG")")
+
+  [ -n "$BOT_TOKEN" ] && [ -n "$DOMAIN" ] && [ -n "$DB_NAME" ] || {
+    err "Could not read Mirza config.php"
+    return 1
+  }
+
+  viranaut_clone_github_into "$BOT_DIR" || return 1
+  mirza_apply_php_core_fixes "$BOT_DIR"
+
+  PROTOCOL="https"
+  mirza_write_fresh_config "$BOT_DIR/config.php" "$DB_NAME" "$DB_USER" "$DB_PASS" \
+    "$BOT_TOKEN" "$ADMIN_ID" "$BOT_USERNAME" "$PROTOCOL" "$DOMAIN"
 
   PROJECT_DIR="$BOT_DIR"
   CONFIG_FILE="$BOT_DIR/config.php"
 
+  msg "Apache VirtualHost → $BOT_DIR ..."
+  mirza_rewrite_vhost_documentroot "$DOMAIN" "$BOT_DIR" 2>/dev/null || true
+  if [ -f "$BOT_DIR/table.php" ]; then
+    (cd "$BOT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php >/dev/null 2>&1) || true
+  fi
+  viranaut_db_migrate "$BOT_DIR"
+  setup_cron_jobs
+  mirza_save_active_dir "$BOT_DIR"
+  MIRZA_DROP_PENDING_WEBHOOK=1 mirza_fix_webhook_complete "$BOT_TOKEN" "$DOMAIN" || mirza_reload_services "$BOT_DIR"
+  viranaut_sync_manage_script_from_bot "$BOT_DIR"
+
+  warn "Old Mirza files remain at: $OLD_DIR (remove manually after testing /start)"
+  line
+  echo -e "  ${GREEN}${BOLD}✓ Mirza → ViraNaut migration complete${NC}"
+  echo -e "  ${CYAN}Path:${NC}   $BOT_DIR"
+  echo -e "  ${CYAN}URL:${NC}    https://${DOMAIN}"
+  echo -e "  ${CYAN}Panel:${NC}  https://${DOMAIN}/panel/"
   echo ""
-  read -p "  Domain (e.g. bot.example.com): " DOMAIN
+}
+
+# Install: detect Mirza → migrate | else fresh GitHub install
+do_install() {
+  line
+  msg "ViraNaut Install — source: ${VIRANAUT_GITHUB_PAGE}"
+  echo ""
+
+  install_dependencies
+
+  if mirza_is_valid_bot_dir "$INSTALL_BOT_DIR"; then
+    warn "ViraNaut already installed at $INSTALL_BOT_DIR"
+    echo -e "  Use menu ${BOLD}2) Update${NC} instead."
+    return 1
+  fi
+
+  local legacy=""
+  legacy=$(mirza_find_legacy_mirza_dir 2>/dev/null) || legacy=""
+  if [ -n "$legacy" ]; then
+    echo -e "  ${YELLOW}●${NC} Legacy Mirza bot found: ${BOLD}$legacy${NC}"
+    if [ "${VIRANAUT_AUTO_YES:-0}" = "1" ]; then
+      do_migrate_mirza_to_viranaut "$legacy"
+      return $?
+    fi
+    read -p "  Migrate Mirza → ViraNaut automatically? (y/n) [y]: " _mig
+    _mig=${_mig:-y}
+    _mig=${_mig,,}
+    if [ "$_mig" = "y" ]; then
+      do_migrate_mirza_to_viranaut "$legacy"
+      return $?
+    fi
+    warn "Migration declined — continuing with fresh install."
+  fi
+
+  local BOT_DIR="${INSTALL_BOT_DIR%/}"
+  local DOMAIN="${VIRANAUT_DOMAIN:-}"
+  local BOT_TOKEN="${VIRANAUT_TOKEN:-}"
+  local ADMIN_ID="${VIRANAUT_ADMIN:-}"
+  local BOT_USERNAME="${VIRANAUT_BOT_USER:-}"
+
+  if [ -z "$DOMAIN" ] && [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
+    read -p "  Domain (e.g. bot.example.com): " DOMAIN
+  fi
   DOMAIN=$(mirza_normalize_domainhosts "$DOMAIN")
-  if [[ ! "$DOMAIN" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$ ]]; then
-    err "Invalid domain."
-    return 1
-  fi
+  [[ "$DOMAIN" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$ ]] || { err "Invalid domain."; return 1; }
 
-  read -p "  Bot token: " BOT_TOKEN
-  if [[ ! "$BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]]; then
-    err "Invalid bot token format."
-    return 1
+  if [ -z "$BOT_TOKEN" ] && [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
+    read -p "  Bot token: " BOT_TOKEN
   fi
+  [[ "$BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]] || { err "Invalid bot token."; return 1; }
 
-  read -p "  Admin Telegram ID: " ADMIN_ID
+  if [ -z "$ADMIN_ID" ] && [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
+    read -p "  Admin Telegram ID: " ADMIN_ID
+  fi
   [[ "$ADMIN_ID" =~ ^-?[0-9]+$ ]] || { err "Invalid admin ID."; return 1; }
 
-  read -p "  Bot username (with or without @): " BOT_USERNAME
+  if [ -z "$BOT_USERNAME" ] && [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
+    read -p "  Bot username (with or without @): " BOT_USERNAME
+  fi
   BOT_USERNAME=$(mirza_normalize_bot_username "$BOT_USERNAME")
 
-  DB_NAME="viranaut_$(openssl rand -hex 3)"
-  DB_USER="viranaut_$(openssl rand -hex 3)"
+  local DB_NAME="viranaut_$(openssl rand -hex 3)"
+  local DB_USER="viranaut_$(openssl rand -hex 3)"
+  local DB_PASS
   DB_PASS=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 20)
-  echo ""
-  echo -e "  ${CYAN}Database (auto-generated, edit if needed):${NC}"
-  read -p "  DB name [$DB_NAME]: " _dbn
-  DB_NAME=${_dbn:-$DB_NAME}
-  read -p "  DB user [$DB_USER]: " _dbu
-  DB_USER=${_dbu:-$DB_USER}
-  read -sp "  DB password [$DB_PASS]: " _dbp
-  echo ""
-  DB_PASS=${_dbp:-$DB_PASS}
 
-  echo ""
-  echo -e "  ${CYAN}Summary:${NC}"
-  echo "    Package:  $(basename "$PACKAGE")"
-  echo "    Path:     $BOT_DIR"
-  echo "    Domain:   $DOMAIN"
-  echo "    Bot:      @$BOT_USERNAME"
-  echo "    Admin:    $ADMIN_ID"
-  echo "    Database: $DB_NAME / $DB_USER"
-  echo ""
-  read -p "  Start install? (y/n): " _go
-  _go=${_go,,}
-  [ "$_go" = "y" ] || { msg "Cancelled."; return 0; }
+  if [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
+    echo ""
+    echo -e "  ${CYAN}Summary:${NC} GitHub → $BOT_DIR | @$BOT_USERNAME | $DOMAIN"
+    read -p "  Start install? (y/n): " _go
+    _go=${_go,,}
+    [ "$_go" = "y" ] || { msg "Cancelled."; return 0; }
+  fi
 
-  mirza_install_files_from_package "$PACKAGE" "$BOT_DIR" || return 1
+  viranaut_clone_github_into "$BOT_DIR" || return 1
   mirza_apply_php_core_fixes "$BOT_DIR"
 
   msg "Creating database ..."
@@ -1047,7 +1137,7 @@ GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';
 FLUSH PRIVILEGES;
 SQL
 
-  PROTOCOL="http"
+  local PROTOCOL="http"
   mirza_write_fresh_config "$BOT_DIR/config.php" "$DB_NAME" "$DB_USER" "$DB_PASS" \
     "$BOT_TOKEN" "$ADMIN_ID" "$BOT_USERNAME" "$PROTOCOL" "$DOMAIN"
 
@@ -1065,12 +1155,10 @@ SQL
 <VirtualHost *:80>
     ServerName $DOMAIN
     DocumentRoot $BOT_DIR
-
     <Directory $BOT_DIR>
         AllowOverride All
         Require all granted
     </Directory>
-
     ErrorLog \${APACHE_LOG_DIR}/${VIRANAUT_LOG_ERROR}
     CustomLog \${APACHE_LOG_DIR}/${VIRANAUT_LOG_ACCESS} combined
 </VirtualHost>
@@ -1088,10 +1176,8 @@ VHOST
   fi
 
   if [ -f "$BOT_DIR/table.php" ]; then
-    msg "Running table.php (database tables) ..."
-    (cd "$BOT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php 2>/dev/null) || warn "table.php reported warnings (often OK on first run)."
+    (cd "$BOT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php >/dev/null 2>&1) || true
   fi
-
   viranaut_db_migrate "$BOT_DIR"
 
   BOT_DIR=$(viranaut_relocate_to_canonical_path "$BOT_DIR")
@@ -1100,44 +1186,55 @@ VHOST
   CONFIG_FILE="$BOT_DIR/config.php"
 
   setup_cron_jobs
-
   mirza_save_active_dir "$BOT_DIR"
   resolve_project_paths
   mirza_reload_services "$BOT_DIR"
-
   ufw allow 80/tcp 2>/dev/null || true
   ufw allow 443/tcp 2>/dev/null || true
+  viranaut_sync_manage_script_from_bot "$BOT_DIR"
 
   line
-  echo ""
-  echo -e "  ${GREEN}${BOLD}✓ Local install complete${NC}"
+  echo -e "  ${GREEN}${BOLD}✓ ViraNaut install complete${NC}"
   echo -e "  ${CYAN}Path:${NC}     $BOT_DIR"
   echo -e "  ${CYAN}URL:${NC}      ${PROTOCOL}://${DOMAIN}"
-  echo -e "  ${CYAN}Webhook:${NC}  ${WEBHOOK_URL}"
-  echo -e "  ${CYAN}Database:${NC} $DB_NAME  user=$DB_USER  pass=$DB_PASS"
-  echo -e "  ${YELLOW}Save the DB password — it is only shown here.${NC}"
+  echo -e "  ${CYAN}Panel:${NC}    ${PROTOCOL}://${DOMAIN}/panel/"
+  echo -e "  ${CYAN}Database:${NC} $DB_NAME / $DB_USER / $DB_PASS"
+  echo -e "  ${YELLOW}Save the DB password — shown once.${NC}"
+  echo -e "  ${CYAN}CLI:${NC}       ${BOLD}viranaut${NC}"
   echo ""
 }
 
-# In-place update from local ViraNaut zip (keeps config.php + DB merge)
-do_update_in_place() {
-  local BOT_DIR="${1%/}"
-  msg "apt update / upgrade ..."
-  apt-get update -y && apt-get upgrade -y || warn "apt reported a problem; continuing with file update."
-  do_local_update "$BOT_DIR"
+# One-line / CLI entry (see README)
+viranaut_cli_entry() {
+  local cmd="${1:-}"
+  shift || true
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -y|--yes) VIRANAUT_AUTO_YES=1; shift ;;
+      --domain) VIRANAUT_DOMAIN="$2"; shift 2 ;;
+      --token) VIRANAUT_TOKEN="$2"; shift 2 ;;
+      --admin) VIRANAUT_ADMIN="$2"; shift 2 ;;
+      --bot) VIRANAUT_BOT_USER="$2"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  case "$cmd" in
+    install)
+      check_root
+      do_install
+      exit $?
+      ;;
+    update)
+      check_root
+      VIRANAUT_AUTO_YES="${VIRANAUT_AUTO_YES:-1}"
+      do_update_bot
+      exit $?
+      ;;
+  esac
+  return 1
 }
 
-do_update_bot() {
-  line
-  resolve_project_paths
-  if [ ! -f "$CONFIG_FILE" ]; then
-    err "No ViraNaut installation found (config.php missing)."
-    mirza_list_installations
-    return 1
-  fi
-  msg "Updating bot files at: ${BOLD}$PROJECT_DIR${NC}"
-  do_update_in_place "$PROJECT_DIR"
-}
+do_local_update_bot() { do_update_bot; }
 
 # -------------------- Auto-install dependencies --------------------
 # Installs Apache, PHP 8.2, MySQL, etc. if not present
@@ -1283,7 +1380,7 @@ UPDATE textbot SET text = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(text,
   'تیم میرزا', 'تیم ویرانات'),
   'گروه میرزا', 'گروه ویرانات'),
   'میرزا', 'ویرانات'),
-  'mirzapanelgroup', 'satraNaut'),
+  'mirzapanelgroup', ''),
   'Mirza Group', 'ViraNaut Support'),
   'Mirza', 'ViraNaut')
 WHERE text LIKE '%میرزا%' OR text LIKE '%Mirza%' OR text LIKE '%mirzapanel%';
@@ -1308,7 +1405,7 @@ load_config() {
   resolve_project_paths
   if [ ! -f "$CONFIG_FILE" ]; then
     err "config.php not found at $CONFIG_FILE"
-    err "Is ViraNaut installed? Use menu 9 (local install) or 10 (select path)."
+    err "Is ViraNaut installed? Use menu 1 (Install)."
     mirza_list_installations || true
     exit 1
   fi
@@ -1655,7 +1752,7 @@ mirza_check_dns_matches_server() {
     return 0
   fi
   err "DNS points to $dns_a but this server is $srv_ip"
-  echo "    Update DNS A record → $srv_ip then run menu 13 again"
+  echo "    Update DNS A record → $srv_ip then run menu 8 again"
   return 1
 }
 
@@ -1676,7 +1773,7 @@ mirza_wait_https_ready() {
   return 1
 }
 
-# drop pending updates, set webhook, verify getWebhookInfo (for menu 13)
+# drop pending updates, set webhook, verify getWebhookInfo (for menu 8)
 mirza_fix_webhook_complete() {
   local token="$1"
   local domain="$2"
@@ -1749,7 +1846,7 @@ mirza_fix_webhook_complete() {
     mirza_test_https_post_speed "$domain" || true
   fi
   if echo "$last_err" | grep -qi 'SSL error\|record layer\|packet length'; then
-    warn "SSL/TLS broken on :443 — run menu 13 again; keep ${domain}-le-ssl.conf enabled"
+    warn "SSL/TLS broken on :443 — run menu 8 again; keep ${domain}-le-ssl.conf enabled"
     echo "    Quick check: openssl s_client -connect ${domain}:443 -servername ${domain} </dev/null | head -5"
     mirza_test_ssl_handshake "$domain" || warn "TLS handshake still failing after fix attempt"
   fi
@@ -1861,7 +1958,7 @@ do_fix_all_bot() {
   resolve_project_paths
 
   if [ ! -f "$CONFIG_FILE" ]; then
-    err "No config.php — use menu 9 or 10 first."
+    err "No config.php — use menu 1 (Install) first."
     return 1
   fi
 
@@ -1966,7 +2063,7 @@ do_fix_all_bot() {
 
   msg "Step 8/8 — Webhook (drop pending + verify) ..."
   mirza_restart_apache || true
-  mirza_fix_webhook_complete "$token" "$domain" || warn "Webhook fix incomplete — check DNS/HTTPS then retry menu 13"
+  mirza_fix_webhook_complete "$token" "$domain" || warn "Webhook fix incomplete — check DNS/HTTPS then retry menu 8"
 
   line
   echo ""
@@ -2044,7 +2141,7 @@ do_restore_existing_bot() {
   msg "Restore from backup ZIP — keep bot files, replace DB + data"
   resolve_project_paths
   if [ ! -f "$CONFIG_FILE" ]; then
-    err "No bot at $PROJECT_DIR — use menu 9 (install) first."
+    err "No bot at $PROJECT_DIR — use menu 1 (Install) first."
     return 1
   fi
   load_config
@@ -2654,6 +2751,22 @@ do_restart_apache() {
   echo ""
 }
 
+do_restart_full() {
+  line
+  msg "Full restart — MySQL + Apache + bot webhook refresh"
+  systemctl restart mysql 2>/dev/null || service mysql restart 2>/dev/null || warn "MySQL restart skipped"
+  mirza_restart_apache
+  resolve_project_paths
+  if [ -f "$CONFIG_FILE" ]; then
+    local _dom _tok
+    _dom=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts")")
+    _tok=$(read_php_var "APIKEY")
+    [ -n "$_tok" ] && [ -n "$_dom" ] && mirza_fix_webhook_complete "$_tok" "$_dom" || true
+  fi
+  echo -e "  ${GREEN}✓${NC} Full restart complete"
+  echo ""
+}
+
 mirza_remove_cron_for_project() {
   local BOT_DIR="${1%/}"
   local TMP_CRON
@@ -3065,7 +3178,7 @@ do_diagnose_bot() {
     echo -e "    DNS A ($domain): ${dns_a:-not set}"
     if [ -n "$srv_ip" ] && [ -n "$dns_a" ] && [ "$srv_ip" != "$dns_a" ]; then
       err "DNS points to WRONG server — Let's Encrypt/Telegram go to $dns_a, not $srv_ip"
-      echo "    Fix: set A record for $domain → $srv_ip at your DNS panel, wait 5–30 min, then menu 13 again"
+      echo "    Fix: set A record for $domain → $srv_ip at your DNS panel, wait 5–30 min, then menu 8 again"
     elif [ -n "$srv_ip" ] && [ "$srv_ip" = "$dns_a" ]; then
       echo -e "  ${GREEN}✓${NC} DNS matches this server"
     fi
@@ -3091,21 +3204,21 @@ do_diagnose_bot() {
   echo -e "  ${CYAN}5) Apache vhost${NC}"
   echo -e "    Vhost file:  $([ -f "$vhost_file" ] && echo "$vhost_file" || echo not found)"
   if [ ! -f "$vhost_file" ] && [ -n "$domain" ]; then
-    warn "HTTP vhost ${domain}.conf missing — only SSL may work; run menu 13"
+    warn "HTTP vhost ${domain}.conf missing — only SSL may work; run menu 8"
   fi
   echo -e "    DocumentRoot: ${docroot:-unknown}"
   echo -e "    ${CYAN}apache2ctl -S (443):${NC}"
   apache2ctl -S 2>/dev/null | grep -E ":443|${domain}" | sed 's/^/      /' | head -8
   for f in mirza-pro.conf mirza-pro-le-ssl.conf; do
     if [ -e "/etc/apache2/sites-enabled/$f" ]; then
-      err "Legacy vhost still ENABLED: $f — run menu 13 to disable"
+      err "Legacy vhost still ENABLED: $f — run menu 8 to disable"
     fi
   done
   local _bad_vhost
   for _bad_vhost in /etc/apache2/sites-available/*.conf; do
     [ -f "$_bad_vhost" ] || continue
     if grep -qF "/var/www/mirza_pro" "$_bad_vhost" 2>/dev/null; then
-      err "STALE path in $(basename "$_bad_vhost") — still references /var/www/mirza_pro → run menu 13"
+      err "STALE path in $(basename "$_bad_vhost") — still references /var/www/mirza_pro → run menu 8"
     fi
   done
   local ssl_doc f
@@ -3114,7 +3227,7 @@ do_diagnose_bot() {
     ssl_doc=$(grep -i DocumentRoot "$f" 2>/dev/null | head -1 | awk '{print $2}')
     echo -e "    SSL $(basename "$f"): DocumentRoot ${ssl_doc:-?}"
     if [ -n "$ssl_doc" ] && [ "${ssl_doc%/}" != "${PROJECT_DIR%/}" ]; then
-      warn "SSL vhost DocumentRoot wrong — run menu 13"
+      warn "SSL vhost DocumentRoot wrong — run menu 8"
     fi
   done
   if [ -n "$docroot" ] && [ "${docroot%/}" != "${PROJECT_DIR%/}" ]; then
@@ -3151,7 +3264,7 @@ do_diagnose_bot() {
     if echo "$wh_info" | grep -q '"last_error_date":[1-9]'; then
       if [ "$_recent_tg_post" -eq 1 ] && echo "$wh_info" | grep -q '404 Not Found'; then
         echo -e "  ${YELLOW}Note:${NC} Old 404 error in Telegram cache — recent POSTs from Telegram returned 200 (webhook OK now)"
-        echo -e "  ${CYAN}Tip:${NC} Run menu 13 once to refresh webhook, then send /start again"
+        echo -e "  ${CYAN}Tip:${NC} Run menu 8 once to refresh webhook, then send /start again"
       else
         warn "Telegram reports delivery errors (see last_error_message below):"
         echo "$wh_info" | tr ',' '\n' | grep -E 'last_error|pending_update' | sed 's/^/    /'
@@ -3182,7 +3295,7 @@ do_diagnose_bot() {
         echo -e "  ${GREEN}✓${NC} Server responds (code $http_code)"
         ;;
       404)
-        err "HTTPS GET returns 404 — wrong DocumentRoot or stale vhost; run menu 13"
+        err "HTTPS GET returns 404 — wrong DocumentRoot or stale vhost; run menu 8"
         ;;
       *)
         warn "Unexpected HTTP $http_code — check vhost/SSL"
@@ -3243,7 +3356,7 @@ do_diagnose_bot() {
 
   echo -e "  ${CYAN}9) PHP local test (HTTPS POST fake /start)${NC}"
   if [ -f "$PROJECT_DIR/index.php" ] && [ -n "$domain" ]; then
-    local test_body='{"update_id":999999001,"message":{"message_id":1,"date":1,"chat":{"id":561402602,"type":"private"},"from":{"id":561402602,"is_bot":false,"first_name":"Diag"},"text":"/start"}}'
+    local test_body='{"update_id":999999001,"message":{"message_id":1,"date":1,"chat":{"id":123456789,"type":"private"},"from":{"id":123456789,"is_bot":false,"first_name":"Diag"},"text":"/start"}}'
     local local_out post_code
     post_code=$(curl -sk -o /tmp/viranaut_post_test.out -w "%{http_code}" -X POST \
       "https://${domain}/index.php" \
@@ -3261,10 +3374,10 @@ do_diagnose_bot() {
         echo -e "  ${GREEN}✓${NC} index.php runs (403 = non-Telegram IP blocked — expected from server)"
         ;;
       301|302)
-        err "HTTPS POST redirects ($post_code) — Telegram webhook will fail; fix Apache SSL vhost (menu 13)"
+        err "HTTPS POST redirects ($post_code) — Telegram webhook will fail; fix Apache SSL vhost (menu 8)"
         ;;
       404)
-        err "HTTPS POST returns 404 — run menu 13 to fix vhost DocumentRoot"
+        err "HTTPS POST returns 404 — run menu 8 to fix vhost DocumentRoot"
         ;;
       *)
         warn "Unexpected POST code $post_code"
@@ -3327,7 +3440,7 @@ do_logs() {
       msg "Apache Error Log (last 100 lines):"
       line
       if [ -n "$LOG_ERR" ]; then
-        [[ "$LOG_ERR" == *mirza_error* ]] && warn "Showing legacy mirza_error.log — run menu 13 to fix Apache paths"
+        [[ "$LOG_ERR" == *mirza_error* ]] && warn "Showing legacy mirza_error.log — run menu 8 to fix Apache paths"
         tail -n 100 "$LOG_ERR"
       else
         warn "Log file not found."
@@ -3338,7 +3451,7 @@ do_logs() {
       msg "Apache Access Log (last 50 lines):"
       line
       if [ -n "$LOG_ACC" ]; then
-        [[ "$LOG_ACC" == *mirza_access* ]] && warn "Showing legacy mirza_access.log — run menu 13 to fix Apache paths"
+        [[ "$LOG_ACC" == *mirza_access* ]] && warn "Showing legacy mirza_access.log — run menu 8 to fix Apache paths"
         tail -n 50 "$LOG_ACC"
       else
         warn "Log file not found."
@@ -3432,18 +3545,15 @@ show_menu() {
     _domain=$(mirza_normalize_domainhosts "$_domain")
     _bot=$(mirza_normalize_bot_username "$(read_php_var "usernamebot")")
     echo -e "  ${GREEN}●${NC} Bot  —  ${BOLD}@${_bot}${NC}  —  ${_domain}"
-    echo -e "  ${CYAN}Active path:${NC} $PROJECT_DIR"
-    if [ ${#MIRZA_ALL_INSTALLS[@]} -gt 1 ]; then
-      echo -e "  ${YELLOW}●${NC} ${#MIRZA_ALL_INSTALLS[@]} installs found — use ${BOLD}10${NC} to switch path, ${BOLD}11${NC} to remove"
-      for _d in "${MIRZA_ALL_INSTALLS[@]}"; do
-        [ "$_d" = "$PROJECT_DIR" ] && continue
-        echo -e "    ${CYAN}○${NC} $_d"
-      done
-    fi
+    echo -e "  ${CYAN}Path:${NC} $PROJECT_DIR"
   else
-    echo -e "  ${RED}●${NC} Bot not installed (no config.php in known paths)"
-    echo -e "  ${CYAN}Checked:${NC} ${KNOWN_BOT_DIRS[*]}"
-    echo -e "  ${CYAN}Also scans:${NC} /var/www/html/*  /var/www/*"
+    local _legacy=""
+    _legacy=$(mirza_find_legacy_mirza_dir 2>/dev/null) || _legacy=""
+    if [ -n "$_legacy" ]; then
+      echo -e "  ${YELLOW}●${NC} Mirza detected: ${BOLD}$_legacy${NC} — menu ${BOLD}1${NC} Install to migrate"
+    else
+      echo -e "  ${RED}●${NC} Not installed — menu ${BOLD}1${NC} Install (GitHub)"
+    fi
   fi
 
   if systemctl is-active --quiet apache2 2>/dev/null; then
@@ -3451,50 +3561,46 @@ show_menu() {
   else
     echo -e "  ${RED}●${NC} Apache: stopped"
   fi
+  echo -e "  ${CYAN}GitHub:${NC} ${VIRANAUT_GITHUB_PAGE}"
   echo ""
   line
   echo ""
-  echo -e "  ${BOLD}1)${NC} Backup   (database + cron + config + vhost + cronbot data)"
-  echo -e "  ${GREEN}${BOLD}14)${NC} Restore from ZIP ${GREEN}(existing install — DB + cronbot; panel ZIP OK)${NC}"
-  echo -e "  ${BOLD}2)${NC} Stop Apache"
-  echo -e "  ${BOLD}3)${NC} Start Apache"
-  echo -e "  ${BOLD}4)${NC} Restart Apache"
-  echo -e "  ${BOLD}5)${NC} New Configure Bot"
+  echo -e "  ${GREEN}${BOLD}1)${NC} Install        ${GREEN}(GitHub — auto-detect Mirza → ViraNaut)${NC}"
+  echo -e "  ${GREEN}${BOLD}2)${NC} Update         ${GREEN}(GitHub — auto backup before update)${NC}"
+  echo -e "  ${BOLD}3)${NC} Stop Apache"
+  echo -e "  ${BOLD}4)${NC} Start Apache"
+  echo -e "  ${BOLD}5)${NC} Restart full   (MySQL + Apache + webhook)"
   echo -e "  ${BOLD}6)${NC} Logs"
-  echo -e "  ${BOLD}12)${NC} Diagnose bot (webhook / Apache / DB / why no /start)"
-  echo -e "  ${GREEN}${BOLD}13)${NC} Auto-fix all ${GREEN}(DB + vhost + SSL + webhook)${NC}"
-  echo -e "  ${BOLD}7)${NC} Update bot files (ViraNaut zip beside script, keeps config.php + DB merge)"
-  echo -e "  ${BOLD}8)${NC} Local update    (auto backup → ZIP update; keeps last ${VIRANAUT_PREUPDATE_KEEP} pre-update ZIPs)"
-  echo -e "  ${BOLD}9)${NC} Local install   (zip + optional restore from backup)"
-  echo -e "  ${BOLD}10)${NC} Select bot path"
-  echo -e "  ${RED}${BOLD}11)${NC} Full remove bot ${RED}(files + DB + cron + vhost)${NC}"
+  echo -e "  ${BOLD}7)${NC} Diagnose bot"
+  echo -e "  ${GREEN}${BOLD}8)${NC} Auto-fix all   ${GREEN}(DB + vhost + SSL + webhook)${NC}"
+  echo -e "  ${RED}${BOLD}9)${NC} Full remove bot"
   echo -e "  ${BOLD}0)${NC} Exit"
   echo ""
-  read -p "  Select [0-14]: " MENU_CHOICE
+  read -p "  Select [0-9]: " MENU_CHOICE
 }
 
 # ============================================================
 #  MAIN
 # ============================================================
+if viranaut_cli_entry "$@"; then
+  exit 0
+fi
+
 check_root
+viranaut_link_cli
 
 while true; do
   show_menu
   case "$MENU_CHOICE" in
-    1) do_backup;            read -p "  Press Enter to continue..." ;;
-    14) do_restore_existing_bot; read -p "  Press Enter to continue..." ;;
-    2) do_stop_apache;       read -p "  Press Enter to continue..." ;;
-    3) do_start_apache;      read -p "  Press Enter to continue..." ;;
-    4) do_restart_apache;    read -p "  Press Enter to continue..." ;;
-    5) do_configure;         read -p "  Press Enter to continue..." ;;
-    6) do_logs;              read -p "  Press Enter to continue..." ;;
-    12) do_diagnose_bot;     read -p "  Press Enter to continue..." ;;
-    13) do_fix_all_bot;      read -p "  Press Enter to continue..." ;;
-    7) do_update_bot;        read -p "  Press Enter to continue..." ;;
-    8) do_local_update_bot;  read -p "  Press Enter to continue..." ;;
-    9) do_local_install;     read -p "  Press Enter to continue..." ;;
-    10) do_select_bot_path;  read -p "  Press Enter to continue..." ;;
-    11) do_full_remove_bot;  read -p "  Press Enter to continue..." ;;
+    1) do_install;            read -p "  Press Enter to continue..." ;;
+    2) do_update_bot;          read -p "  Press Enter to continue..." ;;
+    3) do_stop_apache;         read -p "  Press Enter to continue..." ;;
+    4) do_start_apache;        read -p "  Press Enter to continue..." ;;
+    5) do_restart_full;        read -p "  Press Enter to continue..." ;;
+    6) do_logs;                read -p "  Press Enter to continue..." ;;
+    7) do_diagnose_bot;        read -p "  Press Enter to continue..." ;;
+    8) do_fix_all_bot;         read -p "  Press Enter to continue..." ;;
+    9) do_full_remove_bot;     read -p "  Press Enter to continue..." ;;
     0)
       echo ""
       echo -e "  ${GREEN}Goodbye!${NC}"
