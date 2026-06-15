@@ -1,5 +1,5 @@
-# Secrets & runtime config
-config.php
+# Secrets & runtime config (root only — panel/inc/config.php is tracked)
+/config.php
 .env
 .env.*
 

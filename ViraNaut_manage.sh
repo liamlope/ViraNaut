@@ -13,7 +13,7 @@ LEGACY_PROJECT_DIR="/var/www/mirza_pro"
 ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
 MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
-VIRANAUT_MANAGE_VERSION="2.1.3-ViraNaut"
+VIRANAUT_MANAGE_VERSION="2.1.4-ViraNaut"
 MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
 VIRANAUT_GITHUB_REPO="${VIRANAUT_GITHUB_REPO:-https://github.com/liamlope/ViraNaut.git}"
 VIRANAUT_GITHUB_BRANCH="${VIRANAUT_GITHUB_BRANCH:-main}"
@@ -741,6 +741,7 @@ viranaut_swap_bot_files_preserve_config() {
   local CONFIG_PATH="$BOT_DIR/config.php"
   local TEMP_CONFIG="/root/mirza_local_update_config_backup.php"
   local TEMP_VENDOR="/root/mirza_local_update_vendor_backup"
+  local TEMP_PANEL_INC="/root/viranaut_panel_inc_backup"
 
   [ -f "$CONFIG_PATH" ] || { err "config.php missing at $CONFIG_PATH"; return 1; }
   SRC_DIR="${SRC_DIR//$'\r'/}"
@@ -748,6 +749,11 @@ viranaut_swap_bot_files_preserve_config() {
   [ -d "$SRC_DIR" ] || { err "Invalid update source: $SRC_DIR"; return 1; }
 
   cp "$CONFIG_PATH" "$TEMP_CONFIG" || return 1
+
+  if [ -d "$BOT_DIR/panel/inc" ]; then
+    rm -rf "$TEMP_PANEL_INC"
+    cp -a "$BOT_DIR/panel/inc" "$TEMP_PANEL_INC" 2>/dev/null || true
+  fi
 
   if [ -f "$BOT_DIR/vendor/autoload.php" ]; then
     rm -rf "$TEMP_VENDOR"
@@ -768,8 +774,35 @@ viranaut_swap_bot_files_preserve_config() {
     rm -rf "$BOT_DIR/vendor"
     cp -a "$TEMP_VENDOR" "$BOT_DIR/vendor"
   fi
-  rm -rf "$TEMP_VENDOR"
+  if [ -d "$TEMP_PANEL_INC" ] && [ ! -f "$BOT_DIR/panel/inc/config.php" ]; then
+    mkdir -p "$BOT_DIR/panel/inc"
+    cp -a "$TEMP_PANEL_INC/." "$BOT_DIR/panel/inc/" 2>/dev/null || true
+  fi
+  rm -rf "$TEMP_VENDOR" "$TEMP_PANEL_INC"
+  viranaut_ensure_panel_inc_config "$BOT_DIR" 2>/dev/null || true
   return 0
+}
+
+# panel/inc/config.php was wrongly gitignored — restore if update removed it
+viranaut_ensure_panel_inc_config() {
+  local BOT_DIR="${1%/}"
+  local pinc="$BOT_DIR/panel/inc/config.php"
+  [ -f "$pinc" ] && return 0
+
+  local branch="${VIRANAUT_GITHUB_BRANCH:-main}"
+  local url="https://raw.githubusercontent.com/liamlope/ViraNaut/${branch}/panel/inc/config.php"
+
+  warn "Missing panel/inc/config.php — restoring from GitHub ..."
+  mkdir -p "$BOT_DIR/panel/inc"
+  if command -v curl >/dev/null 2>&1 && curl -fsSL "$url" -o "$pinc" 2>/dev/null \
+      && [ -s "$pinc" ] && grep -q 'require_once' "$pinc" 2>/dev/null; then
+    chown www-data:www-data "$pinc" 2>/dev/null || true
+    chmod 644 "$pinc" 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} panel/inc/config.php restored"
+    return 0
+  fi
+  err "Could not restore panel/inc/config.php — panel finance/settings pages will fail."
+  return 1
 }
 
 viranaut_finish_bot_update() {
@@ -789,6 +822,7 @@ viranaut_finish_bot_update() {
   fi
 
   viranaut_db_migrate "$BOT_DIR"
+  viranaut_ensure_panel_inc_config "$BOT_DIR" 2>/dev/null || true
   viranaut_sync_manage_script_from_bot "$BOT_DIR"
   systemctl reload apache2 2>/dev/null || true
 }
