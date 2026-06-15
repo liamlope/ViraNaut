@@ -13,7 +13,7 @@ LEGACY_PROJECT_DIR="/var/www/mirza_pro"
 ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
 MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
-VIRANAUT_MANAGE_VERSION="2.1.0-ViraNaut"
+VIRANAUT_MANAGE_VERSION="2.1.1-ViraNaut"
 MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
 VIRANAUT_GITHUB_REPO="${VIRANAUT_GITHUB_REPO:-https://github.com/liamlope/ViraNaut.git}"
 VIRANAUT_GITHUB_BRANCH="${VIRANAUT_GITHUB_BRANCH:-main}"
@@ -185,6 +185,52 @@ resolve_project_paths() {
     PROJECT_DIR="$INSTALL_BOT_DIR"
   fi
   CONFIG_FILE="$PROJECT_DIR/config.php"
+}
+
+# True when a working bot install exists (canonical path or any discovered install)
+viranaut_is_installed() {
+  resolve_project_paths
+  if mirza_is_valid_bot_dir "$INSTALL_BOT_DIR"; then
+    return 0
+  fi
+  if [ -f "$CONFIG_FILE" ] && [ -f "$PROJECT_DIR/index.php" ]; then
+    return 0
+  fi
+  return 1
+}
+
+# Shown when user runs install but bot is already on the server
+viranaut_already_installed_prompt() {
+  resolve_project_paths
+  line
+  warn "ViraNaut is already installed."
+  if [ -f "$CONFIG_FILE" ]; then
+    local _domain _bot
+    _domain=$(read_php_var "domainhosts")
+    _domain=$(mirza_normalize_domainhosts "$_domain")
+    _bot=$(mirza_normalize_bot_username "$(read_php_var "usernamebot")")
+    echo -e "  ${GREEN}●${NC} @${_bot}  —  ${_domain}"
+    echo -e "  ${CYAN}Path:${NC} $PROJECT_DIR"
+  else
+    echo -e "  ${CYAN}Path:${NC} $INSTALL_BOT_DIR"
+  fi
+  echo ""
+  echo -e "  ${BOLD}1)${NC} Update from GitHub"
+  echo -e "  ${BOLD}2)${NC} Restart full (MySQL + Apache + webhook)"
+  echo -e "  ${BOLD}3)${NC} Open main menu"
+  echo -e "  ${BOLD}0)${NC} Exit"
+  echo ""
+  read -p "  Select [0-3]: " _ac
+  case "$_ac" in
+    1) do_update_bot; return 0 ;;
+    2) do_restart_full; return 0 ;;
+    3) return 2 ;;
+    0) exit 0 ;;
+    *)
+      warn "Invalid option."
+      return 2
+      ;;
+  esac
 }
 
 # Menu: choose which installation manage.sh should use
@@ -1060,10 +1106,9 @@ do_install() {
 
   install_dependencies
 
-  if mirza_is_valid_bot_dir "$INSTALL_BOT_DIR"; then
-    warn "ViraNaut already installed at $INSTALL_BOT_DIR"
-    echo -e "  Use menu ${BOLD}2) Update${NC} instead."
-    return 1
+  if viranaut_is_installed; then
+    viranaut_already_installed_prompt
+    return $?
   fi
 
   local legacy=""
@@ -1221,14 +1266,65 @@ viranaut_cli_entry() {
   case "$cmd" in
     install)
       check_root
+      viranaut_link_cli
+      if viranaut_is_installed; then
+        viranaut_already_installed_prompt
+        local _rc=$?
+        [ "$_rc" -eq 2 ] && return 1
+        exit 0
+      fi
       do_install
       exit $?
       ;;
     update)
       check_root
+      viranaut_link_cli
       VIRANAUT_AUTO_YES="${VIRANAUT_AUTO_YES:-1}"
       do_update_bot
       exit $?
+      ;;
+    restart|reload)
+      check_root
+      viranaut_link_cli
+      do_restart_full
+      exit $?
+      ;;
+    stop)
+      check_root
+      do_stop_apache
+      exit $?
+      ;;
+    start)
+      check_root
+      do_start_apache
+      exit $?
+      ;;
+    diagnose)
+      check_root
+      viranaut_link_cli
+      do_diagnose_bot
+      exit $?
+      ;;
+    fix|autofix)
+      check_root
+      viranaut_link_cli
+      do_fix_all_bot
+      exit $?
+      ;;
+    remove|uninstall)
+      check_root
+      viranaut_link_cli
+      do_full_remove_bot
+      exit $?
+      ;;
+    logs)
+      check_root
+      viranaut_link_cli
+      do_logs
+      exit $?
+      ;;
+    menu|"")
+      return 1
       ;;
   esac
   return 1
@@ -3592,7 +3688,12 @@ viranaut_link_cli
 while true; do
   show_menu
   case "$MENU_CHOICE" in
-    1) do_install;            read -p "  Press Enter to continue..." ;;
+    1)
+      do_install
+      _rc=$?
+      [ "$_rc" -eq 2 ] && continue
+      read -p "  Press Enter to continue..."
+      ;;
     2) do_update_bot;          read -p "  Press Enter to continue..." ;;
     3) do_stop_apache;         read -p "  Press Enter to continue..." ;;
     4) do_start_apache;        read -p "  Press Enter to continue..." ;;
