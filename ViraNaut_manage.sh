@@ -13,7 +13,7 @@ LEGACY_PROJECT_DIR="/var/www/mirza_pro"
 ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
 MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
-VIRANAUT_MANAGE_VERSION="2.1.1-ViraNaut"
+VIRANAUT_MANAGE_VERSION="2.1.2-ViraNaut"
 MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
 VIRANAUT_GITHUB_REPO="${VIRANAUT_GITHUB_REPO:-https://github.com/liamlope/ViraNaut.git}"
 VIRANAUT_GITHUB_BRANCH="${VIRANAUT_GITHUB_BRANCH:-main}"
@@ -572,6 +572,20 @@ viranaut_ensure_git() {
   apt-get install -y git >/dev/null 2>&1 || return 1
 }
 
+# Git refuses pull as root when repo is owned by www-data — trust bot path
+viranaut_git_trust_dir() {
+  local dir="${1%/}"
+  [ -n "$dir" ] || return 0
+  git config --global --add safe.directory "$dir" 2>/dev/null || true
+}
+
+viranaut_git() {
+  local dir="${1%/}"
+  shift
+  viranaut_git_trust_dir "$dir"
+  git -c "safe.directory=${dir}" "$@"
+}
+
 viranaut_is_bot_source() {
   local d="${1%/}"
   [ -f "$d/index.php" ] && { [ -f "$d/version" ] || [ -f "$d/config.sample.php" ] || [ -f "$d/config.php" ]; }
@@ -605,11 +619,12 @@ viranaut_update_from_github() {
   [ -d "$bot_dir/.git" ] || return 1
 
   msg "Git pull — ${VIRANAUT_GITHUB_PAGE} (${branch}) ..."
+  viranaut_git_trust_dir "$bot_dir"
   (
     cd "$bot_dir" || exit 1
-    git fetch origin "$branch" 2>/dev/null || git fetch origin
-    git checkout "$branch" 2>/dev/null || true
-    git pull --ff-only origin "$branch" 2>/dev/null || git pull --ff-only
+    viranaut_git "$bot_dir" fetch origin "$branch" || viranaut_git "$bot_dir" fetch origin || exit 1
+    viranaut_git "$bot_dir" checkout "$branch" 2>/dev/null || true
+    viranaut_git "$bot_dir" pull --ff-only origin "$branch" || viranaut_git "$bot_dir" pull --ff-only || exit 1
   ) || return 1
   echo -e "  ${GREEN}✓${NC} Git pull completed"
   return 0
@@ -625,7 +640,7 @@ viranaut_github_clone_staging() {
   tmp=$(mktemp -d)
   repo_dir="$tmp/repo"
 
-  msg "Fetching ${VIRANAUT_GITHUB_PAGE} (${branch}) ..."
+  msg "Fetching ${VIRANAUT_GITHUB_PAGE} (${branch}) ..." >&2
   if ! git clone --depth 1 -b "$branch" "$VIRANAUT_GITHUB_REPO" "$repo_dir" 2>/dev/null; then
     rm -rf "$tmp"
     tmp=$(mktemp -d)
@@ -666,6 +681,8 @@ viranaut_swap_bot_files_preserve_config() {
   local TEMP_VENDOR="/root/mirza_local_update_vendor_backup"
 
   [ -f "$CONFIG_PATH" ] || { err "config.php missing at $CONFIG_PATH"; return 1; }
+  SRC_DIR="${SRC_DIR//$'\r'/}"
+  SRC_DIR="${SRC_DIR//$'\n'/}"
   [ -d "$SRC_DIR" ] || { err "Invalid update source: $SRC_DIR"; return 1; }
 
   cp "$CONFIG_PATH" "$TEMP_CONFIG" || return 1
