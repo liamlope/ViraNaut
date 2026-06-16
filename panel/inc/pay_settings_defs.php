@@ -124,7 +124,7 @@ function mirza_pay_general_defs(): array
     return [
         ['key' => 'statuscardautoconfirm', 'label' => 'تأیید خودکار SMS', 'input' => 'select', 'options' => ['onautoconfirm' => 'روشن', 'offautoconfirm' => 'خاموش'], 'hint' => 'پیامک واریز بانک → گروه تلگرام → تطبیق با مبلغ یکتای فاکتور'],
         ['key' => 'cardreceiptdelaymin', 'label' => 'تأخیر دکمه «ارسال رسید» (دقیقه)', 'input' => 'number', 'hint' => 'پیش‌فرض ۱۰ — تا قبل از آن دکمه رسید نمایش داده نمی‌شود (۱ تا ۱۴۴۰)'],
-        ['key' => 'card_sms_telegram_group_id', 'label' => 'آیدی گروه SMS (تلگرام)', 'input' => 'text', 'hint' => 'ربات فروش + @IDFindeerBot را به گروه SMS اضافه کنید؛ آیدی را از IDFindeerBot بگیرید. BotFather → Group Privacy خاموش. SMS Forwarder پیامک را به همین گروه بفرستد.'],
+        ['key' => 'card_sms_telegram_group_id', 'label' => 'آیدی گروه/کانال SMS', 'input' => 'text', 'hint' => 'ربات فروش را ادمین کنید. BotFather → Group Privacy خاموش. اگر SMS Forwarder با ربات جدا می‌فرستد → مقصد را کانال خصوصی بگذارید (نه گروه)؛ ربات فروش ادمین کانال باشد. آیدی از @IDFindeerBot.'],
         ['key' => 'chashbackcart', 'label' => 'کش‌بک کارت (درصد)', 'input' => 'number'],
         ['key' => 'minbalancebuybulk', 'label' => 'حداقل موجودی خرید عمده', 'input' => 'number'],
         ['key' => 'statuscopycart', 'label' => 'دکمه کپی کارت', 'input' => 'select', 'options' => ['1' => 'فعال', '0' => 'غیرفعال']],

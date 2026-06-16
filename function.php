@@ -1343,10 +1343,14 @@ function mirza_try_handle_card_sms_telegram_update(?array $update): bool
 function mirza_card_sms_panel_info(): array
 {
     $groupId = mirza_card_sms_effective_group_id();
+    global $domainhosts;
+    $domain = trim((string) ($domainhosts ?? ''));
     return [
         'sms_enabled' => mirza_card_sms_autoconfirm_enabled(),
         'group_configured' => $groupId !== null,
         'receipt_delay_label' => mirza_card_receipt_delay_label_fa(),
+        'forwarder_note' => 'ربات تلگرام پیام ربات‌های دیگر را در گروه نمی‌بیند. SMS Forwarder اگر با @Bot می‌فرستد → کانال خصوصی + ادمین ربات فروش، یا ارسال با اکانت شخصی، یا HTTP.',
+        'http_path' => $domain !== '' ? ('https://' . $domain . '/payment/card.php') : '',
     ];
 }
 

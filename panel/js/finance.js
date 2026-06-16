@@ -131,12 +131,19 @@
                 ];
                 if (s.sms_enabled) {
                     pills.push('<span class="finance-pill ' + (s.group_configured ? 'is-ok' : 'is-warn') + '">' +
-                        (s.group_configured ? 'گروه SMS تنظیم شده' : 'گروه SMS تنظیم نشده') + '</span>');
+                        (s.group_configured ? 'گروه/کانال SMS تنظیم شده' : 'گروه/کانال SMS تنظیم نشده') + '</span>');
                     if (s.receipt_delay_label) {
                         pills.push('<span class="finance-pill is-dim">تأخیر رسید: ' + s.receipt_delay_label + '</span>');
                     }
                 }
-                smsStatus.innerHTML = pills.join('');
+                var hint = '';
+                if (s.sms_enabled && s.forwarder_note) {
+                    hint = '<p class="finance-sms-hint">' + s.forwarder_note + '</p>';
+                    if (s.http_path) {
+                        hint += '<p class="finance-sms-hint is-dim">HTTP (اختیاری): <code dir="ltr">' + s.http_path + '</code></p>';
+                    }
+                }
+                smsStatus.innerHTML = pills.join('') + hint;
                 smsStatus.classList.remove('hidden');
             } else if (smsStatus) {
                 smsStatus.innerHTML = '';
