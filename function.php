@@ -1239,7 +1239,11 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
     // جلوگیری از تأیید اشتباه: 99,000 ریال ≠ فاکتور 99,000 تومان (990,000 ریال)
     $datauser = mysqli_fetch_assoc(mysqli_query(
         $connect,
-        "SELECT * FROM Payment_report WHERE (CAST(price AS UNSIGNED) * 10) = '$rialEsc' AND (payment_Status = 'Unpaid' OR payment_Status = 'waiting') LIMIT 1"
+        "SELECT * FROM Payment_report
+         WHERE Payment_Method = 'cart to cart'
+           AND payment_Status = 'Unpaid'
+           AND (CAST(price AS UNSIGNED) * 10) = '$rialEsc'
+         LIMIT 1"
     ));
     if (!$datauser || empty($datauser['id_order'])) {
         return [
@@ -1255,6 +1259,16 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
     $Payment_report = select('Payment_report', '*', 'id_order', $orderId, 'select');
     if (!is_array($Payment_report) || empty($Payment_report['price'])) {
         return ['ok' => false, 'reason' => 'order_missing'];
+    }
+    if (!mirza_card_sms_may_auto_approve($Payment_report)) {
+        return [
+            'ok' => false,
+            'reason' => 'manual_receipt_only',
+            'order_id' => $orderId,
+            'amount_rial' => $amountRial,
+            'amount_toman' => $amountToman,
+            'bank' => $parsed['bank'],
+        ];
     }
     $expectedRial = mirza_card_sms_invoice_expected_rial((int) $Payment_report['price']);
     if ($amountRial !== $expectedRial) {
@@ -1405,6 +1419,23 @@ function mirza_card_is_sms_auto_pending(?string $dec): bool
 {
     $dec = trim((string) $dec);
     return $dec === 'sms_auto' || str_starts_with($dec, 'sms_auto:');
+}
+
+/** آیا این فاکتور هنوز واجد تأیید خودکار SMS است؟ (بعد از ارسال دستی رسید = خیر) */
+function mirza_card_sms_may_auto_approve(array $row): bool
+{
+    $status = (string) ($row['payment_Status'] ?? '');
+    if ($status !== 'Unpaid') {
+        return false;
+    }
+    $dec = trim((string) ($row['dec_not_confirmed'] ?? ''));
+    if ($dec === 'receipt_submitted') {
+        return false;
+    }
+    if ($dec !== '' && $dec !== 'receipt_ready' && !mirza_card_is_sms_auto_pending($dec)) {
+        return false;
+    }
+    return true;
 }
 
 function mirza_card_sms_auto_receipt_due(?string $dec, array $row): bool
