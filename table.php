@@ -896,6 +896,7 @@ try {
         ['walletaddress', '0'],
         ['statuscardautoconfirm', 'offautoconfirm'],
         ['cardreceiptdelaymin', '10'],
+        ['cardpendingexpirehours', '48'],
         ['card_sms_telegram_group_id', ''],
         ['urlpaymenttron', 'https://tronseller.storeddownloader.fun/api/GetOrderToken'],
         ['statustarnado', 'offternado'],

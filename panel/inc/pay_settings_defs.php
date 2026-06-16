@@ -124,6 +124,7 @@ function mirza_pay_general_defs(): array
     return [
         ['key' => 'statuscardautoconfirm', 'label' => 'تأیید خودکار SMS', 'input' => 'select', 'options' => ['onautoconfirm' => 'روشن', 'offautoconfirm' => 'خاموش'], 'hint' => 'پیامک واریز بانک → کانال تلگرام → تطبیق با مبلغ ریالی فاکتور'],
         ['key' => 'cardreceiptdelaymin', 'label' => 'تأخیر دکمه «ارسال رسید» (دقیقه)', 'input' => 'number', 'hint' => 'پیش‌فرض ۱۰ — تا قبل از آن دکمه رسید نمایش داده نمی‌شود (۱ تا ۱۴۴۰)'],
+        ['key' => 'cardpendingexpirehours', 'label' => 'انقضای فاکتور کارت تأییدنشده (ساعت)', 'input' => 'number', 'hint' => 'پیش‌فرض ۴۸ — بعد از این مدت فاکتور Unpaid/waiting منقضی می‌شود و کاربر می‌تواند دوباره پرداخت کند (۶ تا ۱۶۸)'],
         ['key' => 'card_sms_telegram_group_id', 'label' => 'آیدی کانال SMS', 'input' => 'text', 'hint' => 'کانال خصوصی → ربات فروش + SMS Forwarder ادمین کانال → Forwarder مقصد = همین کانال. آیدی از @IDFindeerBot در کانال.'],
         ['key' => 'chashbackcart', 'label' => 'کش‌بک کارت (درصد)', 'input' => 'number'],
         ['key' => 'minbalancebuybulk', 'label' => 'حداقل موجودی خرید عمده', 'input' => 'number'],

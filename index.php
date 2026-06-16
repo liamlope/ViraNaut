@@ -5086,11 +5086,7 @@ $textonebuy
     }
     if ($datain == "cart_to_offline") {
         $PaySetting = select("PaySetting", "ValuePay", "NamePay", "statuscardautoconfirm", "select")['ValuePay'];
-        $checkpay = mysqli_query($connect, "SELECT * FROM Payment_report WHERE id_user = '$from_id' AND payment_Status = 'Unpaid' AND Payment_Method = 'cart to cart'");
-        if (mysqli_num_rows($checkpay) != 0) {
-            sendmessage($from_id, $textbotlang['Admin']['SettingPayment']['issetpay'], null, 'HTML');
-            return;
-        }
+        mirza_card_cancel_unpaid_invoices((string) $from_id, false, 'replaced_by_new');
         $mainbalance = select("PaySetting", "ValuePay", "NamePay", "minbalancecart", "select")['ValuePay'];
         $maxbalance = select("PaySetting", "ValuePay", "NamePay", "maxbalancecart", "select")['ValuePay'];
         if ($user['Processing_value'] < $mainbalance || $user['Processing_value'] > $maxbalance) {
@@ -6063,6 +6059,10 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         sendmessage($from_id, "❗زمان این تراکنش به پایان رسیده و امکان پرداخت این تراکنش وجود ندارد.", null, 'HTML');
         return;
     }
+    if ($payemntcheck['payment_Status'] == "waiting") {
+        sendmessage($from_id, mirza_card_receipt_submitted_user_message(), null, 'HTML');
+        return;
+    }
     if (
         mirza_card_sms_autoconfirm_enabled()
         && mirza_card_is_sms_auto_pending($payemntcheck['dec_not_confirmed'] ?? '')
@@ -6281,7 +6281,7 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         sendmessage($from_id, $textbotlang['users']['Balance']['Send-receipt'], $keyboard, 'HTML');
     }
     update("Payment_report", "payment_Status", "waiting", "id_order", $PaymentReport['id_order']);
-    update("Payment_report", "dec_not_confirmed", "$text $caption", "id_order", $PaymentReport['id_order']);
+    update("Payment_report", "dec_not_confirmed", "receipt_submitted", "id_order", $PaymentReport['id_order']);
     $dateacc = date('Y/m/d H:i:s');
     update("Payment_report", "at_updated", $dateacc, "id_order", $PaymentReport['id_order']);
 } elseif ($user['step'] == "cart_to_cart_user") {
@@ -6466,6 +6466,7 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         sendmessage($id_admin, $textsendrasid, $Confirm_pay, 'HTML');
     }
     update("Payment_report", "payment_Status", "waiting", "id_order", $PaymentReport['id_order']);
+    update("Payment_report", "dec_not_confirmed", "receipt_submitted", "id_order", $PaymentReport['id_order']);
     $dateacc = date('Y/m/d H:i:s');
     update("Payment_report", "at_updated", $dateacc, "id_order", $PaymentReport['id_order']);
 } elseif ($datain == "Discount") {

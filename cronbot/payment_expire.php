@@ -9,10 +9,21 @@ require __DIR__ . '/../vendor/autoload.php';
 $ManagePanel = new ManagePanel();
 $setting = select("setting", "*");
 $textbotlang = languagechange();
-$month_date_time_start = time() - 86400;
-$month_date_time_start = date('Y/m/d H:i:s',$month_date_time_start);
-$stmt = $pdo->prepare("SELECT * FROM Payment_report WHERE time < '$month_date_time_start' AND payment_Status = 'Unpaid'");
-$stmt->execute();
+$unpaid_cutoff = time() - 86400;
+$unpaid_cutoff_str = date('Y/m/d H:i:s', $unpaid_cutoff);
+$waiting_cutoff = time() - mirza_card_pending_expire_sec();
+$waiting_cutoff_str = date('Y/m/d H:i:s', $waiting_cutoff);
+
+$stmt = $pdo->prepare(
+    "SELECT * FROM Payment_report WHERE Payment_Method = 'cart to cart' AND (
+        (payment_Status = 'Unpaid' AND time < :unpaid_cutoff)
+        OR (payment_Status = 'waiting' AND time < :waiting_cutoff)
+    )"
+);
+$stmt->execute([
+    ':unpaid_cutoff' => $unpaid_cutoff_str,
+    ':waiting_cutoff' => $waiting_cutoff_str,
+]);
 
 while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $status_var = [

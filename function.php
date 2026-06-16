@@ -1432,6 +1432,22 @@ function mirza_card_receipt_prompt_sql_pending(): string
     return "(dec_not_confirmed = 'sms_auto' OR dec_not_confirmed LIKE 'sms_auto:%')";
 }
 
+/** پیام یادآور ارسال رسید دستی (بعد از تأخیر SMS) */
+function mirza_card_receipt_fallback_user_message(): string
+{
+    return "⏱ تأیید خودکار از SMS انجام نشد.\n\n"
+        . "اگر واریز کردید → دکمه زیر را بزنید و عکس رسید را بفرستید.\n"
+        . "اگر قبلاً رسید فرستادید → منتظر بررسی بمانید یا به پشتیبانی پیام دهید.\n"
+        . "وضعیت پرداخت: منوی «حساب کاربری» در ربات.";
+}
+
+function mirza_card_receipt_submitted_user_message(): string
+{
+    return "✅ رسید شما ثبت شده و در انتظار بررسی است.\n"
+        . "پس از تأیید، موجودی یا سرویس به‌صورت خودکار اعمال می‌شود.\n"
+        . "اگر تأیید نشد، به پشتیبانی پیام دهید.";
+}
+
 /** متن قدیمی/طولانی کارت خودکار (Mirza legacy) */
 function mirza_is_legacy_cart_auto_text(string $text): bool
 {
@@ -1504,7 +1520,8 @@ function mirza_card_receipt_prompt_apply_row(array $row): bool
     if (!mirza_card_is_sms_auto_pending($row['dec_not_confirmed'] ?? '')) {
         return false;
     }
-    if (!in_array((string) ($row['payment_Status'] ?? ''), ['Unpaid', 'waiting'], true)) {
+    $status = (string) ($row['payment_Status'] ?? '');
+    if ($status !== 'Unpaid') {
         return false;
     }
     if (!mirza_card_payment_receipt_due($row)) {
@@ -1560,7 +1577,7 @@ function mirza_card_receipt_prompt_apply_row(array $row): bool
 
     $fallback = sendmessage(
         $chatId,
-        "⏱ اگر واریز شما هنوز تأیید نشده، روی دکمه زیر بزنید و رسید را ارسال کنید:",
+        mirza_card_receipt_fallback_user_message(),
         $keyboard,
         'HTML'
     );
@@ -1586,7 +1603,7 @@ function mirza_card_receipt_prompt_for_user(string $userId): void
         "SELECT * FROM Payment_report
          WHERE id_user = :uid
            AND Payment_Method = 'cart to cart'
-           AND payment_Status IN ('Unpaid', 'waiting')
+           AND payment_Status = 'Unpaid'
            AND {$pendingSql}"
     );
     $stmt->bindValue(':uid', $userId, PDO::PARAM_STR);
@@ -1610,7 +1627,7 @@ function mirza_card_receipt_prompt_run(): void
     $stmt = $pdo->prepare(
         "SELECT * FROM Payment_report
          WHERE Payment_Method = 'cart to cart'
-           AND payment_Status IN ('Unpaid', 'waiting')
+           AND payment_Status = 'Unpaid'
            AND {$pendingSql}"
     );
     $stmt->execute();
@@ -1640,10 +1657,10 @@ function mirza_is_payment_method_datain(?string $datain): bool
 }
 
 /**
- * لغو فاکتورهای کارت به کارت Unpaid کاربر (خروج از منو / منصرف شدن)
+ * لغو فاکتورهای کارت فعال کاربر (Unpaid + waiting) — خروج از منو یا شروع پرداخت جدید
  * @return int تعداد فاکتورهای لغو‌شده
  */
-function mirza_card_cancel_unpaid_invoices(string $userId, bool $notifyUser = false): int
+function mirza_card_cancel_unpaid_invoices(string $userId, bool $notifyUser = false, string $reason = 'user_cancelled'): int
 {
     global $pdo;
 
@@ -1655,7 +1672,7 @@ function mirza_card_cancel_unpaid_invoices(string $userId, bool $notifyUser = fa
         "SELECT id_order, message_id FROM Payment_report
          WHERE id_user = :uid
            AND Payment_Method = 'cart to cart'
-           AND payment_Status = 'Unpaid'"
+           AND payment_Status IN ('Unpaid', 'waiting')"
     );
     $stmt->bindValue(':uid', $userId, PDO::PARAM_STR);
     $stmt->execute();
@@ -1671,7 +1688,7 @@ function mirza_card_cancel_unpaid_invoices(string $userId, bool $notifyUser = fa
             continue;
         }
         update('Payment_report', 'payment_Status', 'expire', 'id_order', $orderId);
-        update('Payment_report', 'dec_not_confirmed', 'user_cancelled', 'id_order', $orderId);
+        update('Payment_report', 'dec_not_confirmed', $reason, 'id_order', $orderId);
         $msgId = (int) ($row['message_id'] ?? 0);
         if ($msgId > 0) {
             deletemessage((int) $userId, $msgId);
@@ -1689,6 +1706,82 @@ function mirza_card_cancel_unpaid_invoices(string $userId, bool $notifyUser = fa
     }
 
     return $cancelled;
+}
+
+/** حداکثر سن فاکتور کارت (Unpaid/waiting) قبل از منقضی خودکار — ساعت (پیش‌فرض ۴۸) */
+function mirza_card_pending_expire_hours(): int
+{
+    $hours = (int) getPaySettingValue('cardpendingexpirehours', '48');
+    if ($hours < 6) {
+        $hours = 6;
+    }
+    if ($hours > 168) {
+        $hours = 168;
+    }
+    return $hours;
+}
+
+function mirza_card_pending_expire_sec(): int
+{
+    return mirza_card_pending_expire_hours() * 3600;
+}
+
+/** آیا ردیف Payment_report کارت به کارت از نظر زمان «کهنه» است؟ */
+function mirza_card_payment_row_is_stale(array $row): bool
+{
+    $ts = mirza_parse_payment_report_time($row['at_updated'] ?? null)
+        ?? mirza_parse_payment_report_time($row['time'] ?? null);
+    if ($ts === null) {
+        return true;
+    }
+    return $ts <= time() - mirza_card_pending_expire_sec();
+}
+
+/**
+ * منقضی کردن فاکتورهای کهنه کارت کاربر (Unpaid + waiting) تا خرید جدید مسدود نشود.
+ * @return int تعداد منقضی‌شده
+ */
+function mirza_card_expire_stale_user_pending(string $userId): int
+{
+    global $pdo;
+
+    if ($userId === '' || $userId === '0') {
+        return 0;
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT id_order, message_id, payment_Status, time, at_updated
+         FROM Payment_report
+         WHERE id_user = :uid
+           AND Payment_Method = 'cart to cart'
+           AND payment_Status IN ('Unpaid', 'waiting')"
+    );
+    $stmt->bindValue(':uid', $userId, PDO::PARAM_STR);
+    $stmt->execute();
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if ($rows === []) {
+        return 0;
+    }
+
+    $expired = 0;
+    foreach ($rows as $row) {
+        if (!mirza_card_payment_row_is_stale($row)) {
+            continue;
+        }
+        $orderId = (string) ($row['id_order'] ?? '');
+        if ($orderId === '') {
+            continue;
+        }
+        update('Payment_report', 'payment_Status', 'expire', 'id_order', $orderId);
+        update('Payment_report', 'dec_not_confirmed', 'stale_expired', 'id_order', $orderId);
+        $msgId = (int) ($row['message_id'] ?? 0);
+        if ($msgId > 0) {
+            deletemessage((int) $userId, $msgId);
+        }
+        $expired++;
+    }
+
+    return $expired;
 }
 
 /** آیا کاربر از جریان پرداخت خارج شده (منو / برگشت / start)؟ */

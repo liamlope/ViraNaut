@@ -13,7 +13,7 @@ LEGACY_PROJECT_DIR="/var/www/mirza_pro"
 ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
 MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
-VIRANAUT_MANAGE_VERSION="2.1.4-ViraNaut"
+VIRANAUT_MANAGE_VERSION="2.1.6-ViraNaut"
 MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
 VIRANAUT_GITHUB_REPO="${VIRANAUT_GITHUB_REPO:-https://github.com/liamlope/ViraNaut.git}"
 VIRANAUT_GITHUB_BRANCH="${VIRANAUT_GITHUB_BRANCH:-main}"
@@ -592,8 +592,11 @@ viranaut_git_in_bot_dir() {
     owner=$(stat -c '%U' "$bot_dir/.git" 2>/dev/null) || owner="www-data"
   fi
 
+  local git_home="/var/www"
+  [ -d "$git_home" ] || git_home="/tmp"
+
   if [ -n "$owner" ] && [ "$owner" != "root" ] && id "$owner" >/dev/null 2>&1; then
-    sudo -u "$owner" env HOME="${HOME:-/root}" GIT_TERMINAL_PROMPT=0 \
+    sudo -u "$owner" env HOME="$git_home" GIT_TERMINAL_PROMPT=0 \
       git -C "$bot_dir" -c "safe.directory=${bot_dir}" -c "safe.directory=*" "$@"
   else
     git -C "$bot_dir" -c "safe.directory=${bot_dir}" -c "safe.directory=*" "$@"
@@ -690,6 +693,7 @@ viranaut_update_from_github() {
   viranaut_git_in_bot_dir "$bot_dir" pull --ff-only origin "$branch" \
     || viranaut_git_in_bot_dir "$bot_dir" pull --ff-only || return 1
   echo -e "  ${GREEN}✓${NC} Git pull completed"
+  viranaut_git_reconcile_panel "$bot_dir"
   return 0
 }
 
@@ -774,35 +778,159 @@ viranaut_swap_bot_files_preserve_config() {
     rm -rf "$BOT_DIR/vendor"
     cp -a "$TEMP_VENDOR" "$BOT_DIR/vendor"
   fi
-  if [ -d "$TEMP_PANEL_INC" ] && [ ! -f "$BOT_DIR/panel/inc/config.php" ]; then
-    mkdir -p "$BOT_DIR/panel/inc"
-    cp -a "$TEMP_PANEL_INC/." "$BOT_DIR/panel/inc/" 2>/dev/null || true
+  if [ -d "$TEMP_PANEL_INC" ]; then
+    local _pf
+    for _pf in config.php brand.php vira_compat.php layout_head.php layout_foot.php nav_registry.php icons.php; do
+      if [ ! -f "$BOT_DIR/panel/inc/$_pf" ] && [ -f "$TEMP_PANEL_INC/$_pf" ]; then
+        mkdir -p "$BOT_DIR/panel/inc"
+        cp -a "$TEMP_PANEL_INC/$_pf" "$BOT_DIR/panel/inc/$_pf" 2>/dev/null || true
+      fi
+    done
+    if [ ! -f "$BOT_DIR/panel/inc/config.php" ]; then
+      mkdir -p "$BOT_DIR/panel/inc"
+      cp -a "$TEMP_PANEL_INC/." "$BOT_DIR/panel/inc/" 2>/dev/null || true
+    fi
   fi
   rm -rf "$TEMP_VENDOR" "$TEMP_PANEL_INC"
-  viranaut_ensure_panel_inc_config "$BOT_DIR" 2>/dev/null || true
+  viranaut_ensure_panel_integrity "$BOT_DIR" 2>/dev/null || true
   return 0
 }
 
-# panel/inc/config.php was wrongly gitignored — restore if update removed it
-viranaut_ensure_panel_inc_config() {
+# After git pull: restore tracked panel/ files + fetch any still missing from GitHub
+viranaut_git_reconcile_panel() {
+  local bot_dir="${1%/}"
+  [ -d "$bot_dir/.git" ] || return 0
+  viranaut_git_in_bot_dir "$bot_dir" checkout HEAD -- panel/ 2>/dev/null || true
+  viranaut_ensure_panel_integrity "$bot_dir"
+}
+
+# Critical panel files — auto-restore from GitHub if an update removed them
+viranaut_ensure_panel_integrity() {
   local BOT_DIR="${1%/}"
-  local pinc="$BOT_DIR/panel/inc/config.php"
-  [ -f "$pinc" ] && return 0
-
   local branch="${VIRANAUT_GITHUB_BRANCH:-main}"
-  local url="https://raw.githubusercontent.com/liamlope/ViraNaut/${branch}/panel/inc/config.php"
+  local base="https://raw.githubusercontent.com/liamlope/ViraNaut/${branch}"
+  local restored=0 failed=0 rel path url
 
-  warn "Missing panel/inc/config.php — restoring from GitHub ..."
-  mkdir -p "$BOT_DIR/panel/inc"
-  if command -v curl >/dev/null 2>&1 && curl -fsSL "$url" -o "$pinc" 2>/dev/null \
-      && [ -s "$pinc" ] && grep -q 'require_once' "$pinc" 2>/dev/null; then
-    chown www-data:www-data "$pinc" 2>/dev/null || true
-    chmod 644 "$pinc" 2>/dev/null || true
-    echo -e "  ${GREEN}✓${NC} panel/inc/config.php restored"
-    return 0
+  local -a critical=(
+    panel/inc/config.php
+    panel/inc/brand.php
+    panel/inc/vira_compat.php
+    panel/inc/layout_head.php
+    panel/inc/layout_foot.php
+    panel/inc/nav_registry.php
+    panel/inc/icons.php
+    panel/inc/wallet_defs.php
+    panel/inc/pay_settings_defs.php
+    panel/login.php
+    panel/check.php
+    panel/ping.php
+    panel/index.php
+  )
+
+  for rel in "${critical[@]}"; do
+    path="$BOT_DIR/$rel"
+    if [ -f "$path" ] && [ -s "$path" ]; then
+      continue
+    fi
+    warn "Missing $rel — restoring from GitHub ..."
+    mkdir -p "$(dirname "$path")"
+    url="$base/$rel"
+    if command -v curl >/dev/null 2>&1 \
+        && curl -fsSL "$url" -o "$path" 2>/dev/null \
+        && [ -s "$path" ]; then
+      chown www-data:www-data "$path" 2>/dev/null || true
+      chmod 644 "$path" 2>/dev/null || true
+      echo -e "  ${GREEN}✓${NC} Restored $rel"
+      restored=$((restored + 1))
+    else
+      err "Could not restore $rel"
+      failed=$((failed + 1))
+    fi
+  done
+
+  if [ "$failed" -gt 0 ]; then
+    return 1
   fi
-  err "Could not restore panel/inc/config.php — panel finance/settings pages will fail."
-  return 1
+  [ "$restored" -gt 0 ] && echo -e "  ${GREEN}✓${NC} Panel integrity check (${restored} file(s) restored)"
+  return 0
+}
+
+# Backward-compatible alias
+viranaut_ensure_panel_inc_config() {
+  viranaut_ensure_panel_integrity "${1%/}"
+}
+
+# Quick panel health check (files + PHP load + optional HTTPS)
+viranaut_panel_smoke_test() {
+  local BOT_DIR="${1%/}"
+  local domain="${2:-}"
+  local pinc="$BOT_DIR/panel/inc/config.php"
+  local ok=1
+
+  if [ ! -f "$BOT_DIR/panel/login.php" ]; then
+    err "panel/login.php missing"
+    return 1
+  fi
+  if [ ! -f "$pinc" ]; then
+    err "panel/inc/config.php missing — panel will not load"
+    return 1
+  fi
+  echo -e "  ${GREEN}✓${NC} panel/inc/config.php present"
+
+  if command -v php >/dev/null 2>&1; then
+    if sudo -u www-data php -r "require '${pinc}';" >/dev/null 2>&1; then
+      echo -e "  ${GREEN}✓${NC} panel/inc/config.php loads (PHP)"
+    else
+      local _php_err
+      _php_err=$(sudo -u www-data php -r "require '${pinc}';" 2>&1 | head -3)
+      warn "panel PHP load failed:"
+      [ -n "$_php_err" ] && echo "$_php_err" | sed 's/^/    /'
+      ok=0
+    fi
+  fi
+
+  if [ -z "$domain" ] && [ -f "$BOT_DIR/config.php" ]; then
+    domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$BOT_DIR/config.php")")
+  fi
+  if [ -n "$domain" ]; then
+    local login_code check_body
+    login_code=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 "https://${domain}/panel/login.php" 2>/dev/null)
+    login_code=${login_code:-000}
+    echo -e "  ${CYAN}Panel URL:${NC} https://${domain}/panel/login.php → HTTP ${login_code}"
+    case "$login_code" in
+      200) echo -e "  ${GREEN}✓${NC} Panel reachable" ;;
+      404) err "Panel 404 — Apache DocumentRoot wrong; run menu 8 (Auto-fix)"; ok=0 ;;
+      500|502|503)
+        err "Panel HTTP $login_code — PHP error"
+        check_body=$(curl -sk --connect-timeout 10 "https://${domain}/panel/check.php" 2>/dev/null | head -6)
+        [ -n "$check_body" ] && echo "$check_body" | sed 's/^/    /'
+        echo -e "    ${CYAN}Log:${NC} tail -30 $BOT_DIR/error_log"
+        ok=0
+        ;;
+      000) warn "Cannot reach panel URL (DNS/SSL)" ;;
+      *) warn "Unexpected HTTP $login_code for panel/login.php" ;;
+    esac
+  fi
+  [ "$ok" -eq 1 ]
+}
+
+# Restore panel config + permissions + reload Apache
+viranaut_panel_fix() {
+  local BOT_DIR="${1%/}"
+  local domain=""
+
+  line
+  msg "Panel fix — $BOT_DIR"
+  line
+
+  [ -f "$BOT_DIR/config.php" ] || { err "No config.php"; return 1; }
+  domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$BOT_DIR/config.php")")
+
+  viranaut_ensure_panel_integrity "$BOT_DIR" || true
+  mirza_ensure_bot_permissions "$BOT_DIR"
+  systemctl reload apache2 2>/dev/null || true
+
+  viranaut_panel_smoke_test "$BOT_DIR" "$domain"
 }
 
 viranaut_finish_bot_update() {
@@ -822,9 +950,15 @@ viranaut_finish_bot_update() {
   fi
 
   viranaut_db_migrate "$BOT_DIR"
-  viranaut_ensure_panel_inc_config "$BOT_DIR" 2>/dev/null || true
+  viranaut_ensure_panel_integrity "$BOT_DIR" 2>/dev/null || true
+  mirza_ensure_bot_permissions "$BOT_DIR"
   viranaut_sync_manage_script_from_bot "$BOT_DIR"
   systemctl reload apache2 2>/dev/null || true
+
+  msg "Panel check ..."
+  local _panel_domain=""
+  _panel_domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$CONFIG_PATH")" 2>/dev/null || true)
+  viranaut_panel_smoke_test "$BOT_DIR" "$_panel_domain" || warn "Panel issue — run: /root/ViraNaut_manage.sh panel-fix"
 }
 
 mirza_ssl_cert_exists() {
@@ -1132,6 +1266,15 @@ do_github_update() {
   line
   echo -e "  ${GREEN}${BOLD}✓ ViraNaut update complete.${NC}  Source: ${UPDATE_SRC}"
   echo -e "  ${CYAN}Bot:${NC} $BOT_DIR"
+  local _upd_domain _upd_login
+  _upd_domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$CONFIG_PATH")" 2>/dev/null || true)
+  if [ -n "$_upd_domain" ]; then
+    _upd_login=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 "https://${_upd_domain}/panel/login.php" 2>/dev/null)
+    _upd_login=${_upd_login:-000}
+    echo -e "  ${CYAN}Panel:${NC} https://${_upd_domain}/panel/login.php → HTTP ${_upd_login}"
+    [ "$_upd_login" = "200" ] && echo -e "  ${GREEN}✓${NC} Web admin panel OK" \
+      || warn "Panel not HTTP 200 — run: /root/ViraNaut_manage.sh panel-fix"
+  fi
   echo -e "  ${CYAN}Restore if needed:${NC} ${BACKUP_DIR}/${VIRANAUT_PREUPDATE_PREFIX}_*.zip"
   viranaut_list_preupdate_backups 2>/dev/null || true
   echo ""
@@ -1451,6 +1594,13 @@ viranaut_cli_entry() {
       check_root
       viranaut_link_cli
       do_fix_all_bot
+      exit $?
+      ;;
+    panel-fix|panelfix)
+      check_root
+      viranaut_link_cli
+      resolve_project_paths
+      viranaut_panel_fix "$PROJECT_DIR"
       exit $?
       ;;
     remove|uninstall)
@@ -2292,6 +2442,7 @@ do_fix_all_bot() {
     (cd "$PROJECT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php 2>/dev/null) && echo -e "  ${GREEN}✓${NC} table.php"
     viranaut_db_migrate "$PROJECT_DIR"
   fi
+  viranaut_ensure_panel_integrity "$PROJECT_DIR" 2>/dev/null || true
 
   msg "Step 6/8 — Cron ..."
   setup_cron_jobs && echo -e "  ${GREEN}✓${NC} Cron"
@@ -3543,6 +3694,10 @@ do_diagnose_bot() {
     echo ""
 
     echo -e "  ${CYAN}8b) Web admin panel (/panel/)${NC}"
+    echo -e "    panel/inc/config.php: $([ -f "$PROJECT_DIR/panel/inc/config.php" ] && echo OK || echo MISSING)"
+    if [ ! -f "$PROJECT_DIR/panel/inc/config.php" ]; then
+      warn "Run: /root/ViraNaut_manage.sh panel-fix"
+    fi
     if [ ! -f "$PROJECT_DIR/panel/login.php" ]; then
       err "panel/login.php MISSING — run menu 8 (local zip) or copy panel/ folder"
       echo "    URL would be: https://${domain}/panel/login.php"
