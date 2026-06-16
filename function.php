@@ -901,14 +901,20 @@ function mirza_card_sms_autoconfirm_inline_keyboard(?string $value = null): stri
     ]);
 }
 
-/** ID گروه تلگرام برای SMS Forwarder (مثل SatraGift) */
-function mirza_card_sms_effective_group_id(): ?int
+/** آیدی کانال تلگرام برای SMS Forwarder (DB key: card_sms_telegram_group_id) */
+function mirza_card_sms_effective_channel_id(): ?int
 {
     $raw = trim((string) getPaySettingValue('card_sms_telegram_group_id', ''));
     if ($raw === '' || !preg_match('/^-?\d+$/', $raw)) {
         return null;
     }
     return (int) $raw;
+}
+
+/** @deprecated alias */
+function mirza_card_sms_effective_group_id(): ?int
+{
+    return mirza_card_sms_effective_channel_id();
 }
 
 function mirza_card_sms_normalize_digits(string $text): string
@@ -1184,7 +1190,7 @@ function mirza_card_sms_parse_from_text(string $smsText, ?string $bankCode = nul
 
 function mirza_card_sms_extract_update_text(array $update): string
 {
-    $msg = $update['message'] ?? $update['channel_post'] ?? null;
+    $msg = $update['channel_post'] ?? $update['message'] ?? null;
     if (!is_array($msg)) {
         return '';
     }
@@ -1202,7 +1208,7 @@ function mirza_card_sms_extract_update_text(array $update): string
 
 function mirza_card_sms_get_update_chat(array $update): ?array
 {
-    $msg = $update['message'] ?? $update['channel_post'] ?? null;
+    $msg = $update['channel_post'] ?? $update['message'] ?? null;
     if (!is_array($msg) || empty($msg['chat']) || !is_array($msg['chat'])) {
         return null;
     }
@@ -1210,7 +1216,7 @@ function mirza_card_sms_get_update_chat(array $update): ?array
 }
 
 /**
- * پردازش SMS و تأیید خودکار فاکتور کارت — مشترک بین گروه تلگرام و payment/card.php
+ * پردازش SMS و تأیید خودکار فاکتور کارت — کانال تلگرام + payment/card.php
  * @return array{ok:bool,reason?:string,order_id?:string,amount_rial?:int,amount_toman?:int,bank?:string}
  */
 function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode = null): array
@@ -1299,7 +1305,7 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
     ];
 }
 
-/** Handler گروه تلگرام برای SMS Forwarder (SatraGift-style) */
+/** Handler کانال تلگرام برای SMS Forwarder — فقط channel_post (نه گروه) */
 function mirza_try_handle_card_sms_telegram_update(?array $update): bool
 {
     if ($update === null || $update === []) {
@@ -1310,26 +1316,26 @@ function mirza_try_handle_card_sms_telegram_update(?array $update): bool
         return false;
     }
 
-    $groupId = mirza_card_sms_effective_group_id();
-    if ($groupId === null) {
+    $channelId = mirza_card_sms_effective_channel_id();
+    if ($channelId === null) {
         return false;
     }
 
-    $chat = mirza_card_sms_get_update_chat($update);
-    if ($chat === null) {
+    if (empty($update['channel_post']) || !is_array($update['channel_post'])) {
         return false;
     }
 
-    $chatType = (string) ($chat['type'] ?? '');
-    if (!in_array($chatType, ['group', 'supergroup', 'channel'], true)) {
+    $chat = $update['channel_post']['chat'] ?? null;
+    if (!is_array($chat) || (string) ($chat['type'] ?? '') !== 'channel') {
         return false;
     }
-    if ((int) ($chat['id'] ?? 0) !== $groupId) {
+    if ((int) ($chat['id'] ?? 0) !== $channelId) {
         return false;
     }
 
     $smsText = mirza_card_sms_extract_update_text($update);
     if ($smsText === '') {
+        error_log('[card-sms-telegram] empty channel_post text chat=' . ($chat['id'] ?? ''));
         return true;
     }
 
@@ -1342,14 +1348,15 @@ function mirza_try_handle_card_sms_telegram_update(?array $update): bool
 
 function mirza_card_sms_panel_info(): array
 {
-    $groupId = mirza_card_sms_effective_group_id();
+    $channelId = mirza_card_sms_effective_channel_id();
     global $domainhosts;
     $domain = trim((string) ($domainhosts ?? ''));
     return [
         'sms_enabled' => mirza_card_sms_autoconfirm_enabled(),
-        'group_configured' => $groupId !== null,
+        'channel_configured' => $channelId !== null,
+        'group_configured' => $channelId !== null,
         'receipt_delay_label' => mirza_card_receipt_delay_label_fa(),
-        'forwarder_note' => 'ربات تلگرام پیام ربات‌های دیگر را در گروه نمی‌بیند. SMS Forwarder اگر با @Bot می‌فرستد → کانال خصوصی + ادمین ربات فروش، یا ارسال با اکانت شخصی، یا HTTP.',
+        'forwarder_note' => 'کانال خصوصی بسازید → ربات فروش + SMS Forwarder هر دو ادمین کانال → Forwarder را به همین کانال وصل کنید (نه گروه).',
         'http_path' => $domain !== '' ? ('https://' . $domain . '/payment/card.php') : '',
     ];
 }

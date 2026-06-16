@@ -130,8 +130,9 @@
                     (s.sms_enabled ? 'تأیید SMS فعال' : 'تأیید SMS خاموش') + '</span>'
                 ];
                 if (s.sms_enabled) {
-                    pills.push('<span class="finance-pill ' + (s.group_configured ? 'is-ok' : 'is-warn') + '">' +
-                        (s.group_configured ? 'گروه/کانال SMS تنظیم شده' : 'گروه/کانال SMS تنظیم نشده') + '</span>');
+                    var chOk = s.channel_configured || s.group_configured;
+                    pills.push('<span class="finance-pill ' + (chOk ? 'is-ok' : 'is-warn') + '">' +
+                        (chOk ? 'کانال SMS تنظیم شده' : 'کانال SMS تنظیم نشده') + '</span>');
                     if (s.receipt_delay_label) {
                         pills.push('<span class="finance-pill is-dim">تأخیر رسید: ' + s.receipt_delay_label + '</span>');
                     }

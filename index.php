@@ -28,7 +28,7 @@ if (!empty($update['channel_post'])) {
     exit;
 }
 $earlyChat = mirza_card_sms_get_update_chat($update);
-if ($earlyChat !== null && in_array((string) ($earlyChat['type'] ?? ''), ['group', 'supergroup', 'channel'], true)) {
+if ($earlyChat !== null && in_array((string) ($earlyChat['type'] ?? ''), ['group', 'supergroup'], true)) {
     http_response_code(200);
     exit;
 }
