@@ -1,7 +1,12 @@
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/panel/inc/bot_emojis.php';
 ini_set('error_log', 'error_log');
+
+if (function_exists('mirza_ensure_bot_custom_emoji_table')) {
+    mirza_ensure_bot_custom_emoji_table();
+}
 
 if (!function_exists('mirza_normalize_panel_status')) {
     /** وضعیت پنل: فقط active یا deactive (مقادیر قدیمی یک‌بار نرمال می‌شوند). */

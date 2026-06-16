@@ -298,7 +298,7 @@ if (strpos($text, "/start ") !== false && $user['step'] != "gettextSystemMessage
             $stmt->execute();
             $stmt->close();
         } else {
-            sendmessage($from_id, $datatextbot['text_start'], $keyboard, 'html');
+            mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
             update("user", "Processing_value", "0", "id", $from_id);
             update("user", "Processing_value_one", "0", "id", $from_id);
             update("user", "Processing_value_tow", "0", "id", $from_id);
@@ -342,7 +342,7 @@ if ($user['joinchannel'] != "active") {
         if ($datain == "confirmchannel") {
             if (count($channels) == 0) {
                 deletemessage($from_id, $message_id);
-                sendmessage($from_id, $datatextbot['text_start'], $keyboard, 'html');
+                mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
                 telegram('answerCallbackQuery', [
                     'callback_query_id' => $callback_query_id,
                     'text' => $textbotlang['users']['channel']['confirmed'],
@@ -396,7 +396,7 @@ if ($user['joinchannel'] != "active") {
                     $addbalancediscount = number_format($marzbanDiscountaffiliates['price_Discount'], 0);
                     sendmessage($affiliatesid, "🎁 مبلغ $addbalancediscount به موجودی شما از طرف زیر مجموعه با شناسه کاربری $from_id اضافه گردید.", null, 'html');
                 }
-                sendmessage($from_id, $datatextbot['text_start'], $keyboard, 'html');
+                mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
                 $addcountaffiliates = intval($useraffiliates['affiliatescount']) + 1;
                 update("user", "affiliates", $affiliatesid, "id", $from_id);
                 update("user", "Processing_value_four", "none", "id", $from_id);
@@ -429,7 +429,7 @@ if ($user['joinchannel'] != "active") {
     }
 }
 if ($text == "/start" || $datain == "start" || $text == "start") {
-    sendmessage($from_id, $datatextbot['text_start'], $keyboard, "html");
+    mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, "html");
     update("user", "Processing_value", "0", "id", $from_id);
     update("user", "Processing_value_one", "0", "id", $from_id);
     update("user", "Processing_value_tow", "0", "id", $from_id);
@@ -462,7 +462,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         return;
     }
     sendmessage($from_id, $textbotlang['users']['number']['active'], json_encode(['inline_keyboard' => [], 'remove_keyboard' => true]), 'html');
-    sendmessage($from_id, $datatextbot['text_start'], $keyboard, 'html');
+                mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
     update("user", "number", $user_phone, "id", $from_id);
     step('home', $from_id);
 } elseif ($text == ($textbotlang['textbot']['purchasedServices'] ?? '') || $text == ($datatextbot['text_Purchased_services'] ?? '') || $datain == "backorder" || $text == "/services") {

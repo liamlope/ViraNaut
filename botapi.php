@@ -74,15 +74,23 @@ function telegram($method, $datas = [], $token = null)
 
     return $decodedResponse;
 }
-function sendmessage($chat_id,$text,$keyboard,$parse_mode,$bot_token = null){
-    if(intval($chat_id) == 0)return ['ok' => false];
-    return telegram('sendmessage',[
+function sendmessage($chat_id, $text, $keyboard, $parse_mode, $bot_token = null, $entities = null)
+{
+    if (intval($chat_id) == 0) {
+        return ['ok' => false];
+    }
+    $data = [
         'chat_id' => $chat_id,
         'text' => $text,
         'reply_markup' => $keyboard,
-        'parse_mode' => $parse_mode,
-        
-        ],$bot_token);
+    ];
+    if ($entities !== null && $entities !== '') {
+        $data['entities'] = is_string($entities) ? $entities : json_encode($entities, JSON_UNESCAPED_UNICODE);
+    }
+    if ($parse_mode !== null && $parse_mode !== '') {
+        $data['parse_mode'] = $parse_mode;
+    }
+    return telegram('sendmessage', $data, $bot_token);
 }
 function sendDocument($chat_id, $documentPath, $caption) {
         return telegram('sendDocument',[

@@ -44,6 +44,7 @@ function vira_panel_nav_sections(): array
             'items' => [
                 ['href' => 'bot.php', 'icon' => 'bot', 'label' => 'مرکز ربات', 'nav' => 'bot', 'title' => 'مرکز ربات'],
                 ['href' => 'keyboard.php', 'icon' => 'menu', 'label' => 'چیدمان منو', 'nav' => 'keyboard', 'title' => 'چیدمان منو'],
+                ['href' => 'bot-emojis.php', 'icon' => 'edit', 'label' => 'ایموجی پرمیوم', 'nav' => 'bot-emojis', 'title' => 'کتابخانه ایموجی'],
                 ['href' => 'bot-texts.php', 'icon' => 'edit', 'label' => 'متن‌های ربات', 'nav' => 'bot-texts', 'title' => 'متن‌های ربات'],
                 ['href' => 'panels.php', 'icon' => 'server', 'label' => 'پنل‌های VPN', 'nav' => 'panels', 'title' => 'پنل VPN'],
                 ['href' => 'test-settings.php', 'icon' => 'server', 'label' => 'اکانت تست', 'nav' => 'test-settings', 'title' => 'اکانت تست'],
@@ -92,7 +93,7 @@ function vira_panel_nav_is_active(array $item, string $activeNav): bool
 function vira_panel_bot_nav_ids(): array
 {
     return [
-        'bot', 'keyboard', 'bot-texts', 'panels', 'bot-settings',
+        'bot', 'keyboard', 'bot-emojis', 'bot-texts', 'panels', 'bot-settings',
         'test-settings', 'channels', 'reports-settings', 'admins', 'broadcast',
     ];
 }

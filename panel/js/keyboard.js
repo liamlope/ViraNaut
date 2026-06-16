@@ -6,22 +6,73 @@
   var addRowBtn = document.getElementById('kbAddRow');
   if (!preview || !form) return;
 
+  var emojiOptions = window.KB_EMOJI_OPTIONS || [];
+  var styleOptions = window.KB_STYLE_OPTIONS || { '': 'پیش‌فرض' };
+
   var dragKey = null;
   var dragLabel = null;
   var dragFromPalette = false;
 
-  function createBtn(key, label) {
+  function buildEmojiSelect(selectedId) {
+    var sel = document.createElement('select');
+    sel.className = 'kb-emoji-select input input-sm';
+    var empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = '—';
+    sel.appendChild(empty);
+    emojiOptions.forEach(function (item) {
+      var opt = document.createElement('option');
+      opt.value = String(item.id);
+      opt.textContent = item.name;
+      if (String(selectedId || '') === String(item.id)) {
+        opt.selected = true;
+      }
+      sel.appendChild(opt);
+    });
+    return sel;
+  }
+
+  function buildStyleSelect(selectedStyle) {
+    var sel = document.createElement('select');
+    sel.className = 'kb-style-select input input-sm';
+    Object.keys(styleOptions).forEach(function (key) {
+      var opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = styleOptions[key];
+      if ((selectedStyle || '') === key) {
+        opt.selected = true;
+      }
+      sel.appendChild(opt);
+    });
+    return sel;
+  }
+
+  function createBtn(key, label, emojiId, style) {
     var el = document.createElement('div');
     el.className = 'kb-btn';
     el.draggable = true;
     el.dataset.key = key;
     el.dataset.label = label;
+    el.dataset.emojiId = emojiId || '';
+    el.dataset.style = style || '';
     el.innerHTML =
       '<span class="kb-btn-label"></span>' +
       '<span class="kb-btn-id"></span>' +
+      '<div class="kb-btn-meta"></div>' +
       '<button type="button" class="kb-btn-remove" title="حذف" aria-label="حذف">&times;</button>';
     el.querySelector('.kb-btn-label').textContent = label;
     el.querySelector('.kb-btn-id').textContent = key;
+    var meta = el.querySelector('.kb-btn-meta');
+    var emojiLabel = document.createElement('label');
+    emojiLabel.className = 'kb-mini-label';
+    emojiLabel.textContent = 'ایموجی';
+    meta.appendChild(emojiLabel);
+    meta.appendChild(buildEmojiSelect(emojiId));
+    var styleLabel = document.createElement('label');
+    styleLabel.className = 'kb-mini-label';
+    styleLabel.textContent = 'استایل';
+    meta.appendChild(styleLabel);
+    meta.appendChild(buildStyleSelect(style));
     bindBtn(el);
     return el;
   }
@@ -87,20 +138,30 @@
     }
   }
 
-  function addBtnToRow(row, key, label) {
+  function addBtnToRow(row, key, label, emojiId, style) {
     var addBtn = row.querySelector('.kb-row-add');
-    var btn = createBtn(key, label);
+    var btn = createBtn(key, label, emojiId, style);
     row.insertBefore(btn, addBtn);
   }
 
   function serialize() {
     var rows = [];
     preview.querySelectorAll('.kb-row').forEach(function (row) {
-      var keys = [];
+      var btns = [];
       row.querySelectorAll('.kb-btn').forEach(function (btn) {
-        if (btn.dataset.key) keys.push(btn.dataset.key);
+        if (!btn.dataset.key) return;
+        var item = { text: btn.dataset.key };
+        var emojiSel = btn.querySelector('.kb-emoji-select');
+        if (emojiSel && emojiSel.value) {
+          item.emoji_id = parseInt(emojiSel.value, 10);
+        }
+        var styleSel = btn.querySelector('.kb-style-select');
+        if (styleSel && styleSel.value) {
+          item.style = styleSel.value;
+        }
+        btns.push(item);
       });
-      if (keys.length) rows.push(keys);
+      if (btns.length) rows.push(btns);
     });
     return rows;
   }
@@ -188,13 +249,19 @@
         return;
       }
       var moving = preview.querySelector('.kb-btn[data-key="' + key + '"]');
+      var emojiId = '';
+      var style = '';
       if (moving) {
         label = moving.dataset.label || label;
+        var emojiSel = moving.querySelector('.kb-emoji-select');
+        var styleSel = moving.querySelector('.kb-style-select');
+        emojiId = emojiSel ? emojiSel.value : '';
+        style = styleSel ? styleSel.value : '';
         moving.remove();
         var oldRow = moving.closest('.kb-row');
         if (oldRow && !oldRow.querySelector('.kb-btn')) oldRow.remove();
       }
-      addBtnToRow(row, key, label);
+      addBtnToRow(row, key, label, emojiId, style);
     });
   }
 

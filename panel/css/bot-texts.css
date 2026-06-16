@@ -332,3 +332,31 @@
         grid-template-columns: 1fr;
     }
 }
+
+.bt-emoji-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    background: var(--bg);
+    border: 1px dashed var(--bd);
+    border-radius: 8px;
+}
+
+.bt-emoji-row label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--txt);
+}
+
+.bt-emoji-row select {
+    min-width: 180px;
+    max-width: 100%;
+}
+
+.bt-emoji-row .field-hint {
+    font-size: 0.72rem;
+    margin: 0;
+}

@@ -77,6 +77,86 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     $confirmationText = $miniAppInstructionText . "\n\n✅ این پیام دیگر برای شما نمایش داده نخواهد شد.";
     Editmessagetext($from_id, $message_id, $confirmationText, $confirmationKeyboard, 'HTML');
     return;
+} elseif (preg_match('/^\/savemoji(?:@\w+)?(?:\s+(.+))?$/u', trim((string) $text), $savemojiMatch)) {
+    $pendingEmojiName = trim((string) ($savemojiMatch[1] ?? ''));
+    if ($pendingEmojiName === '') {
+        sendmessage(
+            $from_id,
+            "🎨 <b>ذخیره ایموجی پرمیوم</b>\n\n"
+            . "یک نام انتخاب کنید تا در پنل گم نشود (مثلاً: کیف پول)\n\n"
+            . "روش ۱: <code>/savemoji کیف پول</code>\n"
+            . "روش ۲: فقط <code>/savemoji</code> بزنید و نام را در پیام بعد بفرستید",
+            $backadmin,
+            'HTML'
+        );
+        step('savemoji_name', $from_id);
+        return;
+    }
+    update('user', 'Processing_value', $pendingEmojiName, 'id', $from_id);
+    sendmessage(
+        $from_id,
+        '✅ نام ایموجی: <b>' . htmlspecialchars($pendingEmojiName, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
+        . 'حالا همان ایموجی پرمیوم را در یک پیام برای ربات بفرستید.',
+        $backadmin,
+        'HTML'
+    );
+    step('savemoji_wait', $from_id);
+    return;
+} elseif (($user['step'] ?? '') === 'savemoji_name') {
+    $pendingEmojiName = trim((string) $text);
+    if ($pendingEmojiName === '' || strpos($pendingEmojiName, '/') === 0) {
+        sendmessage($from_id, '⚠️ لطفاً یک نام فارسی/انگلیسی برای ایموجی بفرستید (بدون دستور).', $backadmin, 'HTML');
+        return;
+    }
+    update('user', 'Processing_value', $pendingEmojiName, 'id', $from_id);
+    sendmessage(
+        $from_id,
+        '✅ نام: <b>' . htmlspecialchars($pendingEmojiName, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
+        . 'حالا ایموجی پرمیوم را بفرستید.',
+        $backadmin,
+        'HTML'
+    );
+    step('savemoji_wait', $from_id);
+    return;
+} elseif (($user['step'] ?? '') === 'savemoji_wait') {
+    $foundEmoji = mirza_message_extract_custom_emoji($update['message'] ?? []);
+    if ($foundEmoji === null) {
+        sendmessage(
+            $from_id,
+            "⚠️ ایموجی پرمیوم در پیام پیدا نشد.\n\n"
+            . "از استیکر معمولی استفاده نکنید — باید Custom Emoji (ایموجی پرمیوم تلگرام) باشد.",
+            $backadmin,
+            'HTML'
+        );
+        return;
+    }
+    $emojiLabel = trim((string) ($user['Processing_value'] ?? ''));
+    if ($emojiLabel === '') {
+        $emojiLabel = 'emoji_' . time();
+    }
+    $saveResult = mirza_custom_emoji_save(
+        $emojiLabel,
+        $foundEmoji['custom_emoji_id'],
+        $foundEmoji['emoji_utf8'],
+        (string) $from_id
+    );
+    step('home', $from_id);
+    update('user', 'Processing_value', '', 'id', $from_id);
+    if (empty($saveResult['ok'])) {
+        sendmessage($from_id, '❌ ذخیره نشد: ' . ($saveResult['error'] ?? 'خطای نامشخص'), $backadmin, 'HTML');
+        return;
+    }
+    $panelUrl = function_exists('bot_site_https_url') ? bot_site_https_url('panel/bot-emojis.php') : "https://{$domainhosts}/panel/bot-emojis.php";
+    sendmessage(
+        $from_id,
+        "✅ ایموجی <b>" . htmlspecialchars($emojiLabel, ENT_QUOTES, 'UTF-8') . "</b> ذخیره شد.\n\n"
+        . "🆔 شناسه کتابخانه: <code>" . (int) ($saveResult['id'] ?? 0) . "</code>\n"
+        . "🔗 از پنل وب روی دکمه‌ها و متن‌ها set کنید:\n"
+        . $panelUrl,
+        $backadmin,
+        'HTML'
+    );
+    return;
 } elseif ($text == $textbotlang['Admin']['backmenu']) {
     if ($buyreport == "0" || $otherservice == "0" || $otherreport == "0" || $paymentreports == "0" || $reporttest == "0" || $errorreport == "0") {
         sendmessage($from_id, $textbotlang['Admin']['activebottext'], $setting_panel, 'HTML');

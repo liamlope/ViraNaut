@@ -98,6 +98,9 @@ if (is_array($keyboardLayout) && isset($keyboardLayout['keyboard']) && is_array(
 
 if ($setting['inlinebtnmain'] == "oninline" && !empty($keyboardRows)) {
     $trace_keyboard = $keyboardRows;
+    if (function_exists('mirza_keyboard_apply_custom_emojis')) {
+        mirza_keyboard_apply_custom_emojis($trace_keyboard);
+    }
     foreach ($trace_keyboard as $key => $callback_set) {
         foreach ($callback_set as $keyboard_key => $keyboard) {
             if ($keyboard['text'] == "text_sell") {
@@ -142,8 +145,9 @@ if ($setting['inlinebtnmain'] == "oninline" && !empty($keyboardRows)) {
         $temp_addtional_key[] = ['text' => $datatextbot['textrequestagent'], 'callback_data' => "requestagent"];
     }
     $keyboard = ['inline_keyboard' => []];
-    $keyboardcustom = $trace_keyboard;
-    $keyboardcustom = json_decode(strtr(strval(json_encode($keyboardcustom)), $replacements), true);
+    $keyboardcustom = function_exists('mirza_keyboard_replace_text_keys')
+        ? mirza_keyboard_replace_text_keys($trace_keyboard, $replacements)
+        : json_decode(strtr(strval(json_encode($trace_keyboard)), $replacements), true);
     $keyboardcustom[] = $temp_addtional_key;
     $keyboard['inline_keyboard'] = $keyboardcustom;
     $keyboard = json_encode($keyboard);
@@ -159,7 +163,12 @@ if ($setting['inlinebtnmain'] == "oninline" && !empty($keyboardRows)) {
     }
     $keyboard = ['keyboard' => [], 'resize_keyboard' => true];
     $keyboardcustom = $keyboardRows;
-    $keyboardcustom = json_decode(strtr(strval(json_encode($keyboardcustom)), $replacements), true);
+    if (function_exists('mirza_keyboard_apply_custom_emojis')) {
+        mirza_keyboard_apply_custom_emojis($keyboardcustom);
+    }
+    $keyboardcustom = function_exists('mirza_keyboard_replace_text_keys')
+        ? mirza_keyboard_replace_text_keys($keyboardcustom, $replacements)
+        : json_decode(strtr(strval(json_encode($keyboardcustom)), $replacements), true);
     $keyboardcustom[] = $temp_addtional_key;
     $keyboard['keyboard'] = $keyboardcustom;
     $keyboard = json_encode($keyboard);

@@ -2,10 +2,13 @@
 require_once __DIR__ . '/inc/config.php';
 require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/bot_data.php';
+require_once __DIR__ . '/inc/bot_emojis.php';
 require_auth();
 
 $catalog = mirza_panel_textbot_catalog();
 $globalVars = mirza_panel_textbot_global_vars();
+$emojiLibrary = mirza_custom_emoji_list($pdo);
+$textbotEmojiMap = mirza_textbot_emoji_map_get($pdo);
 $allIds = [];
 foreach ($catalog as $items) {
     foreach (array_keys($items) as $id) {
@@ -40,6 +43,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $texts[$id] = $val;
         $updated++;
     }
+    $emojiMapPost = [];
+    foreach ($allIds as $id) {
+        if (!array_key_exists('emoji_' . $id, $_POST)) {
+            continue;
+        }
+        $emojiId = (int) ($_POST['emoji_' . $id] ?? 0);
+        if ($emojiId > 0) {
+            $emojiMapPost[$id] = $emojiId;
+        }
+    }
+    mirza_textbot_emoji_map_set($emojiMapPost, $pdo);
+    $textbotEmojiMap = $emojiMapPost;
     flash('success', $updated > 0 ? 'متن‌ها ذخیره و اعمال شدند (' . $updated . ' مورد).' : 'تغییری ذخیره نشد.');
     header('Location: bot-texts.php');
     exit;
@@ -78,6 +93,7 @@ include __DIR__ . '/inc/layout_head.php';
                 <button type="button" class="search-clear" id="botTextsSearchClear" aria-label="پاک کردن">✕</button>
             </div>
             <a href="bot.php" class="btn btn-ghost btn-sm"><?= icon('bot', 14) ?> مرکز ربات</a>
+            <a href="bot-emojis.php" class="btn btn-ghost btn-sm">ایموجی پرمیوم</a>
             <a href="keyboard.php" class="btn btn-ghost btn-sm"><?= icon('menu', 14) ?> چیدمان منو</a>
             <button type="button" class="btn btn-ghost btn-sm" id="btVarsOpen">متغیرها</button>
             <button type="submit" class="btn btn-primary"><?= icon('check', 14) ?> ذخیره و اعمال</button>
@@ -123,6 +139,20 @@ include __DIR__ . '/inc/layout_head.php';
                                         <?php endif; ?>
                                     </div>
                                     <code class="bt-item-id"><?= htmlspecialchars($id) ?></code>
+                                </div>
+                                <div class="bt-emoji-row">
+                                    <label for="emoji_<?= htmlspecialchars($id) ?>">ایموجی ابتدای پیام</label>
+                                    <select name="emoji_<?= htmlspecialchars($id) ?>" id="emoji_<?= htmlspecialchars($id) ?>" class="input input-sm">
+                                        <option value="">بدون ایموجی</option>
+                                        <?php foreach ($emojiLibrary as $emojiRow): ?>
+                                            <?php $selectedEmoji = (int) ($textbotEmojiMap[$id] ?? 0); ?>
+                                            <option value="<?= (int) $emojiRow['id'] ?>"<?= $selectedEmoji === (int) $emojiRow['id'] ? ' selected' : '' ?>>
+                                                <?= htmlspecialchars($emojiRow['emoji_name']) ?>
+                                                <?= ($emojiRow['emoji_utf8'] ?? '') !== '' ? ' ' . $emojiRow['emoji_utf8'] : '' ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <span class="field-hint">با <code>/savemoji</code> در ربات اضافه کنید</span>
                                 </div>
                                 <textarea name="text_<?= htmlspecialchars($id) ?>" rows="<?= max(2, min(12, $rows)) ?>"
                                     class="input bt-area" data-id="<?= htmlspecialchars($id) ?>"

@@ -155,3 +155,30 @@
 .kb-side .card + .card {
   margin-top: 0;
 }
+
+.kb-btn-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--bd);
+}
+
+.kb-mini-label {
+  display: block;
+  font-size: 0.62rem;
+  color: var(--mute);
+  margin-bottom: 2px;
+}
+
+.kb-btn-meta .input-sm {
+  width: 100%;
+  min-width: 0;
+  font-size: 0.72rem;
+  padding: 4px 6px;
+}
+
+.kb-btn {
+  padding-bottom: 10px;
+}

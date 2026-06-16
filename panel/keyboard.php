@@ -2,10 +2,13 @@
 require_once __DIR__ . '/inc/config.php';
 require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/bot_data.php';
+require_once __DIR__ . '/inc/bot_emojis.php';
 require_auth();
 
 $catalog = mirza_panel_keyboard_catalog();
 $datatextbot = mirza_panel_load_datatextbot($pdo);
+$emojiLibrary = mirza_custom_emoji_list($pdo);
+$buttonStyles = mirza_keyboard_button_styles();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
@@ -25,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     $allowed = array_keys($catalog);
+    $allowedStyles = ['primary', 'success', 'danger'];
     $clean = [];
     foreach ($rows as $row) {
         if (!is_array($row)) {
@@ -32,10 +36,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $line = [];
         foreach ($row as $key) {
-            $key = is_array($key) ? ($key['text'] ?? '') : (string) $key;
-            if (in_array($key, $allowed, true)) {
-                $line[] = ['text' => $key];
+            $textKey = is_array($key) ? (string) ($key['text'] ?? '') : (string) $key;
+            if (!in_array($textKey, $allowed, true)) {
+                continue;
             }
+            $entry = ['text' => $textKey];
+            if (is_array($key)) {
+                $emojiId = (int) ($key['emoji_id'] ?? 0);
+                if ($emojiId > 0) {
+                    $entry['emoji_id'] = $emojiId;
+                }
+                $style = trim((string) ($key['style'] ?? ''));
+                if ($style !== '' && in_array($style, $allowedStyles, true)) {
+                    $entry['style'] = $style;
+                }
+            }
+            $line[] = $entry;
         }
         if ($line !== []) {
             $clean[] = $line;
@@ -81,9 +97,10 @@ include __DIR__ . '/inc/layout_head.php';
         <div class="card-head">
             <div>
                 <div class="card-title">پیش‌نمایش منوی کاربر</div>
-                <div class="card-subtitle">همان چیزی که بعد از /start نمایش داده می‌شود</div>
+                <div class="card-subtitle">همان چیزی که بعد از /start نمایش داده می‌شود · ایموجی پرمیوم روی دکمه‌ها</div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <a href="bot-emojis.php" class="btn btn-ghost btn-sm">کتابخانه ایموجی</a>
                 <form method="post" style="display:inline" onsubmit="return confirm('بازگشت به چیدمان پیش‌فرض؟');">
                     <input type="hidden" name="_csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
                     <input type="hidden" name="action" value="reset">
@@ -94,16 +111,42 @@ include __DIR__ . '/inc/layout_head.php';
             </div>
         </div>
         <div class="card-body">
+            <p class="field-hint" style="margin-bottom:12px">ابتدا با <code>/savemoji</code> در ربات ایموجی را ذخیره کنید، سپس برای هر دکمه از منوی «ایموجی» انتخاب کنید.</p>
             <div id="kbPreview" class="kb-preview">
                 <?php foreach ($keyboardData['keyboard'] as $ri => $row): ?>
                     <div class="kb-row" data-row="<?= (int) $ri ?>">
                         <?php foreach ($row as $btn):
                             $kid = $btn['text'] ?? '';
                             $label = mirza_panel_keyboard_label($kid, $datatextbot, $catalog);
+                            $btnEmojiId = (int) ($btn['emoji_id'] ?? 0);
+                            $btnStyle = (string) ($btn['style'] ?? '');
                             ?>
-                            <div class="kb-btn" draggable="true" data-key="<?= htmlspecialchars($kid) ?>" data-label="<?= htmlspecialchars($label) ?>">
+                            <div class="kb-btn" draggable="true"
+                                data-key="<?= htmlspecialchars($kid) ?>"
+                                data-label="<?= htmlspecialchars($label) ?>"
+                                data-emoji-id="<?= (int) $btnEmojiId ?>"
+                                data-style="<?= htmlspecialchars($btnStyle) ?>">
                                 <span class="kb-btn-label"><?= htmlspecialchars($label) ?></span>
                                 <span class="kb-btn-id"><?= htmlspecialchars($kid) ?></span>
+                                <div class="kb-btn-meta">
+                                    <label class="kb-mini-label">ایموجی</label>
+                                    <select class="kb-emoji-select input input-sm">
+                                        <option value="">—</option>
+                                        <?php foreach ($emojiLibrary as $emojiRow): ?>
+                                            <option value="<?= (int) $emojiRow['id'] ?>"<?= $btnEmojiId === (int) $emojiRow['id'] ? ' selected' : '' ?>>
+                                                <?= htmlspecialchars($emojiRow['emoji_name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <label class="kb-mini-label">استایل</label>
+                                    <select class="kb-style-select input input-sm">
+                                        <?php foreach ($buttonStyles as $styleVal => $styleLabel): ?>
+                                            <option value="<?= htmlspecialchars($styleVal) ?>"<?= $btnStyle === $styleVal ? ' selected' : '' ?>>
+                                                <?= htmlspecialchars($styleLabel) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
                                 <button type="button" class="kb-btn-remove" title="حذف" aria-label="حذف">&times;</button>
                             </div>
                         <?php endforeach; ?>
@@ -148,5 +191,12 @@ include __DIR__ . '/inc/layout_head.php';
         </form>
     </div>
 </div>
+
+<script>
+window.KB_EMOJI_OPTIONS = <?= json_encode(array_map(static function ($row) {
+    return ['id' => (int) $row['id'], 'name' => (string) $row['emoji_name']];
+}, $emojiLibrary), JSON_UNESCAPED_UNICODE) ?>;
+window.KB_STYLE_OPTIONS = <?= json_encode($buttonStyles, JSON_UNESCAPED_UNICODE) ?>;
+</script>
 
 <?php include __DIR__ . '/inc/layout_foot.php'; ?>

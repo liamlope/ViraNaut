@@ -26,6 +26,22 @@ viranaut
 
 ---
 
+## آپدیت (یک خط)
+
+روی سرور **root** (اسکریپت + کد از GitHub، بکاپ خودکار قبل از آپدیت):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_manage.sh -o /root/ViraNaut_manage.sh && chmod +x /root/ViraNaut_manage.sh && /root/ViraNaut_manage.sh update
+```
+
+اگر قبلاً `ViraNaut_manage.sh` را دارید:
+
+```bash
+/root/ViraNaut_manage.sh update
+```
+
+---
+
 ## منوی مدیریت
 
 | # | کار |
@@ -138,6 +154,12 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 ```
 
 Then pick **1) Install** (fresh) or use **2) Update** / **5) Restart** if already installed.
+
+**One-line update (Ubuntu, root):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_manage.sh -o /root/ViraNaut_manage.sh && chmod +x /root/ViraNaut_manage.sh && /root/ViraNaut_manage.sh update
+```
 
 **CLI:** `update` · `restart` · `fix` · `diagnose` · `logs` · `remove`
 
