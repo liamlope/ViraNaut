@@ -925,10 +925,16 @@ function mirza_card_sms_amount_string_to_rial(string $amountStr): int
     return (int) preg_replace('/\D/u', '', $amountStr);
 }
 
-/** ریال → تومان */
+/** ریال → تومان (فقط برای نمایش — تطبیق فاکتور همیشه با ریال است) */
 function mirza_card_sms_rial_to_toman(int $rial): int
 {
-    return (int) ($rial * 0.1);
+    return intdiv($rial, 10);
+}
+
+/** مبلغ فاکتور (تومان در DB) → ریال مورد انتظار برای واریز */
+function mirza_card_sms_invoice_expected_rial(int $priceToman): int
+{
+    return $priceToman * 10;
 }
 
 function mirza_card_sms_clean_text(string $smsText): string
@@ -957,7 +963,7 @@ function mirza_card_sms_clean_text(string $smsText): string
     return implode("\n", $lines);
 }
 
-/** مبلغ ریالی خط «21,000,000+» (مهر / قرض‌الحسنه و مشابه) → تومان */
+/** مبلغ ریالی خط «21,000,000+» (مهر / قرض‌الحسنه و مشابه) */
 function mirza_card_sms_parse_amount_suffix_plus(string $text): ?int
 {
     foreach (preg_split('/\R/u', $text) as $line) {
@@ -966,16 +972,16 @@ function mirza_card_sms_parse_amount_suffix_plus(string $text): ?int
             continue;
         }
         if (preg_match('/^([\d,]+)\+$/u', $line, $m)) {
-            $rial = (int) str_replace(',', '', $m[1]);
+            $rial = mirza_card_sms_amount_string_to_rial($m[1]);
             if ($rial > 0) {
-                return (int) ($rial * 0.1);
+                return $rial;
             }
         }
     }
     if (preg_match('/(\d{1,3}(?:,\d{3})*)\+/u', $text, $m)) {
-        $rial = (int) str_replace(',', '', $m[1]);
+        $rial = mirza_card_sms_amount_string_to_rial($m[1]);
         if ($rial > 0) {
-            return (int) ($rial * 0.1);
+            return $rial;
         }
     }
     return null;
@@ -987,7 +993,7 @@ function mirza_card_sms_skip_round_toman_reject(string $bankCode): bool
     return in_array(strtolower($bankCode), ['gharz', 'mehr', 'parsian'], true);
 }
 
-/** بلو — واریز به حساب (۹,۹۹,۵۵۰ و 999,550 و با/بدون From در SMS Forwarder) */
+/** بلو — فقط خط واریز با «ریال … به حساب شما نشست» (نه موجودی) */
 function mirza_card_sms_parse_blu_amount(string $text): ?int
 {
     $patterns = [
@@ -998,11 +1004,14 @@ function mirza_card_sms_parse_blu_amount(string $text): ?int
         if (!preg_match('/نشست/u', $line) || !preg_match('/به\s*حساب/u', $line)) {
             continue;
         }
+        if (preg_match('/موجودی/u', $line)) {
+            continue;
+        }
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $line, $m)) {
                 $rial = mirza_card_sms_amount_string_to_rial($m[1]);
                 if ($rial > 0) {
-                    return mirza_card_sms_rial_to_toman($rial);
+                    return $rial;
                 }
             }
         }
@@ -1021,94 +1030,111 @@ function mirza_card_sms_parse_plus_amount_line(string $text): ?int
         if (preg_match('/\+([\d,]+)/u', $line, $m)) {
             $digits = mirza_card_sms_amount_string_to_rial($m[1]);
             if ($digits > 0 && strlen((string) $digits) <= 12) {
-                return mirza_card_sms_rial_to_toman($digits);
+                return $digits;
             }
         }
     }
     return null;
 }
 
-function mirza_card_sms_parse_bank_amount(string $bankCode, string $smsText): ?int
+function mirza_card_sms_parse_bank_rial(string $bankCode, string $smsText): ?int
 {
     $text = mirza_card_sms_clean_text($smsText);
     if ($text === '') {
         return null;
     }
 
-    $amountInteger = null;
+    $amountRial = null;
     switch (strtolower($bankCode)) {
         case 'blu':
-            $amountInteger = mirza_card_sms_parse_blu_amount($text);
+            $amountRial = mirza_card_sms_parse_blu_amount($text);
             break;
         case 'meli':
             if (preg_match('/انتقال:(.*?)[+\-]/u', $text, $m)) {
-                $amountInteger = (int) (intval(preg_replace('/[^\d]/u', '', $m[1])) * 0.1);
+                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'grdsh':
             if (preg_match('/مبلغ:\s*([0-9,]+)/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'sadhrat':
             if (preg_match('/انتقال:\s*([\d,]+)/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'melet':
             if (preg_match('/واریز(\d{1,3}(?:,\d{3})*)/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'terjart':
             if (preg_match('/واریز\s*:\s*([\d,]+)/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'keshavarsi':
             if (preg_match('/واريز(\d+(?:,\d+)*)/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'resalet':
-            $amountInteger = mirza_card_sms_parse_plus_amount_line($text);
+            $amountRial = mirza_card_sms_parse_plus_amount_line($text);
             break;
         case 'sheahr':
             if (preg_match('/مبلغ:(\d+(?:,\d+)*)ريال/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'maskan':
             if (preg_match('/انتقال اينترنت:\D*([\d,]+)/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'parsian':
             if (preg_match('/مبلغ:(\d{1,3}(?:,\d{3})*)\+/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'sphe':
             if (preg_match('/مبلغ:\s*([\d,]+)\s*ريال/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
+                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'paselc':
-            $amountInteger = mirza_card_sms_parse_plus_amount_line($text);
+            $amountRial = mirza_card_sms_parse_plus_amount_line($text);
             break;
         case 'gharz':
         case 'mehr':
-            $amountInteger = mirza_card_sms_parse_amount_suffix_plus($text);
+            $amountRial = mirza_card_sms_parse_amount_suffix_plus($text);
             break;
     }
 
-    if ($amountInteger === null || $amountInteger <= 0) {
+    if ($amountRial === null || $amountRial <= 0) {
         return null;
     }
-    if (!mirza_card_sms_skip_round_toman_reject($bankCode) && substr((string) $amountInteger, -3) === '000') {
+    $toman = mirza_card_sms_rial_to_toman($amountRial);
+    if (!mirza_card_sms_skip_round_toman_reject($bankCode) && substr((string) $toman, -3) === '000') {
         return null;
     }
-    return $amountInteger;
+    return $amountRial;
+}
+
+/** @deprecated alias */
+function mirza_card_sms_parse_bank_amount(string $bankCode, string $smsText): ?int
+{
+    $rial = mirza_card_sms_parse_bank_rial($bankCode, $smsText);
+    return $rial !== null ? mirza_card_sms_rial_to_toman($rial) : null;
+}
+
+function mirza_card_sms_parsed_result(string $bank, int $amountRial): array
+{
+    return [
+        'bank' => $bank,
+        'amount_rial' => $amountRial,
+        'amount_toman' => mirza_card_sms_rial_to_toman($amountRial),
+    ];
 }
 
 function mirza_card_sms_parse_from_text(string $smsText, ?string $bankCode = null): ?array
@@ -1122,9 +1148,9 @@ function mirza_card_sms_parse_from_text(string $smsText, ?string $bankCode = nul
 
     // اگر نام بلو در متن باشد اول بلو را امتحان کن
     if ($bankCode === null && preg_match('/بلو/ui', $text)) {
-        $amount = mirza_card_sms_parse_bank_amount('blu', $text);
-        if ($amount !== null) {
-            return ['bank' => 'blu', 'amount_toman' => $amount];
+        $rial = mirza_card_sms_parse_bank_rial('blu', $text);
+        if ($rial !== null) {
+            return mirza_card_sms_parsed_result('blu', $rial);
         }
     }
 
@@ -1133,24 +1159,24 @@ function mirza_card_sms_parse_from_text(string $smsText, ?string $bankCode = nul
         if ($code === 'gharz') {
             $code = 'mehr';
         }
-        $amount = mirza_card_sms_parse_bank_amount($code, $text);
-        return $amount !== null ? ['bank' => $code, 'amount_toman' => $amount] : null;
+        $rial = mirza_card_sms_parse_bank_rial($code, $text);
+        return $rial !== null ? mirza_card_sms_parsed_result($code, $rial) : null;
     }
 
     // مهر / قرض‌الحسنه: «21,000,000+» + «مانده:» — اولویت parse
     if (preg_match('/مانده\s*:/u', $text) && preg_match('/[\d,]+\+/u', $text)) {
         foreach (['mehr', 'gharz'] as $code) {
-            $amount = mirza_card_sms_parse_bank_amount($code, $text);
-            if ($amount !== null) {
-                return ['bank' => $code, 'amount_toman' => $amount];
+            $rial = mirza_card_sms_parse_bank_rial($code, $text);
+            if ($rial !== null) {
+                return mirza_card_sms_parsed_result($code, $rial);
             }
         }
     }
 
     foreach ($banks as $code) {
-        $amount = mirza_card_sms_parse_bank_amount($code, $text);
-        if ($amount !== null) {
-            return ['bank' => $code, 'amount_toman' => $amount];
+        $rial = mirza_card_sms_parse_bank_rial($code, $text);
+        if ($rial !== null) {
+            return mirza_card_sms_parsed_result($code, $rial);
         }
     }
     return null;
@@ -1185,7 +1211,7 @@ function mirza_card_sms_get_update_chat(array $update): ?array
 
 /**
  * پردازش SMS و تأیید خودکار فاکتور کارت — مشترک بین گروه تلگرام و payment/card.php
- * @return array{ok:bool,reason?:string,order_id?:string,amount_toman?:int,bank?:string}
+ * @return array{ok:bool,reason?:string,order_id?:string,amount_rial?:int,amount_toman?:int,bank?:string}
  */
 function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode = null): array
 {
@@ -1200,20 +1226,39 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
         return ['ok' => false, 'reason' => 'parse_failed'];
     }
 
-    $amountInteger = (int) $parsed['amount_toman'];
-    $amountEsc = mysqli_real_escape_string($connect, (string) $amountInteger);
+    $amountRial = (int) $parsed['amount_rial'];
+    $amountToman = (int) $parsed['amount_toman'];
+    $rialEsc = mysqli_real_escape_string($connect, (string) $amountRial);
+    // تطبیق فقط با ریال: price در DB تومان است → price×10 = ریال واریز
+    // جلوگیری از تأیید اشتباه: 99,000 ریال ≠ فاکتور 99,000 تومان (990,000 ریال)
     $datauser = mysqli_fetch_assoc(mysqli_query(
         $connect,
-        "SELECT * FROM Payment_report WHERE price = '$amountEsc' AND (payment_Status = 'Unpaid' OR payment_Status = 'waiting') LIMIT 1"
+        "SELECT * FROM Payment_report WHERE (CAST(price AS UNSIGNED) * 10) = '$rialEsc' AND (payment_Status = 'Unpaid' OR payment_Status = 'waiting') LIMIT 1"
     ));
     if (!$datauser || empty($datauser['id_order'])) {
-        return ['ok' => false, 'reason' => 'no_match', 'amount_toman' => $amountInteger, 'bank' => $parsed['bank']];
+        return [
+            'ok' => false,
+            'reason' => 'no_match',
+            'amount_rial' => $amountRial,
+            'amount_toman' => $amountToman,
+            'bank' => $parsed['bank'],
+        ];
     }
 
     $orderId = $datauser['id_order'];
     $Payment_report = select('Payment_report', '*', 'id_order', $orderId, 'select');
     if (!is_array($Payment_report) || empty($Payment_report['price'])) {
         return ['ok' => false, 'reason' => 'order_missing'];
+    }
+    $expectedRial = mirza_card_sms_invoice_expected_rial((int) $Payment_report['price']);
+    if ($amountRial !== $expectedRial) {
+        return [
+            'ok' => false,
+            'reason' => 'no_match',
+            'amount_rial' => $amountRial,
+            'amount_toman' => $amountToman,
+            'bank' => $parsed['bank'],
+        ];
     }
     if (in_array($Payment_report['payment_Status'], ['paid', 'reject'], true)) {
         return ['ok' => false, 'reason' => 'already_reviewed', 'order_id' => $orderId];
@@ -1248,7 +1293,8 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
     return [
         'ok' => true,
         'order_id' => $orderId,
-        'amount_toman' => $amountInteger,
+        'amount_rial' => $amountRial,
+        'amount_toman' => $amountToman,
         'bank' => $parsed['bank'],
     ];
 }
