@@ -911,8 +911,29 @@ function mirza_card_sms_effective_group_id(): ?int
     return (int) $raw;
 }
 
+function mirza_card_sms_normalize_digits(string $text): string
+{
+    static $from = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    static $to   = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    return str_replace($from, $to, $text);
+}
+
+/** رشته عددی (با کاما) → ریال صحیح */
+function mirza_card_sms_amount_string_to_rial(string $amountStr): int
+{
+    $amountStr = mirza_card_sms_normalize_digits($amountStr);
+    return (int) preg_replace('/\D/u', '', $amountStr);
+}
+
+/** ریال → تومان */
+function mirza_card_sms_rial_to_toman(int $rial): int
+{
+    return (int) ($rial * 0.1);
+}
+
 function mirza_card_sms_clean_text(string $smsText): string
 {
+    $smsText = mirza_card_sms_normalize_digits($smsText);
     $lines = [];
     foreach (preg_split('/\R/u', $smsText) as $line) {
         $stripped = trim($line);
@@ -920,6 +941,12 @@ function mirza_card_sms_clean_text(string $smsText): string
             continue;
         }
         if (preg_match('/\(Incoming\s*-/iu', $stripped)) {
+            continue;
+        }
+        if (preg_match('/^From\s*:/iu', $stripped)) {
+            continue;
+        }
+        if (preg_match('/^(Sender|Phone|From\s*Number)\s*:/iu', $stripped)) {
             continue;
         }
         if (preg_match('/^\+\d{10,}\s*$/u', $stripped)) {
@@ -960,6 +987,47 @@ function mirza_card_sms_skip_round_toman_reject(string $bankCode): bool
     return in_array(strtolower($bankCode), ['gharz', 'mehr', 'parsian'], true);
 }
 
+/** بلو — واریز به حساب (۹,۹۹,۵۵۰ و 999,550 و با/بدون From در SMS Forwarder) */
+function mirza_card_sms_parse_blu_amount(string $text): ?int
+{
+    $patterns = [
+        '/(\d[\d,،٬]+)\s*ریال\s*به\s*حساب\s*شما\s*نشست/u',
+        '/(\d[\d,،٬]+)\s*ريال\s*به\s*حساب\s*شما\s*نشست/u',
+    ];
+    foreach (preg_split('/\R/u', $text) as $line) {
+        if (!preg_match('/نشست/u', $line) || !preg_match('/به\s*حساب/u', $line)) {
+            continue;
+        }
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $line, $m)) {
+                $rial = mirza_card_sms_amount_string_to_rial($m[1]);
+                if ($rial > 0) {
+                    return mirza_card_sms_rial_to_toman($rial);
+                }
+            }
+        }
+    }
+    return null;
+}
+
+/** +مبلغ در انتهای خط — فقط خطوط مبلغ (نه شماره From/SMS Forwarder) */
+function mirza_card_sms_parse_plus_amount_line(string $text): ?int
+{
+    foreach (preg_split('/\R/u', $text) as $line) {
+        $line = trim($line);
+        if ($line === '' || preg_match('/From\s*:|موجودی|مانده|^\+\d{10,}/u', $line)) {
+            continue;
+        }
+        if (preg_match('/\+([\d,]+)/u', $line, $m)) {
+            $digits = mirza_card_sms_amount_string_to_rial($m[1]);
+            if ($digits > 0 && strlen((string) $digits) <= 12) {
+                return mirza_card_sms_rial_to_toman($digits);
+            }
+        }
+    }
+    return null;
+}
+
 function mirza_card_sms_parse_bank_amount(string $bankCode, string $smsText): ?int
 {
     $text = mirza_card_sms_clean_text($smsText);
@@ -970,10 +1038,7 @@ function mirza_card_sms_parse_bank_amount(string $bankCode, string $smsText): ?i
     $amountInteger = null;
     switch (strtolower($bankCode)) {
         case 'blu':
-            if (preg_match('/(\d[\d,،٬\s]+)\s*ریال\s*به\s*حساب\s*شما\s*نشست/u', $text, $m)) {
-                $amount = (int) preg_replace('/\D/u', '', $m[1]);
-                $amountInteger = (int) ($amount * 0.1);
-            }
+            $amountInteger = mirza_card_sms_parse_blu_amount($text);
             break;
         case 'meli':
             if (preg_match('/انتقال:(.*?)[+\-]/u', $text, $m)) {
@@ -1006,9 +1071,7 @@ function mirza_card_sms_parse_bank_amount(string $bankCode, string $smsText): ?i
             }
             break;
         case 'resalet':
-            if (preg_match('/\+([\d,]+)/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
-            }
+            $amountInteger = mirza_card_sms_parse_plus_amount_line($text);
             break;
         case 'sheahr':
             if (preg_match('/مبلغ:(\d+(?:,\d+)*)ريال/u', $text, $m)) {
@@ -1031,9 +1094,7 @@ function mirza_card_sms_parse_bank_amount(string $bankCode, string $smsText): ?i
             }
             break;
         case 'paselc':
-            if (preg_match('/\+([0-9,]+)/u', $text, $m)) {
-                $amountInteger = (int) (str_replace(',', '', $m[1]) * 0.1);
-            }
+            $amountInteger = mirza_card_sms_parse_plus_amount_line($text);
             break;
         case 'gharz':
         case 'mehr':
@@ -1058,6 +1119,15 @@ function mirza_card_sms_parse_from_text(string $smsText, ?string $bankCode = nul
     }
 
     $banks = ['blu', 'meli', 'grdsh', 'sadhrat', 'melet', 'terjart', 'keshavarsi', 'resalet', 'sheahr', 'maskan', 'parsian', 'sphe', 'paselc', 'mehr', 'gharz'];
+
+    // اگر نام بلو در متن باشد اول بلو را امتحان کن
+    if ($bankCode === null && preg_match('/بلو/ui', $text)) {
+        $amount = mirza_card_sms_parse_bank_amount('blu', $text);
+        if ($amount !== null) {
+            return ['bank' => 'blu', 'amount_toman' => $amount];
+        }
+    }
+
     if ($bankCode !== null && $bankCode !== '') {
         $code = strtolower($bankCode);
         if ($code === 'gharz') {
