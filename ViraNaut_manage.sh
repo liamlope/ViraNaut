@@ -13,7 +13,7 @@ LEGACY_PROJECT_DIR="/var/www/mirza_pro"
 ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
 MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
-VIRANAUT_MANAGE_VERSION="2.1.6-ViraNaut"
+VIRANAUT_MANAGE_VERSION="2.1.7-ViraNaut"
 MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
 VIRANAUT_GITHUB_REPO="${VIRANAUT_GITHUB_REPO:-https://github.com/liamlope/ViraNaut.git}"
 VIRANAUT_GITHUB_BRANCH="${VIRANAUT_GITHUB_BRANCH:-main}"
@@ -877,16 +877,22 @@ viranaut_panel_smoke_test() {
   fi
   echo -e "  ${GREEN}✓${NC} panel/inc/config.php present"
 
-  if command -v php >/dev/null 2>&1; then
+  local _cli_mysqli=0
+  if command -v php >/dev/null 2>&1 && php -m 2>/dev/null | grep -qi '^mysqli$'; then
+    _cli_mysqli=1
+  fi
+
+  if [ "$_cli_mysqli" -eq 1 ]; then
     if sudo -u www-data php -r "require '${pinc}';" >/dev/null 2>&1; then
-      echo -e "  ${GREEN}✓${NC} panel/inc/config.php loads (PHP)"
+      echo -e "  ${GREEN}✓${NC} panel/inc/config.php loads (PHP CLI)"
     else
       local _php_err
       _php_err=$(sudo -u www-data php -r "require '${pinc}';" 2>&1 | head -3)
-      warn "panel PHP load failed:"
+      warn "panel PHP CLI load failed (Apache may still work):"
       [ -n "$_php_err" ] && echo "$_php_err" | sed 's/^/    /'
-      ok=0
     fi
+  else
+    echo -e "  ${CYAN}Note:${NC} PHP CLI has no mysqli — skipping CLI load test (Apache mod_php is authoritative)"
   fi
 
   if [ -z "$domain" ] && [ -f "$BOT_DIR/config.php" ]; then
@@ -898,7 +904,7 @@ viranaut_panel_smoke_test() {
     login_code=${login_code:-000}
     echo -e "  ${CYAN}Panel URL:${NC} https://${domain}/panel/login.php → HTTP ${login_code}"
     case "$login_code" in
-      200) echo -e "  ${GREEN}✓${NC} Panel reachable" ;;
+      200) echo -e "  ${GREEN}✓${NC} Panel reachable"; ok=1 ;;
       404) err "Panel 404 — Apache DocumentRoot wrong; run menu 8 (Auto-fix)"; ok=0 ;;
       500|502|503)
         err "Panel HTTP $login_code — PHP error"
