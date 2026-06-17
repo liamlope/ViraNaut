@@ -456,7 +456,7 @@ if (!function_exists('mirza_custom_emoji_rename')) {
         try {
             $stmt = $pdo->prepare('UPDATE bot_custom_emoji SET emoji_name = ? WHERE id = ?');
             $stmt->execute([$name, $id]);
-            return true;
+            return $stmt->rowCount() > 0;
         } catch (Throwable $e) {
             error_log('mirza_custom_emoji_rename: ' . $e->getMessage());
             return false;

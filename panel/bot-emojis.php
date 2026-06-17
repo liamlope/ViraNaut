@@ -134,12 +134,7 @@ include __DIR__ . '/inc/layout_head.php';
                                     <td><code class="be-tg-id"><?= htmlspecialchars($row['custom_emoji_id']) ?></code></td>
                                     <td>
                                         <button type="button" class="btn btn-ghost btn-sm be-insert" data-insert="<?= htmlspecialchars($placeholder) ?>">درج در متن</button>
-                                        <form method="post" style="display:inline" onsubmit="return confirm('حذف شود؟');">
-                                            <input type="hidden" name="_csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
-                                            <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
-                                            <button type="submit" class="btn btn-ghost btn-sm be-del">حذف</button>
-                                        </form>
+                                        <button type="submit" class="btn btn-ghost btn-sm be-del" form="be-del-<?= (int) $row['id'] ?>">حذف</button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -149,6 +144,14 @@ include __DIR__ . '/inc/layout_head.php';
             <?php endif; ?>
         </div>
     </form>
+
+    <?php foreach ($emojiLibrary as $row): ?>
+        <form method="post" id="be-del-<?= (int) $row['id'] ?>" class="be-delete-form" onsubmit="return confirm('حذف شود؟');">
+            <input type="hidden" name="_csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
+        </form>
+    <?php endforeach; ?>
 </div>
 
 <?php include __DIR__ . '/inc/layout_foot.php'; ?>
