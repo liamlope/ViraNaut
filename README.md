@@ -163,6 +163,24 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 
 **CLI:** `update` · `restart` · `fix` · `diagnose` · `logs` · `remove`
 
+**Donate (crypto):** see [حمایت مالی](#حمایت-مالی-donate) — USDT (BSC/Polygon), TRX/TRC20, BTC, SOL.
+
+---
+
+## حمایت مالی (Donate)
+
+اگر ViraNaut برایتان مفید بوده، می‌توانید از توسعه پروژه حمایت کنید 💎
+
+| شبکه | ارز | آدرس |
+|------|-----|------|
+| **BSC** | USDT | `0x01f77c91107cbd28191a1e897073ad053fd2867c` |
+| **Polygon** | USDT | `0x01f77c91107cbd28191a1e897073ad053fd2867c` |
+| **Tron** | TRX / USDT (TRC20) | `TQEW4TP8eGzmJNyzu6kdi4GJdZdNqmTFRL` |
+| **Bitcoin** | BTC | `bc1q5xw4nyqc5s993eukq9udrcpfh8ky6pc0mzlfsn` |
+| **Solana** | SOL | `GfKRLRTrKx7SYJHd76Rc7tVE6WwJKTNoZutSQitfppR6` |
+
+> قبل از واریز، شبکه را دقیق انتخاب کنید — واریز روی شبکه اشتباه قابل بازیابی نیست.
+
 ---
 
 ## License
