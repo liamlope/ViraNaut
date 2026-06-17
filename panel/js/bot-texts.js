@@ -6,6 +6,7 @@
     var sections = document.querySelectorAll('.bt-section');
     var catLinks = document.querySelectorAll('.bt-cat-link');
     var focusedTextarea = null;
+    var dragEmojiCode = null;
 
     var varsVeil = document.getElementById('btVarsVeil');
     var varsDrawer = document.getElementById('btVarsDrawer');
@@ -21,6 +22,29 @@
             if (search && search.value.trim() !== '') {
                 applySearch();
             }
+        });
+        ta.addEventListener('dragover', function (e) {
+            if (!dragEmojiCode) return;
+            e.preventDefault();
+            ta.classList.add('bt-drag-over');
+        });
+        ta.addEventListener('dragleave', function () {
+            ta.classList.remove('bt-drag-over');
+        });
+        ta.addEventListener('drop', function (e) {
+            if (!dragEmojiCode) return;
+            e.preventDefault();
+            ta.classList.remove('bt-drag-over');
+            focusedTextarea = ta;
+            ta.focus();
+            if (typeof e.dataTransfer !== 'undefined') {
+                var pos = ta.selectionStart;
+                if (document.caretPositionFromPoint || document.caretRangeFromPoint) {
+                    /* keep cursor if possible */
+                }
+            }
+            insertAtCursor(ta, dragEmojiCode);
+            dragEmojiCode = null;
         });
     });
 
@@ -43,19 +67,23 @@
         card.setAttribute('data-search', parts.join(' ').toLowerCase());
     }
 
+    function insertAtCursor(ta, text) {
+        var start = ta.selectionStart;
+        var end = ta.selectionEnd;
+        var val = ta.value;
+        ta.value = val.slice(0, start) + text + val.slice(end);
+        var pos = start + text.length;
+        ta.setSelectionRange(pos, pos);
+        syncSearch(ta);
+    }
+
     function insertVar(varName) {
         if (!focusedTextarea) {
             focusedTextarea = document.querySelector('.bt-area');
         }
         if (!focusedTextarea) return;
-        var start = focusedTextarea.selectionStart;
-        var end = focusedTextarea.selectionEnd;
-        var text = focusedTextarea.value;
-        focusedTextarea.value = text.slice(0, start) + varName + text.slice(end);
+        insertAtCursor(focusedTextarea, varName);
         focusedTextarea.focus();
-        var pos = start + varName.length;
-        focusedTextarea.setSelectionRange(pos, pos);
-        syncSearch(focusedTextarea);
     }
 
     document.querySelectorAll('[data-insert-var]').forEach(function (btn) {
@@ -64,9 +92,24 @@
         });
     });
 
-    document.querySelectorAll('[data-insert-emoji]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            insertVar(btn.getAttribute('data-insert-emoji') || '');
+    document.querySelectorAll('[data-insert-emoji]').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            insertVar(chip.getAttribute('data-insert-emoji') || '');
+        });
+        chip.addEventListener('dragstart', function (e) {
+            dragEmojiCode = chip.getAttribute('data-insert-emoji') || '';
+            chip.classList.add('bt-emoji-dragging');
+            if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = 'copy';
+                e.dataTransfer.setData('text/plain', dragEmojiCode);
+            }
+        });
+        chip.addEventListener('dragend', function () {
+            chip.classList.remove('bt-emoji-dragging');
+            dragEmojiCode = null;
+            document.querySelectorAll('.bt-area-drop').forEach(function (ta) {
+                ta.classList.remove('bt-drag-over');
+            });
         });
     });
 

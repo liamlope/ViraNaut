@@ -59,7 +59,7 @@ function mirza_panel_keyboard_label(string $keyId, array $datatextbot, array $ca
 {
     $label = trim($datatextbot[$keyId] ?? '');
     if ($label !== '') {
-        return $label;
+        return function_exists('mirza_textbot_display') ? mirza_textbot_display($label) : $label;
     }
     return $catalog[$keyId] ?? $keyId;
 }

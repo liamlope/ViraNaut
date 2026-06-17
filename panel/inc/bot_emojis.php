@@ -246,6 +246,39 @@ if (!function_exists('mirza_prepare_outgoing_text')) {
     }
 }
 
+if (!function_exists('mirza_textbot_display')) {
+    /** متن نمایشی (placeholder → کاراکتر ایموجی). */
+    function mirza_textbot_display(string $raw): string
+    {
+        return mirza_replace_emoji_placeholders_text_only($raw);
+    }
+}
+
+if (!function_exists('mirza_textbot_matches')) {
+    /** تطبیق کلیک دکمه با متن ذخیره‌شده (با یا بدون {emoji:…}). */
+    function mirza_textbot_matches(?string $incoming, ?string $raw): bool
+    {
+        if ($incoming === null || $raw === null) {
+            return false;
+        }
+        if ($incoming === $raw) {
+            return true;
+        }
+        return $incoming === mirza_textbot_display($raw);
+    }
+}
+
+if (!function_exists('mirza_keyboard_label_text')) {
+    function mirza_keyboard_label_text(array $datatextbot, string $key, string $fallback = ''): string
+    {
+        $raw = trim((string) ($datatextbot[$key] ?? ''));
+        if ($raw === '') {
+            $raw = trim($fallback);
+        }
+        return mirza_textbot_display($raw);
+    }
+}
+
 if (!function_exists('mirza_custom_emoji_by_id_map')) {
     function mirza_custom_emoji_by_id_map(?PDO $pdo = null): array
     {
@@ -431,10 +464,10 @@ if (!function_exists('mirza_keyboard_button_styles')) {
 }
 
 if (!function_exists('mirza_keyboard_apply_custom_emojis')) {
-    /** @param array<int,array<int,array<string,mixed>>> $rows */
+    /** فقط style دکمه — ایموجی فقط از متن {emoji:نام} در bot-texts. */
     function mirza_keyboard_apply_custom_emojis(array &$rows, ?PDO $pdo = null): void
     {
-        $emojiMap = mirza_custom_emoji_by_id_map($pdo);
+        unset($pdo);
         foreach ($rows as $ri => $row) {
             if (!is_array($row)) {
                 continue;
@@ -443,14 +476,12 @@ if (!function_exists('mirza_keyboard_apply_custom_emojis')) {
                 if (!is_array($btn)) {
                     continue;
                 }
-                $emojiId = (int) ($btn['emoji_id'] ?? 0);
-                if ($emojiId <= 0 || !isset($emojiMap[$emojiId])) {
-                    continue;
-                }
-                $rows[$ri][$bi]['icon_custom_emoji_id'] = (string) $emojiMap[$emojiId]['custom_emoji_id'];
+                unset($rows[$ri][$bi]['emoji_id'], $rows[$ri][$bi]['icon_custom_emoji_id']);
                 $style = trim((string) ($btn['style'] ?? ''));
                 if ($style !== '' && in_array($style, ['primary', 'success', 'danger'], true)) {
                     $rows[$ri][$bi]['style'] = $style;
+                } else {
+                    unset($rows[$ri][$bi]['style']);
                 }
             }
         }
@@ -472,9 +503,9 @@ if (!function_exists('mirza_keyboard_replace_text_keys')) {
                 }
                 $key = (string) ($btn['text'] ?? '');
                 $label = $replacements[$key] ?? $key;
-                $label = mirza_replace_emoji_placeholders_text_only($label);
                 $newBtn = $btn;
                 $newBtn['text'] = $label;
+                unset($newBtn['emoji_id'], $newBtn['icon_custom_emoji_id']);
                 unset($newBtn['emoji_id']);
                 $newRow[] = $newBtn;
             }

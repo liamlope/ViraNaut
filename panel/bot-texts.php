@@ -89,18 +89,18 @@ include __DIR__ . '/inc/layout_head.php';
 
     <?php if ($emojiLibrary !== []): ?>
         <div class="card bt-emoji-bar">
-            <div class="bt-emoji-bar-title">درج ایموجی در متن — هر جا که کرسر باشد</div>
-            <div class="bt-emoji-bar-hint">کد <code>{emoji:نام}</code> را وسط، اول یا آخر متن بگذارید</div>
-            <div class="bt-emoji-chips">
+            <div class="bt-emoji-bar-title">ایموجی — کلیک یا بکشید روی متن</div>
+            <div class="bt-emoji-bar-hint">کد <code>{emoji:نام}</code> هر جای متن: اول، وسط، آخر</div>
+            <div class="bt-emoji-chips" id="btEmojiChips">
                 <?php foreach ($emojiLibrary as $emojiRow):
                     $ph = mirza_emoji_placeholder($emojiRow);
                     if ($ph === '') continue;
                     ?>
-                    <button type="button" class="bt-emoji-chip" data-insert-emoji="<?= htmlspecialchars($ph) ?>"
+                    <div class="bt-emoji-chip" draggable="true" data-insert-emoji="<?= htmlspecialchars($ph) ?>"
                         title="<?= htmlspecialchars($emojiRow['emoji_name']) ?>">
                         <span class="bt-emoji-chip-glyph"><?= htmlspecialchars($emojiRow['emoji_utf8'] ?? '✨') ?></span>
                         <span><?= htmlspecialchars($emojiRow['emoji_name']) ?></span>
-                    </button>
+                    </div>
                 <?php endforeach; ?>
             </div>
         </div>
@@ -146,9 +146,24 @@ include __DIR__ . '/inc/layout_head.php';
                                     </div>
                                     <code class="bt-item-id"><?= htmlspecialchars($id) ?></code>
                                 </div>
+                                <?php if ($emojiLibrary !== []): ?>
+                                    <div class="bt-item-emojis">
+                                        <span class="bt-item-emojis-label">ایموجی →</span>
+                                        <?php foreach ($emojiLibrary as $emojiRow):
+                                            $ph = mirza_emoji_placeholder($emojiRow);
+                                            if ($ph === '') continue;
+                                            ?>
+                                            <span class="bt-emoji-chip bt-emoji-chip-sm" draggable="true"
+                                                data-insert-emoji="<?= htmlspecialchars($ph) ?>"
+                                                title="بکشید یا کلیک — <?= htmlspecialchars($emojiRow['emoji_name']) ?>">
+                                                <?= htmlspecialchars($emojiRow['emoji_utf8'] ?? '✨') ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
                                 <textarea name="text_<?= htmlspecialchars($id) ?>" rows="<?= max(2, min(12, $rows)) ?>"
-                                    class="input bt-area" data-id="<?= htmlspecialchars($id) ?>"
-                                    placeholder="متن نمایشی در ربات"><?= htmlspecialchars($val) ?></textarea>
+                                    class="input bt-area bt-area-drop" data-id="<?= htmlspecialchars($id) ?>"
+                                    placeholder="متن نمایشی در ربات — {emoji:نام} هر جا که بخواهید"><?= htmlspecialchars($val) ?></textarea>
                                 <?php if ($vars !== []): ?>
                                     <div class="bt-item-vars">
                                         <?php foreach ($vars as $v): ?>

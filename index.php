@@ -465,7 +465,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
                 mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
     update("user", "number", $user_phone, "id", $from_id);
     step('home', $from_id);
-} elseif ($text == ($textbotlang['textbot']['purchasedServices'] ?? '') || $text == ($datatextbot['text_Purchased_services'] ?? '') || $datain == "backorder" || $text == "/services") {
+} elseif ($text == ($textbotlang['textbot']['purchasedServices'] ?? '') || mirza_textbot_matches($text, $datatextbot['text_Purchased_services'] ?? '') || $datain == "backorder" || $text == "/services") {
     $stmt = $pdo->prepare("SELECT * FROM invoice WHERE id_user = :id_user AND (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold')");
     $stmt->bindParam(':id_user', $from_id);
     $stmt->execute();
@@ -3148,7 +3148,7 @@ $textconnect
     $stmt->bind_param("ssssss", $from_id, $nameloc['username'], $value, $type, $dateacc, $price);
     $stmt->execute();
     $stmt->close();
-} elseif ($text == $datatextbot['text_usertest'] || $datain == "usertestbtn" || $text == "usertest") {
+} elseif (mirza_textbot_matches($text, $datatextbot['text_usertest'] ?? '') || $datain == "usertestbtn" || $text == "usertest") {
     if (!check_active_btn($setting['keyboardmain'], "text_usertest")) {
         sendmessage($from_id, "📌 سرویس تست در حال حاضر در دسترس نیست .", null, 'HTML');
         return;
@@ -3172,7 +3172,7 @@ $textconnect
         sendmessage($from_id, $datatextbot['textselectlocation'], $list_marzban_usertest, 'html');
     }
 }
-if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $datain, $dataget) || ($text == $datatextbot['text_usertest'] || $datain == "usertestbtn" || $text == "usertest")) {
+if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $datain, $dataget) || (mirza_textbot_matches($text, $datatextbot['text_usertest'] ?? '') || $datain == "usertestbtn" || $text == "usertest")) {
     if (($setting['status_usertest'] ?? 'ontest') === 'offtest') {
         sendmessage($from_id, '📌 سرویس تست در حال حاضر غیرفعال است.', null, 'HTML');
         return;
@@ -3382,7 +3382,7 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
             'reply_markup' => $Response
         ]);
     }
-} elseif ($text == $datatextbot['text_help'] || $datain == "helpbtn" || $datain == "helpbtns" || $text == "/help" || $text == "help") {
+} elseif (mirza_textbot_matches($text, $datatextbot['text_help'] ?? '') || $datain == "helpbtn" || $datain == "helpbtns" || $text == "/help" || $text == "help") {
     if (!check_active_btn($setting['keyboardmain'], "text_help")) {
         sendmessage($from_id, $textbotlang['users']['help']['disablehelp'], null, 'HTML');
         return;
@@ -3492,7 +3492,7 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
             sendmessage($from_id, $helpdata['Description_os'], $backinfoss, 'HTML');
         }
     }
-} elseif ($text == $datatextbot['text_support'] || $datain == "supportbtns" || $text == "/support") {
+} elseif (mirza_textbot_matches($text, $datatextbot['text_support'] ?? '') || $datain == "supportbtns" || $text == "/support") {
     if (!check_active_btn($setting['keyboardmain'], "text_support")) {
         sendmessage($from_id, "❌ این دکمه غیرفعال می باشد", null, 'HTML');
         return;
@@ -3632,7 +3632,7 @@ $text";
     sendmessage($from_id, "✅  پیام شما برای این درخواست با موفقیت ارسال گردید پس از بررسی پاسخ داده خواهد شد.", null, 'HTML');
 } elseif ($datain == "fqQuestions") {
     sendmessage($from_id, $datatextbot['text_dec_fq'], null, 'HTML');
-} elseif ($text == ($datatextbot['accountwallet'] ?? '') || $text == mirza_lang_str($textbotlang, 'textbot.accountWallet') || $datain == "account" || $text == "/wallet") {
+} elseif (mirza_textbot_matches($text, $datatextbot['accountwallet'] ?? '') || $text == mirza_lang_str($textbotlang, 'textbot.accountWallet') || $datain == "account" || $text == "/wallet") {
     $dateacc = jdate('Y/m/d');
     $current_time = time();
     $timeacc = jdate('H:i:s', $current_time);
@@ -3707,7 +3707,7 @@ $textinvite
     }
     step('home', $from_id);
     return;
-} elseif (($text == $datatextbot['text_sell'] || $datain == "buy" || $datain == "buyback" || $text == "/buy" || $text == "buy") && $statusnote) {
+} elseif ((mirza_textbot_matches($text, $datatextbot['text_sell'] ?? '') || $datain == "buy" || $datain == "buyback" || $text == "/buy" || $text == "buy") && $statusnote) {
     if ($setting['get_number'] == "onAuthenticationphone" && $user['step'] != "get_number" && $user['number'] == "none") {
         sendmessage($from_id, $textbotlang['users']['number']['Confirming'], $request_contact, 'HTML');
         step('get_number', $from_id);
@@ -3728,7 +3728,7 @@ $textinvite
     }
     step("statusnamecustom", $from_id);
     return;
-} elseif ($text == $datatextbot['text_sell'] || $datain == "buy" || $datain == "buybacktow" || $datain == "buyback" || $text == "/buy" || $text == "buy" || $user['step'] == "statusnamecustom") {
+} elseif (mirza_textbot_matches($text, $datatextbot['text_sell'] ?? '') || $datain == "buy" || $datain == "buybacktow" || $datain == "buyback" || $text == "/buy" || $text == "buy" || $user['step'] == "statusnamecustom") {
     if (!check_active_btn($setting['keyboardmain'], "text_sell")) {
         sendmessage($from_id, "❌ این دکمه غیرفعال می باشد", null, 'HTML');
         return;
@@ -6524,12 +6524,12 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
             'parse_mode' => "HTML"
         ]);
     }
-} elseif ($text == $datatextbot['text_Tariff_list'] || $datain == "Tariff_list") {
+} elseif (mirza_textbot_matches($text, $datatextbot['text_Tariff_list'] ?? '') || $datain == "Tariff_list") {
     sendmessage($from_id, $datatextbot['text_dec_Tariff_list'], null, 'HTML');
 } elseif ($datain == "colselist") {
     deletemessage($from_id, $message_id);
     sendmessage($from_id, $textbotlang['users']['back'], $keyboard, 'HTML');
-} elseif ($text == $datatextbot['text_affiliates'] || $datain == "affiliatesbtn") {
+} elseif (mirza_textbot_matches($text, $datatextbot['text_affiliates'] ?? '') || $datain == "affiliatesbtn") {
     if (!check_active_btn($setting['keyboardmain'], "text_affiliates")) {
         sendmessage($from_id, "❌ این دکمه غیرفعال می باشد", null, 'HTML');
         return;
@@ -6822,7 +6822,7 @@ $text_porsant
         }
     }
     step('home', $from_id);
-} elseif (($text == $datatextbot['textpanelagent'] || $datain == "agentpanel") && $user['agent'] != "f") {
+} elseif ((mirza_textbot_matches($text, $datatextbot['textpanelagent'] ?? '') || $datain == "agentpanel") && $user['agent'] != "f") {
     if ($setting['inlinebtnmain'] == "oninline") {
         Editmessagetext($from_id, $message_id, $textbotlang['Admin']['agent']['agentWelcome'], $keyboardagent, 'HTML');
     } else {
@@ -6839,7 +6839,7 @@ $text_porsant
     sendmessage($from_id, $textbotlang['Admin']['agent']['submitUsername'], $keyboardagent, 'html');
     update("user", "namecustom", $text, "id", $from_id);
     step("home", $from_id);
-} elseif ($text == $datatextbot['textrequestagent'] || $datain == "requestagent") {
+} elseif (mirza_textbot_matches($text, $datatextbot['textrequestagent'] ?? '') || $datain == "requestagent") {
     if ($user['Balance'] < $setting['agentreqprice']) {
         $priceagent = number_format($setting['agentreqprice']);
         sendmessage($from_id, sprintf($textbotlang['users']['agent']['insufficientbalanceagent'], $priceagent), $backuser, 'HTML');
@@ -6938,7 +6938,7 @@ $text_porsant
     }
 } elseif ($text == "/privacy") {
     sendmessage($from_id, $datatextbot['text_roll'], null, 'HTML');
-} elseif ($text == $datatextbot['text_wheel_luck'] || $datain == "wheel_luck" || $text == "/gift") {
+} elseif (mirza_textbot_matches($text, $datatextbot['text_wheel_luck'] ?? '') || $datain == "wheel_luck" || $text == "/gift") {
     if (!check_active_btn($setting['keyboardmain'], "text_wheel_luck")) {
         sendmessage($from_id, "❌ این دکمه غیرفعال می باشد", null, 'HTML');
         return;
@@ -7047,7 +7047,7 @@ $text_porsant
     }
     $price = $rates['USD'];
     sendmessage($from_id, sprintf($textbotlang['users']['pricearze']['tether-price'], $price), null, 'HTML');
-} elseif ($text == $datatextbot['text_extend'] or $datain == "extendbtn") {
+} elseif (mirza_textbot_matches($text, $datatextbot['text_extend'] ?? '') or $datain == "extendbtn") {
     $stmt = $pdo->prepare("SELECT * FROM invoice WHERE id_user = :id_user AND (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold')");
     $stmt->bindParam(':id_user', $from_id);
     $stmt->execute();

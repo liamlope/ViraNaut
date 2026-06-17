@@ -7,7 +7,6 @@ require_auth();
 
 $catalog = mirza_panel_keyboard_catalog();
 $datatextbot = mirza_panel_load_datatextbot($pdo);
-$emojiLibrary = mirza_custom_emoji_list($pdo);
 $buttonStyles = mirza_keyboard_button_styles();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -42,10 +41,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $entry = ['text' => $textKey];
             if (is_array($key)) {
-                $emojiId = (int) ($key['emoji_id'] ?? 0);
-                if ($emojiId > 0) {
-                    $entry['emoji_id'] = $emojiId;
-                }
                 $style = trim((string) ($key['style'] ?? ''));
                 if ($style !== '' && in_array($style, $allowedStyles, true)) {
                     $entry['style'] = $style;
@@ -85,7 +80,7 @@ foreach ($catalog as $id => $title) {
 }
 
 $pageTitle = 'چیدمان منوی استارت';
-$pageLede = 'دکمه‌های کیبورد تلگرام را بکشید، مرتب کنید یا حذف کنید.';
+$pageLede = 'چیدمان و استایل دکمه‌ها — متن و ایموجی از «متن‌های ربات»';
 $activeNav = 'keyboard';
 $extraCss = ['css/keyboard.css'];
 $extraJs = ['js/keyboard.js'];
@@ -97,48 +92,37 @@ include __DIR__ . '/inc/layout_head.php';
         <div class="card-head">
             <div>
                 <div class="card-title">پیش‌نمایش منوی کاربر</div>
-                <div class="card-subtitle">همان چیزی که بعد از /start نمایش داده می‌شود · ایموجی پرمیوم روی دکمه‌ها</div>
+                <div class="card-subtitle">متن دکمه‌ها از «متن‌های ربات» · اینجا فقط چیدمان و استایل</div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <a href="bot-texts.php" class="btn btn-ghost btn-sm">متن و ایموجی دکمه‌ها</a>
                 <a href="bot-emojis.php" class="btn btn-ghost btn-sm">کتابخانه ایموجی</a>
                 <form method="post" style="display:inline" onsubmit="return confirm('بازگشت به چیدمان پیش‌فرض؟');">
                     <input type="hidden" name="_csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
                     <input type="hidden" name="action" value="reset">
                     <button type="submit" class="btn btn-ghost btn-sm">بازنشانی پیش‌فرض</button>
                 </form>
-                <a href="bot-texts.php" class="btn btn-ghost btn-sm">ویرایش متن دکمه‌ها</a>
                 <a href="bot.php" class="btn btn-ghost btn-sm">مرکز ربات</a>
             </div>
         </div>
         <div class="card-body">
-            <p class="field-hint" style="margin-bottom:12px">برای جای ایموجی در <strong>متن دکمه</strong> از <code>{emoji:نام}</code> در «متن‌های ربات» استفاده کنید. برای <strong>آیکون چپ Premium</strong> اینجا انتخاب کنید.</p>
+            <p class="field-hint" style="margin-bottom:12px">برای ایموجی در متن دکمه بروید به <a href="bot-texts.php">متن‌های ربات</a> و بنویسید مثلاً <code>{emoji:test}خرید اشتراک</code></p>
             <div id="kbPreview" class="kb-preview">
                 <?php foreach ($keyboardData['keyboard'] as $ri => $row): ?>
                     <div class="kb-row" data-row="<?= (int) $ri ?>">
                         <?php foreach ($row as $btn):
                             $kid = $btn['text'] ?? '';
                             $label = mirza_panel_keyboard_label($kid, $datatextbot, $catalog);
-                            $btnEmojiId = (int) ($btn['emoji_id'] ?? 0);
                             $btnStyle = (string) ($btn['style'] ?? '');
                             ?>
                             <div class="kb-btn" draggable="true"
                                 data-key="<?= htmlspecialchars($kid) ?>"
                                 data-label="<?= htmlspecialchars($label) ?>"
-                                data-emoji-id="<?= (int) $btnEmojiId ?>"
                                 data-style="<?= htmlspecialchars($btnStyle) ?>">
                                 <span class="kb-btn-label"><?= htmlspecialchars($label) ?></span>
                                 <span class="kb-btn-id"><?= htmlspecialchars($kid) ?></span>
-                                <div class="kb-btn-meta">
-                                    <label class="kb-mini-label">ایموجی</label>
-                                    <select class="kb-emoji-select input input-sm">
-                                        <option value="">—</option>
-                                        <?php foreach ($emojiLibrary as $emojiRow): ?>
-                                            <option value="<?= (int) $emojiRow['id'] ?>"<?= $btnEmojiId === (int) $emojiRow['id'] ? ' selected' : '' ?>>
-                                                <?= htmlspecialchars($emojiRow['emoji_name']) ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <label class="kb-mini-label">استایل</label>
+                                <div class="kb-btn-meta kb-btn-meta-style-only">
+                                    <label class="kb-mini-label">استایل دکمه</label>
                                     <select class="kb-style-select input input-sm">
                                         <?php foreach ($buttonStyles as $styleVal => $styleLabel): ?>
                                             <option value="<?= htmlspecialchars($styleVal) ?>"<?= $btnStyle === $styleVal ? ' selected' : '' ?>>
@@ -193,9 +177,6 @@ include __DIR__ . '/inc/layout_head.php';
 </div>
 
 <script>
-window.KB_EMOJI_OPTIONS = <?= json_encode(array_map(static function ($row) {
-    return ['id' => (int) $row['id'], 'name' => (string) $row['emoji_name']];
-}, $emojiLibrary), JSON_UNESCAPED_UNICODE) ?>;
 window.KB_STYLE_OPTIONS = <?= json_encode($buttonStyles, JSON_UNESCAPED_UNICODE) ?>;
 </script>
 

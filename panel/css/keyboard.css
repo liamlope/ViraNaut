@@ -156,6 +156,19 @@
   margin-top: 0;
 }
 
+.kb-btn-meta-style-only {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--bd);
+}
+
+.kb-btn-meta-style-only .kb-mini-label {
+  margin-top: 0;
+}
+
 .kb-btn-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -164,8 +177,6 @@
   padding-top: 8px;
   border-top: 1px dashed var(--bd);
 }
-
-.kb-mini-label {
   display: block;
   font-size: 0.62rem;
   color: var(--mute);

@@ -370,13 +370,48 @@
   background: var(--bg);
   color: var(--txt);
   font-size: 0.78rem;
-  cursor: pointer;
+  cursor: grab;
+  user-select: none;
   transition: border-color 0.15s, background 0.15s;
+}
+
+.bt-emoji-chip:active {
+  cursor: grabbing;
+}
+
+.bt-emoji-chip.bt-emoji-dragging {
+  opacity: 0.55;
 }
 
 .bt-emoji-chip:hover {
   border-color: var(--ac);
   background: var(--sf);
+}
+
+.bt-emoji-chip-sm {
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.bt-item-emojis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.bt-item-emojis-label {
+  font-size: 0.72rem;
+  color: var(--mute);
+  font-weight: 600;
+}
+
+.bt-area-drop.bt-drag-over {
+  outline: 2px dashed var(--ac);
+  outline-offset: 2px;
 }
 
 .bt-emoji-chip-glyph {
