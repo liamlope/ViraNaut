@@ -107,13 +107,17 @@ include __DIR__ . '/inc/layout_head.php';
             <div class="bt-emoji-bar-hint">در <b>دکمه‌های منو</b> فقط یک <code>{emoji:slug}</code> · در <b>پیام‌ها</b> نامحدود</div>
             <div class="bt-emoji-chips" id="btEmojiChips">
                 <?php foreach ($emojiLibrary as $emojiRow):
-                    $ph = mirza_emoji_placeholder($emojiRow);
-                    if ($ph === '') continue;
+                    $chip = mirza_emoji_panel_chip_meta($emojiRow);
+                    if ($chip['placeholder'] === '') continue;
                     ?>
-                    <div class="bt-emoji-chip" draggable="true" data-insert-emoji="<?= htmlspecialchars($ph) ?>"
-                        title="<?= htmlspecialchars($emojiRow['emoji_name']) ?>">
-                        <span class="bt-emoji-chip-glyph"><?= htmlspecialchars($emojiRow['emoji_utf8'] ?? '✨') ?></span>
-                        <span><?= htmlspecialchars($emojiRow['emoji_name']) ?></span>
+                    <div class="bt-emoji-chip" draggable="true" data-insert-emoji="<?= htmlspecialchars($chip['placeholder']) ?>"
+                        title="<?= htmlspecialchars($chip['title']) ?>">
+                        <span class="bt-emoji-chip-text">
+                            <span class="bt-emoji-chip-name"><?= htmlspecialchars($chip['label']) ?></span>
+                            <?php if ($chip['slug'] !== ''): ?>
+                                <code class="bt-emoji-chip-slug" dir="ltr"><?= htmlspecialchars($chip['slug']) ?></code>
+                            <?php endif; ?>
+                        </span>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -165,13 +169,16 @@ include __DIR__ . '/inc/layout_head.php';
                                     <div class="bt-item-emojis">
                                         <span class="bt-item-emojis-label">ایموجی →</span>
                                         <?php foreach ($emojiLibrary as $emojiRow):
-                                            $ph = mirza_emoji_placeholder($emojiRow);
-                                            if ($ph === '') continue;
+                                            $chip = mirza_emoji_panel_chip_meta($emojiRow);
+                                            if ($chip['placeholder'] === '') continue;
                                             ?>
                                             <span class="bt-emoji-chip bt-emoji-chip-sm" draggable="true"
-                                                data-insert-emoji="<?= htmlspecialchars($ph) ?>"
-                                                title="بکشید یا کلیک — <?= htmlspecialchars($emojiRow['emoji_name']) ?>">
-                                                <?= htmlspecialchars($emojiRow['emoji_utf8'] ?? '✨') ?>
+                                                data-insert-emoji="<?= htmlspecialchars($chip['placeholder']) ?>"
+                                                title="<?= htmlspecialchars($chip['title']) ?>">
+                                                <span class="bt-emoji-chip-name"><?= htmlspecialchars($chip['label']) ?></span>
+                                                <?php if ($chip['slug'] !== ''): ?>
+                                                    <code class="bt-emoji-chip-slug" dir="ltr"><?= htmlspecialchars($chip['slug']) ?></code>
+                                                <?php endif; ?>
                                             </span>
                                         <?php endforeach; ?>
                                     </div>

@@ -250,6 +250,24 @@ if (!function_exists('mirza_preserve_emoji_placeholders_html')) {
     }
 }
 
+if (!function_exists('mirza_emoji_panel_chip_meta')) {
+    /** برچسب پنل — نام/slug به‌جای نمایش glyph (ایموجی‌های مشابه). */
+    function mirza_emoji_panel_chip_meta(array $emojiRow): array
+    {
+        $name = trim((string) ($emojiRow['emoji_name'] ?? ''));
+        $slug = trim((string) ($emojiRow['emoji_slug'] ?? ''));
+        $placeholder = mirza_emoji_placeholder($emojiRow);
+        $label = $name !== '' ? $name : ($slug !== '' ? $slug : 'emoji');
+        $titleParts = array_filter([$label, $slug !== '' && $slug !== $name ? $slug : '', $placeholder]);
+        return [
+            'label' => $label,
+            'slug' => $slug,
+            'placeholder' => $placeholder,
+            'title' => implode(' · ', $titleParts),
+        ];
+    }
+}
+
 if (!function_exists('mirza_count_emoji_placeholders')) {
     function mirza_count_emoji_placeholders(string $text): int
     {

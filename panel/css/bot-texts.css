@@ -391,8 +391,42 @@
 .bt-emoji-chip-sm {
   padding: 4px 8px;
   border-radius: 8px;
-  font-size: 1rem;
-  line-height: 1;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.bt-emoji-chip-text {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1.25;
+}
+
+.bt-emoji-chip-name {
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.bt-emoji-chip-slug {
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  color: var(--mute);
+  font-family: ui-monospace, monospace;
+}
+
+.bt-emoji-chip-sm .bt-emoji-chip-name {
+  font-size: 0.72rem;
+}
+
+.bt-emoji-chip-sm .bt-emoji-chip-slug {
+  font-size: 0.62rem;
 }
 
 .bt-item-emojis {
@@ -415,8 +449,7 @@
 }
 
 .bt-emoji-chip-glyph {
-  font-size: 1.1rem;
-  line-height: 1;
+  display: none;
 }
 
 .bt-kbd-emoji-warn {
