@@ -1,8 +1,62 @@
 .be-steps {
-  margin: 0;
+  margin: 0 0 16px;
   padding-right: 20px;
-  line-height: 1.85;
+  line-height: 1.75;
   color: var(--txt);
+}
+
+.be-steps li {
+  margin-bottom: 6px;
+}
+
+.be-steps li:last-child {
+  margin-bottom: 0;
+}
+
+.be-guide-body {
+  display: grid;
+  gap: 0;
+}
+
+.be-guide-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.be-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.be-guide-box {
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+}
+
+.be-guide-box-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.be-guide-box p {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--mute);
+}
+
+.be-guide-box code {
+  display: block;
+  font-size: 0.78rem;
+  padding: 8px 10px;
+  background: var(--card, #fff);
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  word-break: break-all;
 }
 
 .be-table .be-name-input {

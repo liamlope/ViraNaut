@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = 'کتابخانه ایموجی پرمیوم';
-$pageLede = 'نام + کد {emoji:…} — در هر نقطهٔ متن یا دکمه';
+$pageLede = 'ذخیره، نام‌گذاری و کپی کد برای متن و دکمه‌های ربات';
 $activeNav = 'bot-emojis';
 $extraCss = ['css/bot-emojis.css'];
 $extraJs = ['js/bot-emojis.js'];
@@ -60,25 +60,36 @@ include __DIR__ . '/inc/layout_head.php';
 ?>
 
 <div class="fade-up be-page" style="display:grid;gap:14px">
-    <div class="card">
+    <div class="card be-guide-card">
         <div class="card-head">
             <div>
-                <div class="card-title">چطور استفاده کنم؟</div>
-                <div class="card-subtitle">ایموجی را هر جای متن یا دکمه بگذارید — چپ، وسط، راست</div>
+                <div class="card-title">راهنمای سریع</div>
+                <div class="card-subtitle">۳ قدم — از ذخیره تا نمایش در ربات</div>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div class="be-guide-links">
+                <a href="bot-texts.php" class="btn btn-primary btn-sm">متن‌های ربات</a>
                 <a href="keyboard.php" class="btn btn-ghost btn-sm">چیدمان منو</a>
-                <a href="bot-texts.php" class="btn btn-ghost btn-sm">متن‌های ربات</a>
             </div>
         </div>
-        <div class="card-body">
+        <div class="card-body be-guide-body">
             <ol class="be-steps">
-                <li>در ربات: <code>/savemoji test</code> → ایموجی پرمیوم را بفرستید</li>
-                <li>کد ثابت <code>{emoji:test}</code> (slug) — با تغییر «نام نمایشی» عوض نمی‌شود</li>
-                <li>در متن دکمه: <code>{emoji:test}خرید اشتراک</code> — فقط یک emoji (محدودیت تلگرام)</li>
-                <li>در پیام متنی: چند emoji Premium مجاز است</li>
+                <li>در تلگرام به ربات بزنید: <code>/savemoji test</code> سپس همان ایموجی Premium را بفرستید.</li>
+                <li>کد <code>{emoji:test}</code> را از جدول پایین <b>کپی</b> کنید. (عدد <code>test</code> همان slug است و با عوض کردن «نام نمایشی» تغییر نمی‌کند.)</li>
+                <li>در <a href="bot-texts.php">متن‌های ربات</a> داخل متن دکمه یا پیام بچسبانید و ذخیره کنید.</li>
             </ol>
-            <p class="field-hint" style="margin:12px 0 0">اگر قبلاً با نام قدیمی نوشته‌اید، کد جدید را از ستون «کد» کپی کنید.</p>
+
+            <div class="be-guide-grid">
+                <div class="be-guide-box">
+                    <div class="be-guide-box-title">دکمهٔ منو</div>
+                    <p>فقط <b>یک</b> emoji — محدودیت تلگرام</p>
+                    <code dir="ltr">{emoji:test}خرید اشتراک</code>
+                </div>
+                <div class="be-guide-box">
+                    <div class="be-guide-box-title">پیام متنی</div>
+                    <p>چند emoji در هر جای متن</p>
+                    <code dir="ltr">سلام {emoji:test} خوش آمدید</code>
+                </div>
+            </div>
         </div>
     </div>
 
