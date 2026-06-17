@@ -74,15 +74,13 @@ include __DIR__ . '/inc/layout_head.php';
         <div class="card-body be-guide-body">
             <ol class="be-steps">
                 <li>
-                    در ربات فقط این دستور را بزنید: <code dir="ltr">/savemoji kharid</code>
-                    <span class="be-steps-note">— <code>kharid</code> یک نام دلخواه است (نه دستور جدا). می‌توانید هر اسم انگلیسی بگذارید.</span>
-                    بعد در پیام بعد همان ایموجی Premium را بفرستید.
+                    در ربات فقط بزنید: <code dir="ltr">/savemoji</code>
                 </li>
                 <li>
-                    کد <code dir="ltr">{emoji:kharid}</code> را از ستون «کد در متن» جدول پایین <b>کپی</b> کنید.
-                    <span class="be-steps-note">این کد ثابت است؛ با عوض کردن «نام نمایشی» در پنل تغییر نمی‌کند.</span>
+                    یک <b>نام انگلیسی</b> بفرستید — مثال: <code dir="ltr">kharid</code>
+                    <span class="be-steps-note">همان slug می‌شود → <code dir="ltr">{emoji:kharid}</code></span>
                 </li>
-                <li>در <a href="bot-texts.php">متن‌های ربات</a> داخل متن دکمه یا پیام بچسبانید و ذخیره کنید.</li>
+                <li>ایموجی Premium را بفرستید، بعد کد را از جدول پایین در <a href="bot-texts.php">متن‌های ربات</a> استفاده کنید.</li>
             </ol>
 
             <div class="be-guide-grid">

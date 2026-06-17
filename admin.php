@@ -83,20 +83,32 @@ if (in_array($text, $textadmin) || $datain == "admin") {
         sendmessage(
             $from_id,
             "🎨 <b>ذخیره ایموجی پرمیوم</b>\n\n"
-            . "یک نام انتخاب کنید تا در پنل گم نشود (مثلاً: کیف پول)\n\n"
-            . "روش ۱: <code>/savemoji کیف پول</code>\n"
-            . "روش ۲: فقط <code>/savemoji</code> بزنید و نام را در پیام بعد بفرستید",
+            . "۱. فقط بزنید: <code>/savemoji</code>\n"
+            . "۲. یک <b>نام انگلیسی</b> بفرستید — مثال: <code>kharid</code> یا <code>wallet</code>\n"
+            . "۳. همان ایموجی Premium را در پیام بعد بفرستید",
             $backadmin,
             'HTML'
         );
         step('savemoji_name', $from_id);
         return;
     }
+    if (!preg_match('/^[a-zA-Z0-9_-]{1,58}$/', $pendingEmojiName)) {
+        sendmessage(
+            $from_id,
+            "⚠️ نام باید <b>انگلیسی</b> باشد (حروف a-z، عدد، _ یا -)\n"
+            . "مثال: <code>kharid</code>\n\n"
+            . "دوباره فقط <code>/savemoji</code> بزنید.",
+            $backadmin,
+            'HTML'
+        );
+        step('home', $from_id);
+        return;
+    }
     update('user', 'Processing_value', $pendingEmojiName, 'id', $from_id);
     sendmessage(
         $from_id,
-        '✅ نام ایموجی: <b>' . htmlspecialchars($pendingEmojiName, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
-        . 'حالا همان ایموجی پرمیوم را در یک پیام برای ربات بفرستید.',
+        '✅ کد: <code>{emoji:' . htmlspecialchars($pendingEmojiName, ENT_QUOTES, 'UTF-8') . "}</code>\n\n"
+        . 'حالا همان ایموجی Premium را بفرستید.',
         $backadmin,
         'HTML'
     );
@@ -105,14 +117,24 @@ if (in_array($text, $textadmin) || $datain == "admin") {
 } elseif (($user['step'] ?? '') === 'savemoji_name') {
     $pendingEmojiName = trim((string) $text);
     if ($pendingEmojiName === '' || strpos($pendingEmojiName, '/') === 0) {
-        sendmessage($from_id, '⚠️ لطفاً یک نام فارسی/انگلیسی برای ایموجی بفرستید (بدون دستور).', $backadmin, 'HTML');
+        sendmessage($from_id, '⚠️ یک نام انگلیسی بفرستید — مثال: <code>kharid</code>', $backadmin, 'HTML');
+        return;
+    }
+    if (!preg_match('/^[a-zA-Z0-9_-]{1,58}$/', $pendingEmojiName)) {
+        sendmessage(
+            $from_id,
+            "⚠️ فقط حروف انگلیسی، عدد، <code>_</code> و <code>-</code>\n"
+            . 'مثال: <code>wallet</code> یا <code>buy_btn</code>',
+            $backadmin,
+            'HTML'
+        );
         return;
     }
     update('user', 'Processing_value', $pendingEmojiName, 'id', $from_id);
     sendmessage(
         $from_id,
-        '✅ نام: <b>' . htmlspecialchars($pendingEmojiName, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
-        . 'حالا ایموجی پرمیوم را بفرستید.',
+        '✅ کد: <code>{emoji:' . htmlspecialchars($pendingEmojiName, ENT_QUOTES, 'UTF-8') . "}</code>\n\n"
+        . 'حالا ایموجی Premium را بفرستید.',
         $backadmin,
         'HTML'
     );
