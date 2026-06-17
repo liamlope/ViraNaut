@@ -73,12 +73,12 @@ include __DIR__ . '/inc/layout_head.php';
         </div>
         <div class="card-body">
             <ol class="be-steps">
-                <li>در ربات: <code>/savemoji کیف پول</code> → ایموجی پرمیوم را بفرستید</li>
-                <li>اینجا نام را ویرایش کنید (همان نامی که در کد استفاده می‌شود)</li>
-                <li>در متن ربات یا متن دکمه بنویسید: <code>{emoji:کیف پول}</code> — دقیقاً همان نام</li>
-                <li>برای آیکون چپ دکمه (Premium API): «چیدمان منو» → انتخاب ایموجی از لیست</li>
+                <li>در ربات: <code>/savemoji test</code> → ایموجی پرمیوم را بفرستید</li>
+                <li>کد ثابت <code>{emoji:test}</code> (slug) — با تغییر «نام نمایشی» عوض نمی‌شود</li>
+                <li>در متن دکمه: <code>{emoji:test}خرید اشتراک</code> → اولین emoji = متحرک چپ Premium</li>
+                <li>ایموجی دوم/سوم در متن = ثابت (محدودیت API تلگرام برای دکمه)</li>
             </ol>
-            <p class="field-hint" style="margin:12px 0 0">مثال متن: <code>سلام {emoji:کیف پول} به فروشگاه خوش آمدید</code></p>
+            <p class="field-hint" style="margin:12px 0 0">اگر قبلاً با نام قدیمی نوشته‌اید، کد جدید را از ستون «کد» کپی کنید.</p>
         </div>
     </div>
 
@@ -99,9 +99,10 @@ include __DIR__ . '/inc/layout_head.php';
                     <table class="table be-table">
                         <thead>
                             <tr>
-                                <th>نام (قابل ویرایش)</th>
+                                <th>نام نمایشی</th>
+                                <th>slug</th>
                                 <th>پیش‌نمایش</th>
-                                <th>کد در متن / دکمه</th>
+                                <th>کد در متن</th>
                                 <th>شناسه تلگرام</th>
                                 <th></th>
                             </tr>
@@ -116,7 +117,10 @@ include __DIR__ . '/inc/layout_head.php';
                                             value="<?= htmlspecialchars($row['emoji_name']) ?>" required
                                             aria-label="نام ایموجی">
                                     </td>
-                                    <td class="be-preview"><?= htmlspecialchars($row['emoji_utf8'] ?? '—') ?></td>
+                                    <td>
+                                        <code class="be-code" dir="ltr"><?= htmlspecialchars((string) ($row['emoji_slug'] ?? '')) ?></code>
+                                    </td>
+                                    <td style="font-size:1.35rem;text-align:center"><?= htmlspecialchars($row['emoji_utf8'] ?? '—') ?></td>
                                     <td>
                                         <?php if ($placeholder !== ''): ?>
                                             <div class="be-code-wrap">

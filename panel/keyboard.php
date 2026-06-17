@@ -106,7 +106,7 @@ include __DIR__ . '/inc/layout_head.php';
             </div>
         </div>
         <div class="card-body">
-            <p class="field-hint" style="margin-bottom:12px">برای ایموجی در متن دکمه بروید به <a href="bot-texts.php">متن‌های ربات</a> و بنویسید مثلاً <code>{emoji:test}خرید اشتراک</code></p>
+            <p class="field-hint" style="margin-bottom:12px">متن و ایموجی فقط اینجا. مثال دکمه: <code>{emoji:test}خرید اشتراک</code> — اولین emoji متحرک چپ است.</p>
             <div id="kbPreview" class="kb-preview">
                 <?php foreach ($keyboardData['keyboard'] as $ri => $row): ?>
                     <div class="kb-row" data-row="<?= (int) $ri ?>">

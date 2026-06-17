@@ -77,16 +77,16 @@ if ($users == false) {
     );
 }
 $replacements = [
-    'text_usertest' => mirza_keyboard_label_text($datatextbot, 'text_usertest', $textbotlang['textbot']['userTest'] ?? ''),
-    'text_Purchased_services' => mirza_keyboard_label_text($datatextbot, 'text_Purchased_services', $textbotlang['textbot']['purchasedServices'] ?? ''),
-    'text_support' => mirza_keyboard_label_text($datatextbot, 'text_support', $textbotlang['textbot']['support'] ?? ''),
-    'text_help' => mirza_keyboard_label_text($datatextbot, 'text_help', $textbotlang['textbot']['help'] ?? ''),
-    'accountwallet' => mirza_keyboard_label_text($datatextbot, 'accountwallet', $textbotlang['textbot']['accountWallet'] ?? ''),
-    'text_sell' => mirza_keyboard_label_text($datatextbot, 'text_sell', $textbotlang['textbot']['sell'] ?? ''),
-    'text_Tariff_list' => mirza_keyboard_label_text($datatextbot, 'text_Tariff_list', $textbotlang['textbot']['tariffList'] ?? ''),
-    'text_affiliates' => mirza_keyboard_label_text($datatextbot, 'text_affiliates', $textbotlang['textbot']['affiliates'] ?? ''),
-    'text_wheel_luck' => mirza_keyboard_label_text($datatextbot, 'text_wheel_luck', $textbotlang['textbot']['wheelLuck'] ?? ''),
-    'text_extend' => mirza_keyboard_label_text($datatextbot, 'text_extend', $textbotlang['textbot']['extend'] ?? ''),
+    'text_usertest' => mirza_keyboard_raw_label($datatextbot, 'text_usertest', $textbotlang['textbot']['userTest'] ?? ''),
+    'text_Purchased_services' => mirza_keyboard_raw_label($datatextbot, 'text_Purchased_services', $textbotlang['textbot']['purchasedServices'] ?? ''),
+    'text_support' => mirza_keyboard_raw_label($datatextbot, 'text_support', $textbotlang['textbot']['support'] ?? ''),
+    'text_help' => mirza_keyboard_raw_label($datatextbot, 'text_help', $textbotlang['textbot']['help'] ?? ''),
+    'accountwallet' => mirza_keyboard_raw_label($datatextbot, 'accountwallet', $textbotlang['textbot']['accountWallet'] ?? ''),
+    'text_sell' => mirza_keyboard_raw_label($datatextbot, 'text_sell', $textbotlang['textbot']['sell'] ?? ''),
+    'text_Tariff_list' => mirza_keyboard_raw_label($datatextbot, 'text_Tariff_list', $textbotlang['textbot']['tariffList'] ?? ''),
+    'text_affiliates' => mirza_keyboard_raw_label($datatextbot, 'text_affiliates', $textbotlang['textbot']['affiliates'] ?? ''),
+    'text_wheel_luck' => mirza_keyboard_raw_label($datatextbot, 'text_wheel_luck', $textbotlang['textbot']['wheelLuck'] ?? ''),
+    'text_extend' => mirza_keyboard_raw_label($datatextbot, 'text_extend', $textbotlang['textbot']['extend'] ?? ''),
 ];
 $admin_idss = select("admin", "*", "id_admin", $from_id, "count");
 $temp_addtional_key = [];

@@ -150,9 +150,9 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     sendmessage(
         $from_id,
         "✅ ایموجی <b>" . htmlspecialchars($emojiLabel, ENT_QUOTES, 'UTF-8') . "</b> ذخیره شد.\n\n"
-        . "🆔 شناسه کتابخانه: <code>" . (int) ($saveResult['id'] ?? 0) . "</code>\n"
-        . "🔗 از پنل وب روی دکمه‌ها و متن‌ها set کنید:\n"
-        . $panelUrl,
+        . "🆔 شناسه: <code>" . (int) ($saveResult['id'] ?? 0) . "</code>\n"
+        . "🔗 کد ثابت (rename نام را عوض نمی‌کند):\n<code>{emoji:" . htmlspecialchars((string) ($saveResult['slug'] ?? ''), ENT_QUOTES, 'UTF-8') . "}</code>\n\n"
+        . "مثال دکمه:\n<code>{emoji:" . htmlspecialchars((string) ($saveResult['slug'] ?? ''), ENT_QUOTES, 'UTF-8') . "}خرید اشتراک</code>",
         $backadmin,
         'HTML'
     );

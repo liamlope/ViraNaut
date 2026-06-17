@@ -57,9 +57,17 @@ function mirza_panel_load_datatextbot(PDO $pdo): array
 
 function mirza_panel_keyboard_label(string $keyId, array $datatextbot, array $catalog): string
 {
-    $label = trim($datatextbot[$keyId] ?? '');
-    if ($label !== '') {
-        return function_exists('mirza_textbot_display') ? mirza_textbot_display($label) : $label;
+    $raw = trim($datatextbot[$keyId] ?? '');
+    if ($raw !== '') {
+        if (function_exists('mirza_resolve_keyboard_button')) {
+            $resolved = mirza_resolve_keyboard_button($raw);
+            $label = $resolved['text'];
+            if (!empty($resolved['icon_custom_emoji_id'])) {
+                $label = '◆ ' . $label;
+            }
+            return $label !== '' ? $label : mirza_textbot_display($raw);
+        }
+        return $raw;
     }
     return $catalog[$keyId] ?? $keyId;
 }

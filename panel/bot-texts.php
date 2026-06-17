@@ -90,7 +90,7 @@ include __DIR__ . '/inc/layout_head.php';
     <?php if ($emojiLibrary !== []): ?>
         <div class="card bt-emoji-bar">
             <div class="bt-emoji-bar-title">ایموجی — کلیک یا بکشید روی متن</div>
-            <div class="bt-emoji-bar-hint">کد <code>{emoji:نام}</code> هر جای متن: اول، وسط، آخر</div>
+            <div class="bt-emoji-bar-hint">اولین <code>{emoji:slug}</code> در دکمه = Premium متحرک · بقیه در پیام = متحرک · slug از کتابخانه کپی کنید</div>
             <div class="bt-emoji-chips" id="btEmojiChips">
                 <?php foreach ($emojiLibrary as $emojiRow):
                     $ph = mirza_emoji_placeholder($emojiRow);
