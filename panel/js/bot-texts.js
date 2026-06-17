@@ -1,4 +1,37 @@
 (function () {
+    var EMOJI_RE = /\{emoji:[^}]+\}/g;
+
+    function countEmojiPlaceholders(text) {
+        if (!text) return 0;
+        var m = text.match(EMOJI_RE);
+        return m ? m.length : 0;
+    }
+
+    function limitButtonEmojis(text) {
+        var seen = 0;
+        var trimmed = false;
+        var out = text.replace(EMOJI_RE, function (match) {
+            seen++;
+            if (seen <= 1) return match;
+            trimmed = true;
+            return '';
+        });
+        out = out.replace(/\s{2,}/g, ' ').trim();
+        return { text: out, trimmed: trimmed };
+    }
+
+    function isKeyboardBtnTextarea(ta) {
+        return ta && ta.getAttribute('data-keyboard-btn') === '1';
+    }
+
+    function warnKeyboardEmoji(ta) {
+        var warn = ta.parentElement ? ta.parentElement.querySelector('.bt-kbd-emoji-warn') : null;
+        if (!warn) return;
+        var over = countEmojiPlaceholders(ta.value) > 1;
+        warn.hidden = !over;
+        ta.classList.toggle('bt-area-kbd-over', over);
+    }
+
     var search = document.getElementById('botTextsSearch');
     var clearBtn = document.getElementById('botTextsSearchClear');
     var noMatch = document.getElementById('botTextsNoMatch');
@@ -19,6 +52,7 @@
         });
         ta.addEventListener('input', function () {
             syncSearch(ta);
+            warnKeyboardEmoji(ta);
             if (search && search.value.trim() !== '') {
                 applySearch();
             }
@@ -37,15 +71,16 @@
             ta.classList.remove('bt-drag-over');
             focusedTextarea = ta;
             ta.focus();
-            if (typeof e.dataTransfer !== 'undefined') {
-                var pos = ta.selectionStart;
-                if (document.caretPositionFromPoint || document.caretRangeFromPoint) {
-                    /* keep cursor if possible */
-                }
+            if (isKeyboardBtnTextarea(ta) && countEmojiPlaceholders(ta.value) >= 1) {
+                dragEmojiCode = null;
+                warnKeyboardEmoji(ta);
+                return;
             }
             insertAtCursor(ta, dragEmojiCode);
             dragEmojiCode = null;
+            warnKeyboardEmoji(ta);
         });
+        warnKeyboardEmoji(ta);
     });
 
     function syncSearch(ta) {
@@ -68,6 +103,10 @@
     }
 
     function insertAtCursor(ta, text) {
+        if (isKeyboardBtnTextarea(ta) && /^\{emoji:[^}]+\}$/.test(text) && countEmojiPlaceholders(ta.value) >= 1) {
+            warnKeyboardEmoji(ta);
+            return false;
+        }
         var start = ta.selectionStart;
         var end = ta.selectionEnd;
         var val = ta.value;
@@ -75,6 +114,8 @@
         var pos = start + text.length;
         ta.setSelectionRange(pos, pos);
         syncSearch(ta);
+        warnKeyboardEmoji(ta);
+        return true;
     }
 
     function insertVar(varName) {
@@ -82,7 +123,7 @@
             focusedTextarea = document.querySelector('.bt-area');
         }
         if (!focusedTextarea) return;
-        insertAtCursor(focusedTextarea, varName);
+        if (!insertAtCursor(focusedTextarea, varName)) return;
         focusedTextarea.focus();
     }
 
@@ -213,4 +254,17 @@
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') closeDrawer();
     });
+
+    var botTextsForm = document.getElementById('botTextsForm');
+    if (botTextsForm) {
+        botTextsForm.addEventListener('submit', function () {
+            document.querySelectorAll('.bt-area-kbd').forEach(function (ta) {
+                var limited = limitButtonEmojis(ta.value);
+                if (limited.trimmed) {
+                    ta.value = limited.text;
+                    warnKeyboardEmoji(ta);
+                }
+            });
+        });
+    }
 }());

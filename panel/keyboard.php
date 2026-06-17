@@ -106,7 +106,7 @@ include __DIR__ . '/inc/layout_head.php';
             </div>
         </div>
         <div class="card-body">
-            <p class="field-hint" style="margin-bottom:12px">متن و ایموجی فقط اینجا. مثال دکمه: <code>{emoji:test}خرید اشتراک</code> — اولین emoji متحرک چپ است.</p>
+            <p class="field-hint" style="margin-bottom:12px">متن دکمه: حداکثر یک <code>{emoji:slug}</code> — مثال: <code>{emoji:test}خرید اشتراک</code></p>
             <div id="kbPreview" class="kb-preview">
                 <?php foreach ($keyboardData['keyboard'] as $ri => $row): ?>
                     <div class="kb-row" data-row="<?= (int) $ri ?>">

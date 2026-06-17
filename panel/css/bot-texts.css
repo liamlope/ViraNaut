@@ -418,3 +418,12 @@
   font-size: 1.1rem;
   line-height: 1;
 }
+
+.bt-kbd-emoji-warn {
+  margin: 6px 0 0;
+  color: var(--warn, #c47a00);
+}
+
+.bt-area-kbd-over {
+  border-color: var(--warn, #c47a00) !important;
+}

@@ -19,6 +19,21 @@ function mirza_panel_keyboard_catalog(): array
     ];
 }
 
+/** id_textهایی که برچسب دکمه Reply/Inline کیبورد هستند — حداکثر یک {emoji:…} پرمیوم. */
+function mirza_panel_keyboard_button_text_ids(): array
+{
+    $ids = array_keys(mirza_panel_keyboard_catalog());
+    foreach (['textrequestagent', 'textpanelagent', 'text_Discount', 'text_Add_Balance', 'text_fq'] as $extra) {
+        $ids[] = $extra;
+    }
+    return array_values(array_unique($ids));
+}
+
+function mirza_panel_is_keyboard_button_text(string $idText): bool
+{
+    return in_array($idText, mirza_panel_keyboard_button_text_ids(), true);
+}
+
 function mirza_panel_default_keyboard_json(): string
 {
     return '{"keyboard":[[{"text":"text_sell"},{"text":"text_extend"}],[{"text":"text_usertest"},{"text":"text_wheel_luck"}],[{"text":"text_Purchased_services"},{"text":"accountwallet"}],[{"text":"text_affiliates"},{"text":"text_Tariff_list"}],[{"text":"text_support"},{"text":"text_help"}]]}';

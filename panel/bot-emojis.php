@@ -75,8 +75,8 @@ include __DIR__ . '/inc/layout_head.php';
             <ol class="be-steps">
                 <li>در ربات: <code>/savemoji test</code> → ایموجی پرمیوم را بفرستید</li>
                 <li>کد ثابت <code>{emoji:test}</code> (slug) — با تغییر «نام نمایشی» عوض نمی‌شود</li>
-                <li>در متن دکمه: <code>{emoji:test}خرید اشتراک</code> → اولین emoji = متحرک چپ Premium</li>
-                <li>ایموجی دوم/سوم در متن = ثابت (محدودیت API تلگرام برای دکمه)</li>
+                <li>در متن دکمه: <code>{emoji:test}خرید اشتراک</code> — فقط یک emoji (محدودیت تلگرام)</li>
+                <li>در پیام متنی: چند emoji Premium مجاز است</li>
             </ol>
             <p class="field-hint" style="margin:12px 0 0">اگر قبلاً با نام قدیمی نوشته‌اید، کد جدید را از ستون «کد» کپی کنید.</p>
         </div>

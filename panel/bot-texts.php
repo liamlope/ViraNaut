@@ -28,11 +28,20 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
     $updated = 0;
+    $emojiTrimmed = 0;
+    $keyboardBtnIds = mirza_panel_keyboard_button_text_ids();
     foreach ($allIds as $id) {
         if (!array_key_exists('text_' . $id, $_POST)) {
             continue;
         }
         $val = (string) ($_POST['text_' . $id] ?? '');
+        if (in_array($id, $keyboardBtnIds, true) && function_exists('mirza_limit_button_emoji_placeholders')) {
+            $limited = mirza_limit_button_emoji_placeholders($val, 1);
+            if ($limited['trimmed']) {
+                $emojiTrimmed++;
+            }
+            $val = $limited['text'];
+        }
         $exists = db_count($pdo, 'SELECT COUNT(*) FROM textbot WHERE id_text = ?', [$id]);
         if ($exists > 0) {
             db_query($pdo, 'UPDATE textbot SET text = ? WHERE id_text = ?', [$val, $id]);
@@ -42,11 +51,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $texts[$id] = $val;
         $updated++;
     }
-    flash('success', $updated > 0 ? 'متن‌ها ذخیره و اعمال شدند (' . $updated . ' مورد).' : 'تغییری ذخیره نشد.');
+    $msg = $updated > 0 ? 'متن‌ها ذخیره و اعمال شدند (' . $updated . ' مورد).' : 'تغییری ذخیره نشد.';
+    if ($emojiTrimmed > 0) {
+        $msg .= ' برای ' . $emojiTrimmed . ' دکمه، emoji اضافی حذف شد (تلگرام فقط یک Premium per دکمه).';
+    }
+    flash('success', $msg);
     header('Location: bot-texts.php');
     exit;
 }
 
+$keyboardBtnIds = mirza_panel_keyboard_button_text_ids();
 $totalCount = count($allIds);
 $filledCount = 0;
 foreach ($allIds as $id) {
@@ -90,7 +104,7 @@ include __DIR__ . '/inc/layout_head.php';
     <?php if ($emojiLibrary !== []): ?>
         <div class="card bt-emoji-bar">
             <div class="bt-emoji-bar-title">ایموجی — کلیک یا بکشید روی متن</div>
-            <div class="bt-emoji-bar-hint">اولین <code>{emoji:slug}</code> در دکمه = Premium متحرک · بقیه در پیام = متحرک · slug از کتابخانه کپی کنید</div>
+            <div class="bt-emoji-bar-hint">در <b>دکمه‌های منو</b> فقط یک <code>{emoji:slug}</code> · در <b>پیام‌ها</b> نامحدود</div>
             <div class="bt-emoji-chips" id="btEmojiChips">
                 <?php foreach ($emojiLibrary as $emojiRow):
                     $ph = mirza_emoji_placeholder($emojiRow);
@@ -134,6 +148,7 @@ include __DIR__ . '/inc/layout_head.php';
                             $hint = $meta['hint'] ?? '';
                             $rows = (int) ($meta['rows'] ?? 3);
                             $vars = $meta['vars'] ?? [];
+                            $isKeyboardBtn = in_array($id, $keyboardBtnIds, true);
                             $searchBlob = mb_strtolower($label . ' ' . $id . ' ' . $val . ' ' . $hint . ' ' . $groupName, 'UTF-8');
                             ?>
                             <article class="bt-item" data-search="<?= htmlspecialchars($searchBlob) ?>">
@@ -162,8 +177,13 @@ include __DIR__ . '/inc/layout_head.php';
                                     </div>
                                 <?php endif; ?>
                                 <textarea name="text_<?= htmlspecialchars($id) ?>" rows="<?= max(2, min(12, $rows)) ?>"
-                                    class="input bt-area bt-area-drop" data-id="<?= htmlspecialchars($id) ?>"
-                                    placeholder="متن نمایشی در ربات — {emoji:نام} هر جا که بخواهید"><?= htmlspecialchars($val) ?></textarea>
+                                    class="input bt-area bt-area-drop<?= $isKeyboardBtn ? ' bt-area-kbd' : '' ?>"
+                                    data-id="<?= htmlspecialchars($id) ?>"
+                                    <?= $isKeyboardBtn ? 'data-keyboard-btn="1"' : '' ?>
+                                    placeholder="<?= $isKeyboardBtn ? 'متن دکمه — حداکثر یک {emoji:slug} در ابتدا' : 'متن نمایشی در ربات — {emoji:نام} هر جا که بخواهید' ?>"><?= htmlspecialchars($val) ?></textarea>
+                                <?php if ($isKeyboardBtn): ?>
+                                    <p class="bt-kbd-emoji-warn field-hint" hidden>تلگرام فقط یک ایموجی Premium per دکمه — emoji اضافی حذف می‌شود.</p>
+                                <?php endif; ?>
                                 <?php if ($vars !== []): ?>
                                     <div class="bt-item-vars">
                                         <?php foreach ($vars as $v): ?>

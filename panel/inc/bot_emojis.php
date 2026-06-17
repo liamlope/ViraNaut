@@ -250,15 +250,50 @@ if (!function_exists('mirza_preserve_emoji_placeholders_html')) {
     }
 }
 
+if (!function_exists('mirza_count_emoji_placeholders')) {
+    function mirza_count_emoji_placeholders(string $text): int
+    {
+        return preg_match_all('/\{emoji:[^}]+\}/u', $text, $m) ? count($m[0]) : 0;
+    }
+}
+
+if (!function_exists('mirza_limit_button_emoji_placeholders')) {
+    /**
+     * برای دکمه کیبورد تلگرام: فقط اولین {emoji:…} نگه داشته می‌شود.
+     *
+     * @return array{text:string,trimmed:bool}
+     */
+    function mirza_limit_button_emoji_placeholders(string $text, int $max = 1): array
+    {
+        if ($max < 1 || strpos($text, '{emoji:') === false) {
+            return ['text' => $text, 'trimmed' => false];
+        }
+        $seen = 0;
+        $trimmed = false;
+        $out = (string) preg_replace_callback('/\{emoji:[^}]+\}/u', static function (array $m) use (&$seen, $max, &$trimmed) {
+            $seen++;
+            if ($seen <= $max) {
+                return $m[0];
+            }
+            $trimmed = true;
+            return '';
+        }, $text);
+        $out = trim(preg_replace('/\s{2,}/u', ' ', $out));
+        return ['text' => $out, 'trimmed' => $trimmed];
+    }
+}
+
 if (!function_exists('mirza_resolve_keyboard_button')) {
     /**
      * اولین {emoji:…} → icon_custom_emoji_id (پرمیوم متحرک چپ دکمه)
-     * بقیه → کاراکتر ثابت در متن (محدودیت API تلگرام)
+     * بقیه حذف می‌شوند (محدودیت API تلگرام — یک آیکون per دکمه)
      *
      * @return array{text:string,icon_custom_emoji_id:?string}
      */
     function mirza_resolve_keyboard_button(string $raw, ?PDO $pdo = null): array
     {
+        $limited = mirza_limit_button_emoji_placeholders($raw, 1);
+        $raw = $limited['text'];
         if (strpos($raw, '{emoji:') === false) {
             return ['text' => $raw, 'icon_custom_emoji_id' => null];
         }
@@ -274,8 +309,7 @@ if (!function_exists('mirza_resolve_keyboard_button')) {
                 $iconId = (string) $row['custom_emoji_id'];
                 return '';
             }
-            $char = (string) ($row['emoji_utf8'] ?? '');
-            return $char;
+            return '';
         }, $raw);
         $text = trim(preg_replace('/\s{2,}/u', ' ', $text));
         return ['text' => $text, 'icon_custom_emoji_id' => $iconId];
