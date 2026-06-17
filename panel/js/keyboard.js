@@ -7,10 +7,17 @@
   if (!preview || !form) return;
 
   var styleOptions = window.KB_STYLE_OPTIONS || { '': 'پیش‌فرض' };
+  var styleColors = window.KB_STYLE_COLORS || {};
 
-  var dragKey = null;
-  var dragLabel = null;
-  var dragFromPalette = false;
+  function applyBtnStylePreview(btn) {
+    btn.classList.remove('kb-btn-style-primary', 'kb-btn-style-success', 'kb-btn-style-danger');
+    var styleSel = btn.querySelector('.kb-style-select');
+    var style = styleSel ? styleSel.value : (btn.dataset.style || '');
+    btn.dataset.style = style;
+    if (style === 'primary' || style === 'success' || style === 'danger') {
+      btn.classList.add('kb-btn-style-' + style);
+    }
+  }
 
   function buildStyleSelect(selectedStyle) {
     var sel = document.createElement('select');
@@ -18,11 +25,18 @@
     Object.keys(styleOptions).forEach(function (key) {
       var opt = document.createElement('option');
       opt.value = key;
-      opt.textContent = styleOptions[key];
+      var label = styleOptions[key];
+      if (key && styleColors[key]) {
+        label = '● ' + label;
+      }
+      opt.textContent = label;
       if ((selectedStyle || '') === key) {
         opt.selected = true;
       }
       sel.appendChild(opt);
+    });
+    sel.addEventListener('change', function () {
+      applyBtnStylePreview(sel.closest('.kb-btn'));
     });
     return sel;
   }
@@ -44,12 +58,17 @@
     var meta = el.querySelector('.kb-btn-meta');
     var styleLabel = document.createElement('label');
     styleLabel.className = 'kb-mini-label';
-    styleLabel.textContent = 'استایل دکمه';
+    styleLabel.textContent = 'رنگ دکمه';
     meta.appendChild(styleLabel);
     meta.appendChild(buildStyleSelect(style));
     bindBtn(el);
+    applyBtnStylePreview(el);
     return el;
   }
+
+  var dragKey = null;
+  var dragLabel = null;
+  var dragFromPalette = false;
 
   function createPaletteItem(key, label) {
     var empty = palette.querySelector('.kb-palette-empty');
@@ -232,7 +251,17 @@
     });
   }
 
-  preview.querySelectorAll('.kb-btn').forEach(bindBtn);
+  preview.querySelectorAll('.kb-btn').forEach(function (btn) {
+    bindBtn(btn);
+    var styleSel = btn.querySelector('.kb-style-select');
+    if (styleSel && !styleSel.dataset.bound) {
+      styleSel.dataset.bound = '1';
+      styleSel.addEventListener('change', function () {
+        applyBtnStylePreview(btn);
+      });
+    }
+    applyBtnStylePreview(btn);
+  });
   preview.querySelectorAll('.kb-row').forEach(function (row) {
     bindRow(row);
     var add = row.querySelector('.kb-row-add');

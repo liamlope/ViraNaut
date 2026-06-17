@@ -499,13 +499,26 @@ if (!function_exists('mirza_custom_emoji_rename')) {
 }
 
 if (!function_exists('mirza_keyboard_button_styles')) {
+    /** برچسب پنل — مقدار API ثابت می‌ماند (primary/success/danger). */
     function mirza_keyboard_button_styles(): array
     {
         return [
             '' => 'پیش‌فرض',
-            'primary' => 'Primary',
-            'success' => 'Success',
-            'danger' => 'Danger',
+            'primary' => 'آبی',
+            'success' => 'سبز',
+            'danger' => 'قرمز',
+        ];
+    }
+}
+
+if (!function_exists('mirza_keyboard_style_colors')) {
+    /** رنگ‌های تقریبی دکمه در کلاینت تلگرام (Bot API 9.4+). */
+    function mirza_keyboard_style_colors(): array
+    {
+        return [
+            'primary' => '#3390ec',
+            'success' => '#4fae4e',
+            'danger' => '#e17076',
         ];
     }
 }

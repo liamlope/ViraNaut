@@ -177,10 +177,33 @@
   padding-top: 8px;
   border-top: 1px dashed var(--bd);
 }
+
+.kb-mini-label {
   display: block;
   font-size: 0.62rem;
   color: var(--mute);
   margin-bottom: 2px;
+}
+
+.kb-btn-style-primary {
+  border-color: #3390ec;
+  background: linear-gradient(180deg, rgba(51, 144, 236, 0.22) 0%, rgba(51, 144, 236, 0.1) 100%);
+}
+
+.kb-btn-style-success {
+  border-color: #4fae4e;
+  background: linear-gradient(180deg, rgba(79, 174, 78, 0.22) 0%, rgba(79, 174, 78, 0.1) 100%);
+}
+
+.kb-btn-style-danger {
+  border-color: #e17076;
+  background: linear-gradient(180deg, rgba(225, 112, 118, 0.22) 0%, rgba(225, 112, 118, 0.1) 100%);
+}
+
+.kb-btn-style-primary .kb-btn-label,
+.kb-btn-style-success .kb-btn-label,
+.kb-btn-style-danger .kb-btn-label {
+  color: var(--txt);
 }
 
 .kb-btn-meta .input-sm {

@@ -106,7 +106,10 @@ include __DIR__ . '/inc/layout_head.php';
             </div>
         </div>
         <div class="card-body">
-            <p class="field-hint" style="margin-bottom:12px">متن دکمه: حداکثر یک <code>{emoji:slug}</code> — مثال: <code>{emoji:test}خرید اشتراک</code></p>
+            <p class="field-hint" style="margin-bottom:12px">
+                رنگ دکمه (تلگرام Bot API 9.4+): <b>آبی</b> · <b>سبز</b> · <b>قرمز</b> — یا پیش‌فرض بدون رنگ.
+                متن: حداکثر یک <code>{emoji:slug}</code>
+            </p>
             <div id="kbPreview" class="kb-preview">
                 <?php foreach ($keyboardData['keyboard'] as $ri => $row): ?>
                     <div class="kb-row" data-row="<?= (int) $ri ?>">
@@ -122,7 +125,7 @@ include __DIR__ . '/inc/layout_head.php';
                                 <span class="kb-btn-label"><?= htmlspecialchars($label) ?></span>
                                 <span class="kb-btn-id"><?= htmlspecialchars($kid) ?></span>
                                 <div class="kb-btn-meta kb-btn-meta-style-only">
-                                    <label class="kb-mini-label">استایل دکمه</label>
+                                    <label class="kb-mini-label">رنگ دکمه</label>
                                     <select class="kb-style-select input input-sm">
                                         <?php foreach ($buttonStyles as $styleVal => $styleLabel): ?>
                                             <option value="<?= htmlspecialchars($styleVal) ?>"<?= $btnStyle === $styleVal ? ' selected' : '' ?>>
@@ -178,6 +181,7 @@ include __DIR__ . '/inc/layout_head.php';
 
 <script>
 window.KB_STYLE_OPTIONS = <?= json_encode($buttonStyles, JSON_UNESCAPED_UNICODE) ?>;
+window.KB_STYLE_COLORS = <?= json_encode(mirza_keyboard_style_colors(), JSON_UNESCAPED_UNICODE) ?>;
 </script>
 
 <?php include __DIR__ . '/inc/layout_foot.php'; ?>
