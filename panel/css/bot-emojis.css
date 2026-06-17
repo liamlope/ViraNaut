@@ -13,6 +13,14 @@
   margin-bottom: 0;
 }
 
+.be-steps-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--mute);
+  line-height: 1.5;
+}
+
 .be-guide-body {
   display: grid;
   gap: 0;

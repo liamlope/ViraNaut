@@ -73,8 +73,15 @@ include __DIR__ . '/inc/layout_head.php';
         </div>
         <div class="card-body be-guide-body">
             <ol class="be-steps">
-                <li>در تلگرام به ربات بزنید: <code>/savemoji test</code> سپس همان ایموجی Premium را بفرستید.</li>
-                <li>کد <code>{emoji:test}</code> را از جدول پایین <b>کپی</b> کنید. (عدد <code>test</code> همان slug است و با عوض کردن «نام نمایشی» تغییر نمی‌کند.)</li>
+                <li>
+                    در ربات فقط این دستور را بزنید: <code dir="ltr">/savemoji kharid</code>
+                    <span class="be-steps-note">— <code>kharid</code> یک نام دلخواه است (نه دستور جدا). می‌توانید هر اسم انگلیسی بگذارید.</span>
+                    بعد در پیام بعد همان ایموجی Premium را بفرستید.
+                </li>
+                <li>
+                    کد <code dir="ltr">{emoji:kharid}</code> را از ستون «کد در متن» جدول پایین <b>کپی</b> کنید.
+                    <span class="be-steps-note">این کد ثابت است؛ با عوض کردن «نام نمایشی» در پنل تغییر نمی‌کند.</span>
+                </li>
                 <li>در <a href="bot-texts.php">متن‌های ربات</a> داخل متن دکمه یا پیام بچسبانید و ذخیره کنید.</li>
             </ol>
 
@@ -82,12 +89,12 @@ include __DIR__ . '/inc/layout_head.php';
                 <div class="be-guide-box">
                     <div class="be-guide-box-title">دکمهٔ منو</div>
                     <p>فقط <b>یک</b> emoji — محدودیت تلگرام</p>
-                    <code dir="ltr">{emoji:test}خرید اشتراک</code>
+                    <code dir="ltr">{emoji:kharid}خرید اشتراک</code>
                 </div>
                 <div class="be-guide-box">
                     <div class="be-guide-box-title">پیام متنی</div>
                     <p>چند emoji در هر جای متن</p>
-                    <code dir="ltr">سلام {emoji:test} خوش آمدید</code>
+                    <code dir="ltr">سلام {emoji:kharid} خوش آمدید</code>
                 </div>
             </div>
         </div>
