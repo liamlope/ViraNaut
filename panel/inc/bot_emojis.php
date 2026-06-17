@@ -212,6 +212,44 @@ if (!function_exists('mirza_emoji_placeholder')) {
     }
 }
 
+if (!function_exists('mirza_emoji_code_html')) {
+    /** نمایش literal ‎{emoji:slug}‎ در HTML بدون resolve شدن توسط sendmessage. */
+    function mirza_emoji_code_html(string $slug): string
+    {
+        $slug = trim($slug);
+        if ($slug === '') {
+            return '';
+        }
+        return '&#123;emoji:' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '&#125;';
+    }
+}
+
+if (!function_exists('mirza_preserve_emoji_placeholders_html')) {
+    /** متن را برای نمایش داخل &lt;code&gt; آماده می‌کند تا placeholderها resolve نشوند. */
+    function mirza_preserve_emoji_placeholders_html(string $text): string
+    {
+        if (strpos($text, '{emoji:') === false) {
+            return htmlspecialchars($text, ENT_NOQUOTES, 'UTF-8');
+        }
+        $parts = preg_split('/(\{emoji:[^}]+\})/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if (!is_array($parts)) {
+            return htmlspecialchars($text, ENT_NOQUOTES, 'UTF-8');
+        }
+        $out = '';
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+            if (preg_match('/^\{emoji:([^}]+)\}$/u', $part, $m)) {
+                $out .= mirza_emoji_code_html($m[1]);
+            } else {
+                $out .= htmlspecialchars($part, ENT_NOQUOTES, 'UTF-8');
+            }
+        }
+        return $out;
+    }
+}
+
 if (!function_exists('mirza_resolve_keyboard_button')) {
     /**
      * اولین {emoji:…} → icon_custom_emoji_id (پرمیوم متحرک چپ دکمه)

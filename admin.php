@@ -146,13 +146,15 @@ if (in_array($text, $textadmin) || $datain == "admin") {
         sendmessage($from_id, '❌ ذخیره نشد: ' . ($saveResult['error'] ?? 'خطای نامشخص'), $backadmin, 'HTML');
         return;
     }
-    $panelUrl = function_exists('bot_site_https_url') ? bot_site_https_url('panel/bot-emojis.php') : "https://{$domainhosts}/panel/bot-emojis.php";
+    $emojiSlug = trim((string) ($saveResult['slug'] ?? ''));
+    $emojiCodeHtml = mirza_emoji_code_html($emojiSlug);
     sendmessage(
         $from_id,
         "✅ ایموجی <b>" . htmlspecialchars($emojiLabel, ENT_QUOTES, 'UTF-8') . "</b> ذخیره شد.\n\n"
         . "🆔 شناسه: <code>" . (int) ($saveResult['id'] ?? 0) . "</code>\n"
-        . "🔗 کد ثابت (rename نام را عوض نمی‌کند):\n<code>{emoji:" . htmlspecialchars((string) ($saveResult['slug'] ?? ''), ENT_QUOTES, 'UTF-8') . "}</code>\n\n"
-        . "مثال دکمه:\n<code>{emoji:" . htmlspecialchars((string) ($saveResult['slug'] ?? ''), ENT_QUOTES, 'UTF-8') . "}خرید اشتراک</code>",
+        . "🔗 کد ثابت (rename نام را عوض نمی‌کند):\n<code>" . $emojiCodeHtml . "</code>\n\n"
+        . "مثال دکمه (فقط یک emoji کافی است):\n<code>" . $emojiCodeHtml . "خرید اشتراک</code>\n\n"
+        . "ℹ️ در هر دکمه فقط <b>اولین</b> emoji پرمیوم متحرک می‌شود — محدودیت API تلگرام.",
         $backadmin,
         'HTML'
     );
