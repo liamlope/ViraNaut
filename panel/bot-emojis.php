@@ -73,14 +73,7 @@ include __DIR__ . '/inc/layout_head.php';
         </div>
         <div class="card-body be-guide-body">
             <ol class="be-steps">
-                <li>
-                    در ربات فقط بزنید: <code dir="ltr">/savemoji</code>
-                </li>
-                <li>
-                    یک <b>نام انگلیسی</b> بفرستید — مثال: <code dir="ltr">kharid</code>
-                    <span class="be-steps-note">همان slug می‌شود → <code dir="ltr">{emoji:kharid}</code></span>
-                </li>
-                <li>ایموجی Premium را بفرستید، بعد کد را از جدول پایین در <a href="bot-texts.php">متن‌های ربات</a> استفاده کنید.</li>
+                <li>در ربات بزنید <code dir="ltr">/savemoji</code> → نام انگلیسی (مثال <code>kharid</code>) → ایموجی Premium</li>
             </ol>
 
             <div class="be-guide-grid">

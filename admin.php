@@ -83,9 +83,8 @@ if (in_array($text, $textadmin) || $datain == "admin") {
         sendmessage(
             $from_id,
             "🎨 <b>ذخیره ایموجی پرمیوم</b>\n\n"
-            . "۱. فقط بزنید: <code>/savemoji</code>\n"
-            . "۲. یک <b>نام انگلیسی</b> بفرستید — مثال: <code>kharid</code> یا <code>wallet</code>\n"
-            . "۳. همان ایموجی Premium را در پیام بعد بفرستید",
+            . "یک <b>نام انگلیسی</b> بفرستید — مثال: <code>kharid</code> یا <code>wallet</code>\n"
+            . "بعد همان ایموجی Premium را در پیام بعد بفرستید.",
             $backadmin,
             'HTML'
         );
