@@ -111,7 +111,7 @@ include __DIR__ . '/inc/layout_head.php';
             </div>
         </div>
         <div class="card-body">
-            <p class="field-hint" style="margin-bottom:12px">ابتدا با <code>/savemoji</code> در ربات ایموجی را ذخیره کنید، سپس برای هر دکمه از منوی «ایموجی» انتخاب کنید.</p>
+            <p class="field-hint" style="margin-bottom:12px">برای جای ایموجی در <strong>متن دکمه</strong> از <code>{emoji:نام}</code> در «متن‌های ربات» استفاده کنید. برای <strong>آیکون چپ Premium</strong> اینجا انتخاب کنید.</p>
             <div id="kbPreview" class="kb-preview">
                 <?php foreach ($keyboardData['keyboard'] as $ri => $row): ?>
                     <div class="kb-row" data-row="<?= (int) $ri ?>">

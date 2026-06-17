@@ -334,29 +334,52 @@
 }
 
 .bt-emoji-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
-    margin-bottom: 8px;
-    padding: 8px 10px;
-    background: var(--bg);
-    border: 1px dashed var(--bd);
-    border-radius: 8px;
+  display: none;
 }
 
-.bt-emoji-row label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--txt);
+.bt-emoji-bar {
+  margin-bottom: 14px;
+  padding: 14px 18px;
 }
 
-.bt-emoji-row select {
-    min-width: 180px;
-    max-width: 100%;
+.bt-emoji-bar-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 4px;
 }
 
-.bt-emoji-row .field-hint {
-    font-size: 0.72rem;
-    margin: 0;
+.bt-emoji-bar-hint {
+  font-size: 0.75rem;
+  color: var(--mute);
+  margin-bottom: 10px;
+}
+
+.bt-emoji-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bt-emoji-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--bd);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--txt);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.bt-emoji-chip:hover {
+  border-color: var(--ac);
+  background: var(--sf);
+}
+
+.bt-emoji-chip-glyph {
+  font-size: 1.1rem;
+  line-height: 1;
 }

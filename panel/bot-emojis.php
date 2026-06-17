@@ -32,20 +32,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: bot-emojis.php');
         exit;
     }
+
+    if ($action === 'save_all') {
+        $names = $_POST['names'] ?? [];
+        $saved = 0;
+        if (is_array($names)) {
+            foreach ($names as $id => $name) {
+                $id = (int) $id;
+                $name = trim((string) $name);
+                if ($id > 0 && $name !== '' && mirza_custom_emoji_rename($id, $name)) {
+                    $saved++;
+                }
+            }
+        }
+        flash('success', $saved > 0 ? "نام {$saved} ایموجی ذخیره شد." : 'تغییری ذخیره نشد.');
+        header('Location: bot-emojis.php');
+        exit;
+    }
 }
 
 $pageTitle = 'کتابخانه ایموجی پرمیوم';
-$pageLede = 'ایموجی‌های ذخیره‌شده با /savemoji — برای دکمه‌ها و متن‌های ربات';
+$pageLede = 'نام + کد {emoji:…} — در هر نقطهٔ متن یا دکمه';
 $activeNav = 'bot-emojis';
+$extraCss = ['css/bot-emojis.css'];
+$extraJs = ['js/bot-emojis.js'];
 include __DIR__ . '/inc/layout_head.php';
 ?>
 
-<div class="fade-up" style="display:grid;gap:14px">
+<div class="fade-up be-page" style="display:grid;gap:14px">
     <div class="card">
         <div class="card-head">
             <div>
-                <div class="card-title">چطور ایموجی اضافه کنم؟</div>
-                <div class="card-subtitle">فقط ادمین · نیاز به Telegram Premium روی مالک ربات</div>
+                <div class="card-title">چطور استفاده کنم؟</div>
+                <div class="card-subtitle">ایموجی را هر جای متن یا دکمه بگذارید — چپ، وسط، راست</div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <a href="keyboard.php" class="btn btn-ghost btn-sm">چیدمان منو</a>
@@ -53,53 +72,69 @@ include __DIR__ . '/inc/layout_head.php';
             </div>
         </div>
         <div class="card-body">
-            <ol style="margin:0;padding-right:20px;line-height:1.8;color:var(--txt)">
-                <li>در چت خصوسی ربات بنویسید: <code>/savemoji نام</code> (مثلاً <code>/savemoji کیف پول</code>)</li>
-                <li>همان ایموجی پرمیوم (Custom Emoji) را در پیام بعد بفرستید — نه استیکر معمولی</li>
-                <li>اینجا نام و شناسه ذخیره می‌شود؛ در «چیدمان منو» یا «متن‌های ربات» انتخابش کنید</li>
+            <ol class="be-steps">
+                <li>در ربات: <code>/savemoji کیف پول</code> → ایموجی پرمیوم را بفرستید</li>
+                <li>اینجا نام را ویرایش کنید (همان نامی که در کد استفاده می‌شود)</li>
+                <li>در متن ربات یا متن دکمه بنویسید: <code>{emoji:کیف پول}</code> — دقیقاً همان نام</li>
+                <li>برای آیکون چپ دکمه (Premium API): «چیدمان منو» → انتخاب ایموجی از لیست</li>
             </ol>
+            <p class="field-hint" style="margin:12px 0 0">مثال متن: <code>سلام {emoji:کیف پول} به فروشگاه خوش آمدید</code></p>
         </div>
     </div>
 
-    <div class="card">
+    <form method="post" class="card">
+        <input type="hidden" name="_csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
+        <input type="hidden" name="action" value="save_all">
         <div class="card-head">
             <div class="card-title">ایموجی‌های ذخیره‌شده (<?= count($emojiLibrary) ?>)</div>
+            <?php if ($emojiLibrary !== []): ?>
+                <button type="submit" class="btn btn-primary btn-sm">ذخیره همهٔ نام‌ها</button>
+            <?php endif; ?>
         </div>
         <div class="card-body" style="padding:0">
             <?php if ($emojiLibrary === []): ?>
                 <p class="field-hint" style="padding:18px">هنوز ایموجی ذخیره نشده. با <code>/savemoji</code> در ربات شروع کنید.</p>
             <?php else: ?>
                 <div class="table-wrap">
-                    <table class="table">
+                    <table class="table be-table">
                         <thead>
                             <tr>
-                                <th>نام (برای پنل)</th>
-                                <th>نمایش</th>
+                                <th>نام (قابل ویرایش)</th>
+                                <th>پیش‌نمایش</th>
+                                <th>کد در متن / دکمه</th>
                                 <th>شناسه تلگرام</th>
-                                <th>عملیات</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($emojiLibrary as $row): ?>
+                            <?php foreach ($emojiLibrary as $row):
+                                $placeholder = mirza_emoji_placeholder($row);
+                                ?>
                                 <tr>
                                     <td>
-                                        <form method="post" style="display:flex;gap:6px;align-items:center">
-                                            <input type="hidden" name="_csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
-                                            <input type="hidden" name="action" value="rename">
-                                            <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
-                                            <input type="text" name="emoji_name" class="input input-sm"
-                                                value="<?= htmlspecialchars($row['emoji_name']) ?>" required>
-                                            <button type="submit" class="btn btn-ghost btn-sm">ذخیره نام</button>
-                                        </form>
+                                        <input type="text" name="names[<?= (int) $row['id'] ?>]" class="input input-sm be-name-input"
+                                            value="<?= htmlspecialchars($row['emoji_name']) ?>" required
+                                            aria-label="نام ایموجی">
                                     </td>
-                                    <td style="font-size:1.4rem"><?= htmlspecialchars($row['emoji_utf8'] ?? '—') ?></td>
-                                    <td><code><?= htmlspecialchars($row['custom_emoji_id']) ?></code></td>
+                                    <td class="be-preview"><?= htmlspecialchars($row['emoji_utf8'] ?? '—') ?></td>
                                     <td>
-                                        <form method="post" onsubmit="return confirm('این ایموجی از کتابخانه حذف شود؟');">
+                                        <?php if ($placeholder !== ''): ?>
+                                            <div class="be-code-wrap">
+                                                <code class="be-code" dir="ltr"><?= htmlspecialchars($placeholder) ?></code>
+                                                <button type="button" class="btn btn-ghost btn-sm be-copy" data-copy="<?= htmlspecialchars($placeholder) ?>">کپی</button>
+                                            </div>
+                                        <?php else: ?>
+                                            —
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><code class="be-tg-id"><?= htmlspecialchars($row['custom_emoji_id']) ?></code></td>
+                                    <td>
+                                        <button type="button" class="btn btn-ghost btn-sm be-insert" data-insert="<?= htmlspecialchars($placeholder) ?>">درج در متن</button>
+                                        <form method="post" style="display:inline" onsubmit="return confirm('حذف شود؟');">
                                             <input type="hidden" name="_csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
-                                            <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--no)">حذف</button>
+                                            <button type="submit" class="btn btn-ghost btn-sm be-del">حذف</button>
                                         </form>
                                     </td>
                                 </tr>
@@ -109,7 +144,7 @@ include __DIR__ . '/inc/layout_head.php';
                 </div>
             <?php endif; ?>
         </div>
-    </div>
+    </form>
 </div>
 
 <?php include __DIR__ . '/inc/layout_foot.php'; ?>

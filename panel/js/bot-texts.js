@@ -64,6 +64,25 @@
         });
     });
 
+    document.querySelectorAll('[data-insert-emoji]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            insertVar(btn.getAttribute('data-insert-emoji') || '');
+        });
+    });
+
+    try {
+        var pending = sessionStorage.getItem('viranaut_pending_emoji');
+        if (pending) {
+            sessionStorage.removeItem('viranaut_pending_emoji');
+            var firstTa = document.querySelector('.bt-area');
+            if (firstTa) {
+                focusedTextarea = firstTa;
+                firstTa.focus();
+                insertVar(pending);
+            }
+        }
+    } catch (e) { /* ignore */ }
+
     function applySearch() {
         var q = (search && search.value ? search.value : '').trim().toLowerCase();
         var anyVisible = false;

@@ -116,6 +116,136 @@ if (!function_exists('mirza_custom_emoji_list')) {
     }
 }
 
+if (!function_exists('mirza_custom_emoji_by_name_map')) {
+    function mirza_custom_emoji_by_name_map(?PDO $pdo = null): array
+    {
+        $map = [];
+        foreach (mirza_custom_emoji_list($pdo) as $row) {
+            $key = mb_strtolower(trim((string) $row['emoji_name']), 'UTF-8');
+            if ($key !== '') {
+                $map[$key] = $row;
+            }
+        }
+        return $map;
+    }
+}
+
+if (!function_exists('mirza_emoji_placeholder')) {
+    function mirza_emoji_placeholder(array $emojiRow): string
+    {
+        $name = trim((string) ($emojiRow['emoji_name'] ?? ''));
+        return $name !== '' ? '{emoji:' . $name . '}' : '';
+    }
+}
+
+if (!function_exists('mirza_emoji_lookup_row')) {
+    function mirza_emoji_lookup_row(string $ref, ?PDO $pdo = null): ?array
+    {
+        $ref = trim($ref);
+        if ($ref === '') {
+            return null;
+        }
+        $byName = mirza_custom_emoji_by_name_map($pdo);
+        $lower = mb_strtolower($ref, 'UTF-8');
+        if (isset($byName[$lower])) {
+            return $byName[$lower];
+        }
+        if (ctype_digit($ref)) {
+            $all = mirza_custom_emoji_by_id_map($pdo);
+            return $all[(int) $ref] ?? null;
+        }
+        return null;
+    }
+}
+
+if (!function_exists('mirza_replace_emoji_placeholders_text_only')) {
+    /** جایگزینی {emoji:نام} با کاراکتر — برای دکمه‌ها (بدون entity). */
+    function mirza_replace_emoji_placeholders_text_only(string $text, ?PDO $pdo = null): string
+    {
+        if (strpos($text, '{emoji:') === false) {
+            return $text;
+        }
+        return (string) preg_replace_callback('/\{emoji:([^}]+)\}/u', static function (array $m) use ($pdo) {
+            $row = mirza_emoji_lookup_row($m[1], $pdo);
+            if (!$row) {
+                return $m[0];
+            }
+            $char = (string) ($row['emoji_utf8'] ?? '');
+            return $char !== '' ? $char : $m[0];
+        }, $text);
+    }
+}
+
+if (!function_exists('mirza_render_text_custom_emojis')) {
+    /**
+     * {emoji:نام} را در هر نقطهٔ متن به ایموجی پرمیوم + entities تبدیل می‌کند.
+     *
+     * @return array{text:string,entities:string|null,has_placeholders:bool}
+     */
+    function mirza_render_text_custom_emojis(string $text, ?PDO $pdo = null): array
+    {
+        if (strpos($text, '{emoji:') === false) {
+            return ['text' => $text, 'entities' => null, 'has_placeholders' => false];
+        }
+        $entities = [];
+        $out = '';
+        $offset = 0;
+        $pattern = '/\{emoji:([^}]+)\}/u';
+        while ($offset < strlen($text)) {
+            if (!preg_match($pattern, $text, $m, PREG_OFFSET_CAPTURE, $offset)) {
+                $out .= substr($text, $offset);
+                break;
+            }
+            $matchStart = (int) $m[0][1];
+            $matchLen = strlen($m[0][0]);
+            $out .= substr($text, $offset, $matchStart - $offset);
+            $row = mirza_emoji_lookup_row($m[1][0], $pdo);
+            if ($row === null) {
+                $out .= $m[0][0];
+            } else {
+                $char = (string) ($row['emoji_utf8'] ?? '');
+                if ($char === '') {
+                    $out .= $m[0][0];
+                } else {
+                    $entities[] = [
+                        'type' => 'custom_emoji',
+                        'offset' => mirza_utf16_strlen($out),
+                        'length' => mirza_utf16_strlen($char),
+                        'custom_emoji_id' => (string) $row['custom_emoji_id'],
+                    ];
+                    $out .= $char;
+                }
+            }
+            $offset = $matchStart + $matchLen;
+        }
+        return [
+            'text' => $out,
+            'entities' => $entities !== [] ? json_encode($entities, JSON_UNESCAPED_UNICODE) : null,
+            'has_placeholders' => true,
+        ];
+    }
+}
+
+if (!function_exists('mirza_prepare_outgoing_text')) {
+    /** آماده‌سازی متن قبل از sendMessage (placeholder + HTML). */
+    function mirza_prepare_outgoing_text(string $text, ?string $parse_mode = 'HTML'): array
+    {
+        $rendered = mirza_render_text_custom_emojis($text);
+        if (!$rendered['has_placeholders']) {
+            return ['text' => $text, 'parse_mode' => $parse_mode, 'entities' => null];
+        }
+        $hasHtml = strpos($rendered['text'], '<') !== false;
+        if ($rendered['entities'] !== null && !$hasHtml) {
+            return ['text' => $rendered['text'], 'parse_mode' => null, 'entities' => $rendered['entities']];
+        }
+        return [
+            'text' => $rendered['text'],
+            'parse_mode' => $parse_mode,
+            'entities' => $rendered['entities'],
+        ];
+    }
+}
+
 if (!function_exists('mirza_custom_emoji_by_id_map')) {
     function mirza_custom_emoji_by_id_map(?PDO $pdo = null): array
     {
@@ -191,6 +321,12 @@ if (!function_exists('mirza_custom_emoji_rename')) {
             $name = mb_substr($name, 0, 120, 'UTF-8');
         }
         try {
+            $stmt = $pdo->prepare('SELECT emoji_name FROM bot_custom_emoji WHERE id = ? LIMIT 1');
+            $stmt->execute([$id]);
+            $current = (string) ($stmt->fetchColumn() ?: '');
+            if ($current === $name) {
+                return true;
+            }
             $stmt = $pdo->prepare('UPDATE bot_custom_emoji SET emoji_name = ? WHERE id = ?');
             $stmt->execute([$name, $id]);
             return $stmt->rowCount() > 0;
@@ -336,6 +472,7 @@ if (!function_exists('mirza_keyboard_replace_text_keys')) {
                 }
                 $key = (string) ($btn['text'] ?? '');
                 $label = $replacements[$key] ?? $key;
+                $label = mirza_replace_emoji_placeholders_text_only($label);
                 $newBtn = $btn;
                 $newBtn['text'] = $label;
                 unset($newBtn['emoji_id']);
@@ -352,15 +489,6 @@ if (!function_exists('mirza_keyboard_replace_text_keys')) {
 if (!function_exists('mirza_send_datatextbot_message')) {
     function mirza_send_datatextbot_message($chat_id, string $idText, string $text, $keyboard, string $parse_mode = 'HTML', $bot_token = null)
     {
-        $emojiRow = mirza_resolve_textbot_emoji($idText);
-        if ($emojiRow && strpos($text, '<') === false) {
-            $payload = mirza_prepend_custom_emoji_to_message($text, $emojiRow);
-            return sendmessage($chat_id, $payload['text'], $keyboard, null, $bot_token, $payload['entities']);
-        }
-        if ($emojiRow && strpos($text, '<') !== false) {
-            $payload = mirza_prepend_custom_emoji_to_message($text, $emojiRow);
-            return sendmessage($chat_id, $payload['text'], $keyboard, $parse_mode, $bot_token, $payload['entities']);
-        }
         return sendmessage($chat_id, $text, $keyboard, $parse_mode, $bot_token);
     }
 }

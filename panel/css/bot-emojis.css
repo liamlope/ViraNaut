@@ -1,0 +1,50 @@
+.be-steps {
+  margin: 0;
+  padding-right: 20px;
+  line-height: 1.85;
+  color: var(--txt);
+}
+
+.be-table .be-name-input {
+  min-width: 140px;
+  width: 100%;
+  max-width: 220px;
+}
+
+.be-preview {
+  font-size: 1.35rem;
+  text-align: center;
+}
+
+.be-code-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.be-code {
+  font-size: 0.78rem;
+  padding: 4px 8px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.be-tg-id {
+  font-size: 0.72rem;
+  word-break: break-all;
+}
+
+.be-del {
+  color: var(--no);
+}
+
+.be-page .card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
