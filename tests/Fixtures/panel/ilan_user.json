@@ -1,4 +1,0 @@
-{
-  "status": 200,
-  "body": "{\"username\":\"testuser\",\"subscription_url\":\"https://panel.example/sub/abc\"}"
-}

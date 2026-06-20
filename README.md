@@ -21,7 +21,6 @@
 | پنل وب ادمین | ~۱۲ صفحه | **۳۱+ صفحه** |
 | پنل وب نمایندگی | ❌ (Pro) | ✅ **Pro** — chart، تمدید/حجم/revoke، API Bearer |
 | site-admin | ❌ | ✅ درخواست از ربات + UI پاسخ |
-| تست / CI | ❌ | ✅ PHPUnit + GitHub Actions |
 
 جزئیات: [CHANGELOG.md](CHANGELOG.md) · [docs/PANEL_SUPPORT.md](docs/PANEL_SUPPORT.md) · [docs/UPGRADE_MATRIX.md](docs/UPGRADE_MATRIX.md)
 
@@ -34,7 +33,7 @@
 | marzban, pasarguard, marzneshin | full |
 | x-ui_single, alireza | full+ |
 | hiddify, mirza_agent, ibsng, mikrotik | partial |
-| **ilan** | full (REST generic + mock tests) |
+| **ilan** | full (REST generic) |
 | Manualsale | full (داخلی) |
 
 لیست کامل عملیات: **[docs/PANEL_SUPPORT.md](docs/PANEL_SUPPORT.md)**
@@ -52,18 +51,6 @@
 - تم هم‌راستا با پنل ادمین
 - توکن API از **تنظیمات** یا **login** نماینده
 - دکمه «🌐 پنل وب نمایندگی» در منوی نماینده ربات
-
----
-
-## توسعه و تست
-
-```bash
-composer install
-composer smoke          # php tools/smoke_test.php
-composer test           # vendor/bin/phpunit
-```
-
-CI روی هر push به `main` اجرا می‌شود (`.github/workflows/ci.yml`).
 
 ---
 
@@ -216,7 +203,7 @@ Cron (نصب/آپدیت خودکار):
 
 ## English
 
-**ViraNaut** is an **advanced open-source fork** of the free [Mirza Bot](https://github.com/mahdiMGF2/mirzabot), with a richer web panel, SMS card auto-verify, full panel driver matrix (v3.1), agent web panel Pro, PHPUnit CI, and Mirza 0.2.2 feature parity.
+**ViraNaut** is an **advanced open-source fork** of the free [Mirza Bot](https://github.com/mahdiMGF2/mirzabot), with a richer web panel, SMS card auto-verify, full panel driver matrix (v3.1), agent web panel Pro, and Mirza 0.2.2 feature parity.
 
 **One-line install (Ubuntu, root):**
 

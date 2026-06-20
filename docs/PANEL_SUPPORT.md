@@ -17,5 +17,3 @@
 | Manualsale | — | full | yes | yes | no | yes | no | no | no | Internal pool |
 
 Legend: **full** = all bot flows · **partial** = limited ops · **full*** = REST generic without live panel doc
-
-Testing without live panels: `tests/Unit/IlanDriverTest.php`, `tests/PanelMock/*`.

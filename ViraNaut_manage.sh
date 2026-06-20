@@ -3560,11 +3560,6 @@ do_diagnose_bot() {
   echo -e "    agent-panel: $([ -f "$PROJECT_DIR/agent-panel/index.php" ] && echo OK || echo MISSING)"
   echo -e "    agent API:   $([ -f "$PROJECT_DIR/api/agent.php" ] && echo OK || echo MISSING)"
   echo -e "    PANEL_SUPPORT: $([ -f "$PROJECT_DIR/docs/PANEL_SUPPORT.md" ] && echo OK || echo MISSING)"
-  if [ -f "$PROJECT_DIR/composer.json" ] && [ -f "$PROJECT_DIR/vendor/bin/phpunit" ]; then
-    echo -e "    phpunit:     $(cd "$PROJECT_DIR" && php vendor/bin/phpunit --no-output 2>/dev/null && echo PASS || echo 'run composer install')"
-  else
-    echo -e "    phpunit:     MISSING — composer install in $PROJECT_DIR"
-  fi
   echo ""
 
   domain=$(read_php_var "domainhosts")

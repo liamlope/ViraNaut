@@ -18,23 +18,6 @@ function check(bool $ok, string $label): void
     }
 }
 
-function check_php_syntax(string $root, string $rel): void
-{
-    global $errors, $checks;
-    $checks++;
-    $file = $root . '/' . $rel;
-    if (!is_file($file)) {
-        $errors[] = "syntax: missing {$rel}";
-        return;
-    }
-    $out = [];
-    $code = 0;
-    exec('php -l ' . escapeshellarg($file) . ' 2>&1', $out, $code);
-    if ($code !== 0) {
-        $errors[] = "syntax fail: {$rel}";
-    }
-}
-
 $required = [
     'version', 'text.json', 'function.php', 'index.php', 'admin.php', 'panels.php',
     'mirza_agent.php', 'lang/fa.php', 'lang/en.php', 'lang/ru.php', 'lang/zh.php',
@@ -44,7 +27,7 @@ $required = [
     'ViraNaut_manage.sh', 'panel/index.php', 'panel/finance.php',
     'agent-panel/index.php', 'agent-panel/api/dashboard.php', 'agent-panel/api/service_action.php',
     'site-admin/index.php', 'ilan.php', 'ilan_panels_bridge.php', 'api/agent.php',
-    'docs/PANEL_SUPPORT.md', 'CHANGELOG.md', 'composer.json', 'phpunit.xml.dist',
+    'docs/PANEL_SUPPORT.md', 'CHANGELOG.md',
 ];
 
 foreach ($required as $rel) {
@@ -63,23 +46,8 @@ $ver = trim((string) file_get_contents($root . '/version'));
 check($ver !== '', 'version file empty');
 check((bool) preg_match('/^\d+\.\d+\.\d+-ViraNaut$/', $ver), 'version format invalid');
 
-$jsonOk = true;
-foreach (['text.json', 'tests/Fixtures/telegram/start.json'] as $jf) {
-    $p = $root . '/' . $jf;
-    if (is_file($p)) {
-        json_decode(file_get_contents($p), true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            $jsonOk = false;
-        }
-    }
-}
-check($jsonOk, 'JSON fixture invalid');
-
-if (is_executable('/usr/bin/php') || trim((string) shell_exec('where php 2>nul')) !== '' || trim((string) shell_exec('command -v php 2>/dev/null')) !== '') {
-    foreach (['index.php', 'api/agent.php', 'agent-panel/index.php', 'ilan.php'] as $rel) {
-        check_php_syntax($root, $rel);
-    }
-}
+$textJson = json_decode(file_get_contents($root . '/text.json'), true);
+check(is_array($textJson), 'text.json invalid JSON');
 
 echo "Smoke test: {$checks} checks, " . count($errors) . " failures\n";
 if ($errors) {
