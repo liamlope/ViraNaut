@@ -42,10 +42,10 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 
 ```bash
 /root/ViraNaut_manage.sh install -y \
-  --domain bot.shop.ir \
-  --token "توکن_ربات" \
+  --domain bot.example.com \
+  --token "BOT_TOKEN" \
   --admin "123456789" \
-  --bot "نام_کاربری_ربات"
+  --bot "BotUsername"
 ```
 
 **مسیر نصب روی سرور:** `/var/www/html/viranaut`

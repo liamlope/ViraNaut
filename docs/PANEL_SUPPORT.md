@@ -1,4 +1,4 @@
-# Panel Support Matrix — ViraNaut 3.1
+# ماتریس پشتیبانی پنل‌های VPN — ویرانات 3.2.0
 
 | Type | Driver | Status | create | DataUser | revoke | remove | modify | extend | vol/time | Notes |
 |------|--------|--------|--------|----------|--------|--------|--------|--------|----------|-------|

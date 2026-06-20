@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mirza_ensure_user_lang_column();
             }
             vira_seed_default_wallets($pdo);
-            flash('success', 'مهاجرت داخلی ViraNaut (2.1 + 3.0 + 3.1) با موفقیت اجرا شد.');
+            flash('success', 'مهاجرت داخلی ویرانات (2.1 + 3.0 + 3.1 + 3.2) با موفقیت اجرا شد.');
         } catch (Throwable $e) {
             flash('error', 'خطا: ' . $e->getMessage());
         }
