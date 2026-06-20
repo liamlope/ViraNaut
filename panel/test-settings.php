@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/inc/config.php';
 require_once __DIR__ . '/inc/icons.php';
+require_once __DIR__ . '/inc/panel_type_defs.php';
 require_auth();
 
 if (function_exists('mirza_ensure_marzban_panel_columns')) {
@@ -49,11 +50,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $testFlag = ($row['TestAccount'] ?? 'OFFTestAccount') === 'ONTestAccount' ? 'ONTestAccount' : 'OFFTestAccount';
             $status = (($row['status'] ?? 'deactive') === 'active') ? 'active' : 'deactive';
+            $panelRow = db_fetch($pdo, 'SELECT type FROM marzban_panel WHERE name_panel = ?', [$name]);
+            $panelType = (string) ($panelRow['type'] ?? '');
+            $testIbRaw = trim((string) ($row['test_inbounds'] ?? ''));
+            if ($testFlag === 'ONTestAccount' && panel_web_is_xui_type($panelType)) {
+                if ($testIbRaw === '' || $testIbRaw === '-') {
+                    flash('error', 'برای پنل «' . $name . '» با تست روشن، انتخاب اینباند الزامی است.');
+                    header('Location: test-settings.php');
+                    exit;
+                }
+            }
             db_query(
                 $pdo,
                 'UPDATE marzban_panel SET time_usertest = ?, val_usertest = ?, TestAccount = ?, status = ? WHERE name_panel = ?',
                 [$time, $vol, $testFlag, $status, $name]
             );
+            if ($testIbRaw !== '' && $testIbRaw !== '-' && panel_web_is_xui_type($panelType)) {
+                require_once __DIR__ . '/../x-ui_single.php';
+                $ids = mirza_xui_parse_id_list($testIbRaw);
+                if ($ids !== []) {
+                    db_query($pdo, 'UPDATE marzban_panel SET inboundid = ? WHERE name_panel = ?', [json_encode($ids), $name]);
+                }
+            }
             $saved++;
         }
         if ($saved > 0) {
@@ -71,7 +89,7 @@ $panels = [];
 try {
     $panels = db_fetchAll(
         $pdo,
-        'SELECT name_panel, TestAccount, time_usertest, val_usertest, status FROM marzban_panel ORDER BY name_panel ASC'
+        'SELECT name_panel, type, TestAccount, time_usertest, val_usertest, status, inboundid, inbounds FROM marzban_panel ORDER BY name_panel ASC'
     );
 } catch (Exception $e) {
     flash('error', $e->getMessage());
@@ -92,10 +110,10 @@ foreach ($panels as $p) {
 }
 
 $pageTitle = 'اکانت تست';
-$pageLede = 'فعال‌سازی سرویس تست، سقف مصرف کاربران و تنظیمات هر پنل (حجم، مدت و وضعیت).';
+$pageLede = 'فعال‌سازی تست، سقف کاربر و تنظیمات هر پنل (حجم، مدت، اینباند تست).';
 $activeNav = 'test-settings';
-$extraCss = ['css/bot-settings.css', 'css/test-settings.css'];
-$extraJs = ['js/bot-settings.js', 'js/test-settings.js'];
+$extraCss = ['css/bot-settings.css', 'css/test-settings.css', 'css/product-inbounds.css'];
+$extraJs = ['js/inbound-picker.js', 'js/test-settings.js'];
 include __DIR__ . '/inc/layout_head.php';
 ?>
 
@@ -173,7 +191,7 @@ include __DIR__ . '/inc/layout_head.php';
                     <span class="bot-settings-section-icon"><?= icon('server', 18) ?></span>
                     تنظیمات تست هر پنل
                 </div>
-                <div class="card-subtitle">دو تنظیم جدا: <strong>فروش/خرید</strong> (فعال/غیرفعال) و <strong>اکانت تست رایگان</strong> (روشن/خاموش).</div>
+                <div class="card-subtitle">فروش، تست رایگان، مدت/حجم و اینباند تست (برای ۳x-ui)</div>
             </div>
         </div>
 
@@ -190,9 +208,15 @@ include __DIR__ . '/inc/layout_head.php';
                     $testActive = ($p['TestAccount'] ?? '') === 'ONTestAccount';
                     $timeH = (int) ($p['time_usertest'] ?? 0);
                     $volMb = (string) ($p['val_usertest'] ?? '');
+                    $panelType = (string) ($p['type'] ?? '');
+                    $isXui = panel_web_is_xui_type($panelType);
+                    $testIb = $p['inboundid'] ?? '';
+                    if (($testIb === '' || $testIb === '1') && !empty($p['inbounds']) && $p['inbounds'] !== 'null') {
+                        $testIb = $p['inbounds'];
+                    }
                     $prefix = 'panels[' . $i . ']';
                     ?>
-                    <article class="test-panel-card<?= $panelActive ? '' : ' is-inactive' ?>">
+                    <article class="test-panel-card<?= $panelActive ? '' : ' is-inactive' ?>" data-panel-name="<?= htmlspecialchars($name) ?>">
                         <input type="hidden" name="<?= $prefix ?>[name_panel]" value="<?= htmlspecialchars($name) ?>">
                         <div class="test-panel-top">
                             <div class="test-panel-name"><?= htmlspecialchars($name) ?></div>
@@ -236,6 +260,13 @@ include __DIR__ . '/inc/layout_head.php';
                                     value="<?= htmlspecialchars($volMb) ?>">
                             </label>
                         </div>
+                        <?php if ($isXui): ?>
+                        <div class="test-panel-inbound">
+                            <span class="field-label">اینباند تست *</span>
+                            <input type="hidden" name="<?= $prefix ?>[test_inbounds]" id="test_ib_<?= $i ?>" value="<?= htmlspecialchars((string) $testIb) ?>">
+                            <div id="test_picker_<?= $i ?>" class="inbound-picker-box" data-panel="<?= htmlspecialchars($name) ?>" data-initial="<?= htmlspecialchars((string) $testIb) ?>"></div>
+                        </div>
+                        <?php endif; ?>
                     </article>
                 <?php endforeach; ?>
             </div>

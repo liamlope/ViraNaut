@@ -1,7 +1,41 @@
 <?php
 require_once __DIR__ . '/inc/config.php';
 require_once __DIR__ . '/inc/icons.php';
+require_once __DIR__ . '/inc/panel_type_defs.php';
 require_auth();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_price') {
+  csrf_check_post();
+  $ids = array_filter(array_map('intval', (array) ($_POST['product_ids'] ?? [])));
+  $mode = ($_POST['bulk_mode'] ?? '') === 'decrease' ? 'decrease' : 'increase';
+  $type = ($_POST['bulk_type'] ?? '') === 'percent' ? 'percent' : 'fixed';
+  $amount = (int) ($_POST['bulk_amount'] ?? 0);
+  if ($ids === [] || $amount <= 0) {
+    flash('error', 'حداقل یک محصول و مقدار معتبر انتخاب کنید.');
+    header('Location: product.php');
+    exit;
+  }
+  $placeholders = implode(',', array_fill(0, count($ids), '?'));
+  $rows = db_fetchAll($pdo, "SELECT id, price_product FROM product WHERE id IN ($placeholders)", $ids);
+  $updated = 0;
+  foreach ($rows as $row) {
+    $price = (int) ($row['price_product'] ?? 0);
+    if ($mode === 'increase') {
+      if ($type === 'percent') {
+        $price = $price + (int) round($price * $amount / 100);
+      } else {
+        $price = $price + $amount;
+      }
+    } else {
+      $price = max(0, $price - ($type === 'percent' ? (int) round($price * $amount / 100) : $amount));
+    }
+    db_query($pdo, 'UPDATE product SET price_product = ? WHERE id = ?', [$price, (int) $row['id']]);
+    $updated++;
+  }
+  flash('success', 'قیمت ' . $updated . ' محصول به‌روز شد.');
+  header('Location: product.php');
+  exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add') {
   csrf_check_post();
@@ -20,6 +54,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add')
   }
   $code = bin2hex(random_bytes(2));
   $inboundsRaw = trim((string) ($_POST['inbounds_product'] ?? ''));
+  $panelName = trim((string) ($_POST['namepanel'] ?? ''));
+  if ($panelName !== '') {
+    $panelRow = db_fetch($pdo, 'SELECT type FROM marzban_panel WHERE name_panel = ?', [$panelName]);
+    if ($panelRow && panel_web_is_xui_type((string) ($panelRow['type'] ?? '')) && ($inboundsRaw === '' || $inboundsRaw === '-')) {
+      flash('error', 'برای پنل ۳x-ui انتخاب اینباند الزامی است.');
+      header('Location: product.php');
+      exit;
+    }
+  }
   $inboundsVal = ($inboundsRaw === '' || $inboundsRaw === '-') ? null : $inboundsRaw;
   try {
     db_query(
@@ -48,6 +91,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit'
       exit;
     }
     $inboundsRaw = trim((string) ($_POST['inbounds_product'] ?? ''));
+    $panelName = trim((string) ($_POST['namepanel'] ?? ''));
+    if ($panelName !== '') {
+      $panelRow = db_fetch($pdo, 'SELECT type FROM marzban_panel WHERE name_panel = ?', [$panelName]);
+      if ($panelRow && panel_web_is_xui_type((string) ($panelRow['type'] ?? '')) && ($inboundsRaw === '' || $inboundsRaw === '-')) {
+        flash('error', 'برای پنل ۳x-ui انتخاب اینباند الزامی است.');
+        header('Location: product.php');
+        exit;
+      }
+    }
     $inboundsVal = ($inboundsRaw === '' || $inboundsRaw === '-') ? null : $inboundsRaw;
     try {
       db_query(
@@ -90,7 +142,7 @@ $pageTitle = 'محصولات';
 $pageLede = 'فهرست محصولات قابل فروش و مدیریت آن‌ها.';
 $activeNav = 'product';
 $extraCss = ['css/product-inbounds.css'];
-$extraJs = ['js/inbound-picker.js', 'js/categories.js', 'js/product.js'];
+$extraJs = ['js/inbound-picker.js', 'js/categories.js', 'js/product.js', 'js/product-bulk.js'];
 include __DIR__ . '/inc/layout_head.php';
 ?>
 
@@ -129,10 +181,26 @@ include __DIR__ . '/inc/layout_head.php';
         <button type="button" class="search-clear">✕</button>
       </div>
     </div>
+    <form method="post" id="productBulkForm" class="product-bulk-bar fade-up d1">
+      <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+      <input type="hidden" name="action" value="bulk_price">
+      <span class="product-bulk-count"><strong id="bulkSelectedCount">0</strong> محصول انتخاب شده</span>
+      <select name="bulk_mode" class="select select-sm">
+        <option value="increase">افزایش قیمت</option>
+        <option value="decrease">کاهش قیمت</option>
+      </select>
+      <select name="bulk_type" class="select select-sm">
+        <option value="fixed">مبلغ ثابت (تومان)</option>
+        <option value="percent">درصدی</option>
+      </select>
+      <input type="number" name="bulk_amount" class="input input-sm" min="1" placeholder="مقدار" required style="width:100px">
+      <button type="submit" class="btn btn-primary btn-sm">اعمال روی انتخاب‌شده‌ها</button>
+    </form>
     <div class="tbl-wrap">
       <table id="prodTbl" class="tbl-xl">
         <thead>
           <tr>
+            <th style="width:36px"><input type="checkbox" id="prodSelectAll" title="انتخاب همه"></th>
             <th>#</th>
             <th>نام محصول</th>
             <th>قیمت</th>
@@ -149,6 +217,7 @@ include __DIR__ . '/inc/layout_head.php';
           <?php $i = 1;
           foreach ($products as $p): ?>
             <tr>
+              <td><input type="checkbox" class="prod-row-cb" name="product_ids[]" value="<?= (int) $p['id'] ?>" form="productBulkForm"></td>
               <td class="cf"><?= $i++ ?></td>
               <td class="cs"><?= htmlspecialchars($p['name_product'] ?? '') ?></td>
               <td class="cn cs"><?= number_format((int) ($p['price_product'] ?? 0)) ?> <span class="cf">ت</span></td>

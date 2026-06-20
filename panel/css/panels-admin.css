@@ -1,3 +1,131 @@
-#addXuiModal .form-grid {
+#addPanelModal .form-grid,
+#editPanelModal .form-grid {
     gap: 12px;
+}
+
+.panel-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+.panel-hub-modal .hub-status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.panel-hub-modal .hub-bars {
+    margin-bottom: 14px;
+}
+
+.panel-hub-modal .hub-bar-item {
+    display: grid;
+    grid-template-columns: 36px 1fr 44px;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 0.78rem;
+}
+
+.panel-hub-modal .hub-bar {
+    height: 8px;
+    background: var(--sf2, rgba(255,255,255,.08));
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.panel-hub-modal .hub-bar-fill {
+    height: 100%;
+    background: var(--ok, #22c55e);
+    border-radius: 999px;
+    transition: width .3s ease;
+}
+
+.panel-hub-modal .hub-bar-mem {
+    background: var(--accent, #6366f1);
+}
+
+.panel-hub-modal .hub-meta {
+    font-size: 0.75rem;
+    color: var(--mute);
+    margin-top: 4px;
+}
+
+.panel-hub-modal .hub-err {
+    font-size: 0.82rem;
+    color: var(--no, #ef4444);
+    margin: 0 0 12px;
+}
+
+.panel-hub-modal .hub-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.panel-hub-modal .hub-link-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+}
+
+.panel-hub-modal .hub-link-row a {
+    direction: ltr;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.panel-hub-modal .hub-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.product-bulk-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: var(--sf2);
+    border: 1px solid var(--bd);
+    border-radius: 10px;
+    position: sticky;
+    top: 8px;
+    z-index: 2;
+}
+
+.product-bulk-count {
+    font-size: 0.82rem;
+    color: var(--mute);
+    min-width: 120px;
+}
+
+.select-sm,
+.input-sm {
+    font-size: 0.82rem;
+    padding: 6px 10px;
+}
+
+.test-panel-inbound {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--bd);
+}
+
+.test-panel-inbound .field-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 0.82rem;
 }

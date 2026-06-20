@@ -1,31 +1,27 @@
 (function (global) {
     function parseInboundValue(raw) {
         if (!raw || raw === 'null') {
-            return { useDefault: true, ids: [] };
+            return { ids: [], valid: false };
         }
         var s = String(raw).trim();
         if (s === '' || s === '-') {
-            return { useDefault: true, ids: [] };
+            return { ids: [], valid: false };
         }
         try {
             if (s[0] === '[') {
                 var arr = JSON.parse(s);
                 if (Array.isArray(arr)) {
-                    return {
-                        useDefault: false,
-                        ids: arr.map(function (x) { return parseInt(x, 10); }).filter(function (n) { return n > 0; })
-                    };
+                    var ids = arr.map(function (x) { return parseInt(x, 10); }).filter(function (n) { return n > 0; });
+                    return { ids: ids, valid: ids.length > 0 };
                 }
             }
         } catch (e) { /* ignore */ }
         if (s.indexOf(',') >= 0) {
-            return {
-                useDefault: false,
-                ids: s.split(',').map(function (x) { return parseInt(x.trim(), 10); }).filter(function (n) { return n > 0; })
-            };
+            var list = s.split(',').map(function (x) { return parseInt(x.trim(), 10); }).filter(function (n) { return n > 0; });
+            return { ids: list, valid: list.length > 0 };
         }
         var n = parseInt(s, 10);
-        return { useDefault: false, ids: n > 0 ? [n] : [] };
+        return { ids: n > 0 ? [n] : [], valid: n > 0 };
     }
 
     function panelApiBase() {
@@ -38,29 +34,21 @@
         return i >= 0 ? p.substring(0, i + 1) : '/panel/';
     }
 
-    function renderPicker(container, items, selectedIds, useDefault, emptyMsg) {
+    function renderPicker(container, items, selectedIds, emptyMsg, required) {
         if (!container) {
             return;
         }
         container.innerHTML = '';
         var hint = document.createElement('p');
         hint.className = 'field-hint inbound-picker-hint';
-        hint.textContent = 'تیک «پیش‌فرض پنل» = همان اینباندهای ذخیره‌شده در تنظیمات پنل. برای محدودیت جدا، تیک را بردارید و اینباندها را انتخاب کنید.';
+        hint.textContent = required
+            ? 'حداقل یک اینباند را انتخاب کنید — بدون اینباند کانفیگ ساخته نمی‌شود.'
+            : 'اینباندها را انتخاب کنید.';
         container.appendChild(hint);
-
-        var defRow = document.createElement('label');
-        defRow.className = 'inbound-default-row';
-        var defCb = document.createElement('input');
-        defCb.type = 'checkbox';
-        defCb.className = 'inbound-use-default';
-        defCb.checked = useDefault;
-        defRow.appendChild(defCb);
-        defRow.appendChild(document.createTextNode(' استفاده از پیش‌فرض پنل'));
-        container.appendChild(defRow);
 
         var listWrap = document.createElement('div');
         listWrap.className = 'inbound-check-list';
-        var emptyText = emptyMsg || 'اینباندی دریافت نشد — پنل ۳x-ui را انتخاب کنید یا اتصال/توکن را چک کنید.';
+        var emptyText = emptyMsg || 'اینباندی دریافت نشد — اتصال پنل یا توکن API را بررسی کنید.';
         if (!items.length) {
             listWrap.innerHTML = '<span class="cf inbound-empty-msg">' + emptyText + '</span>';
         } else {
@@ -71,7 +59,7 @@
                 cb.type = 'checkbox';
                 cb.className = 'inbound-id-cb';
                 cb.value = String(ib.id);
-                if (!useDefault && selectedIds.indexOf(ib.id) >= 0) {
+                if (selectedIds.indexOf(ib.id) >= 0) {
                     cb.checked = true;
                 }
                 var title = '#' + ib.id;
@@ -87,29 +75,11 @@
             });
         }
         container.appendChild(listWrap);
-
-        function syncDisabled() {
-            var disabled = defCb.checked;
-            listWrap.querySelectorAll('.inbound-id-cb').forEach(function (c) {
-                c.disabled = disabled;
-                if (disabled) {
-                    c.checked = false;
-                }
-            });
-            listWrap.style.opacity = disabled ? '0.45' : '1';
-        }
-        defCb.addEventListener('change', syncDisabled);
-        syncDisabled();
     }
 
-    function syncHiddenInput(container, hiddenInput) {
+    function syncHiddenInput(container, hiddenInput, required) {
         if (!container || !hiddenInput) {
-            return;
-        }
-        var defCb = container.querySelector('.inbound-use-default');
-        if (!defCb || defCb.checked) {
-            hiddenInput.value = '';
-            return;
+            return { valid: !required };
         }
         var ids = [];
         container.querySelectorAll('.inbound-id-cb:checked').forEach(function (c) {
@@ -119,18 +89,21 @@
             }
         });
         hiddenInput.value = ids.length ? JSON.stringify(ids) : '';
+        return { valid: !required || ids.length > 0 };
     }
 
-    function bindPickerEvents(picker, hidden) {
+    function bindPickerEvents(picker, hidden, required) {
         picker.addEventListener('change', function () {
-            syncHiddenInput(picker, hidden);
+            syncHiddenInput(picker, hidden, required);
         });
     }
 
-    function loadPicker(pickerId, panelSelectId, hiddenId, initialRaw, panelNameOverride) {
+    function loadPicker(pickerId, panelSelectId, hiddenId, initialRaw, panelNameOverride, options) {
+        var opts = options || {};
+        var required = opts.required !== false;
         var picker = document.getElementById(pickerId);
         var hidden = document.getElementById(hiddenId);
-        var panelSel = document.getElementById(panelSelectId);
+        var panelSel = panelSelectId ? document.getElementById(panelSelectId) : null;
         if (!picker || !hidden) {
             return;
         }
@@ -139,7 +112,7 @@
             : (panelSel && panelSel.value ? panelSel.value.trim() : '');
         var parsed = parseInboundValue(initialRaw || '');
         if (!panel) {
-            renderPicker(picker, [], [], true);
+            renderPicker(picker, [], parsed.ids, 'ابتدا پنل را انتخاب کنید.', required);
             hidden.value = '';
             return;
         }
@@ -159,19 +132,32 @@
                     return;
                 }
                 if (data.note === 'not_xui') {
-                    renderPicker(picker, [], [], true, data.msg);
-                    bindPickerEvents(picker, hidden);
-                    syncHiddenInput(picker, hidden);
+                    picker.innerHTML = '<span class="field-hint">' + (data.msg || 'این پنل ۳x-ui نیست.') + '</span>';
+                    hidden.value = '';
                     return;
                 }
                 var items = data.items || [];
-                renderPicker(picker, items, parsed.ids, parsed.useDefault, data.msg);
-                bindPickerEvents(picker, hidden);
-                syncHiddenInput(picker, hidden);
+                renderPicker(picker, items, parsed.ids, data.msg, required);
+                bindPickerEvents(picker, hidden, required);
+                syncHiddenInput(picker, hidden, required);
             })
             .catch(function (err) {
                 picker.innerHTML = '<span class="tag tag-no">خطا در دریافت اینباندها' + (err && err.message ? ' (' + err.message + ')' : '') + '</span>';
             });
+    }
+
+    function validateBeforeSubmit(pickerId, hiddenId, required) {
+        var picker = document.getElementById(pickerId);
+        var hidden = document.getElementById(hiddenId);
+        if (!picker || !hidden) {
+            return true;
+        }
+        var result = syncHiddenInput(picker, hidden, required !== false);
+        if (!result.valid) {
+            alert('حداقل یک اینباند انتخاب کنید.');
+            return false;
+        }
+        return true;
     }
 
     global.MirzaInboundPicker = {
@@ -180,6 +166,7 @@
         renderPicker: renderPicker,
         syncHiddenInput: syncHiddenInput,
         bindPickerEvents: bindPickerEvents,
-        loadPicker: loadPicker
+        loadPicker: loadPicker,
+        validateBeforeSubmit: validateBeforeSubmit
     };
 }(typeof window !== 'undefined' ? window : this));

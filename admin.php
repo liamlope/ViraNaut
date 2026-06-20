@@ -3,6 +3,7 @@ if (!defined('VIRA_BOT_BOOTSTRAP') && !defined('MIRZA_BOT_BOOTSTRAP')) {
     http_response_code(404);
     exit;
 }
+require_once __DIR__ . '/admin_user_manage.php';
 #----------------[  admin section  ]------------------#
 $textadmin = ["panel", "/panel", $textbotlang['Admin']['textpaneladmin']];
 $text_panel_admin_login_template = "💎 | نسخه ربات: %s
@@ -76,6 +77,21 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     $confirmationKeyboard = json_encode(['inline_keyboard' => []]);
     $confirmationText = $miniAppInstructionText . "\n\n✅ این پیام دیگر برای شما نمایش داده نخواهد شد.";
     Editmessagetext($from_id, $message_id, $confirmationText, $confirmationKeyboard, 'HTML');
+    return;
+} elseif (($adminLookup = mirza_admin_parse_user_lookup((string) $text)) !== null) {
+    $resolvedId = mirza_admin_resolve_user_id($adminLookup, $pdo);
+    if ($resolvedId === null) {
+        sendmessage($from_id, $textbotlang['Admin']['not-user'] . "\n\n💡 فرمت: <code>/آیدی</code> یا <code>/username</code> یا <code>https://t.me/username</code>", null, 'HTML');
+        return;
+    }
+    mirza_admin_show_user_manage($from_id, $resolvedId);
+    return;
+} elseif (preg_match('/^manageusercat_(fin|st|ord|ag|card|msg)_(\w+)$/', $datain, $catManageMatch)) {
+    mirza_admin_show_user_manage($from_id, $catManageMatch[2], [
+        'category' => $catManageMatch[1],
+        'edit' => true,
+        'message_id' => $message_id,
+    ]);
     return;
 } elseif (preg_match('/^\/savemoji(?:@\w+)?(?:\s+(.+))?$/u', trim((string) $text), $savemojiMatch)) {
     $pendingEmojiName = trim((string) ($savemojiMatch[1] ?? ''));
@@ -4069,196 +4085,38 @@ $caption";
         ]);
     }
 } elseif ($datain == "searchuser") {
-    sendmessage($from_id, $textbotlang['Admin']['ManageUser']['GetIdUserunblock'], $backadmin, 'HTML');
+    sendmessage($from_id, "🔍 برای یافتن کاربر یکی از این فرمت‌ها را بفرستید:\n\n<code>/7058973603</code>\n<code>/username</code>\n<code>/\@username</code>\n<code>https://t.me/username</code>\n\nیا آیدی / نام کاربری بدون اسلش.", $backadmin, 'HTML');
     step('show_info', $from_id);
 } elseif ($user['step'] == "show_info" || preg_match('/manageuser_(\w+)/', $datain, $dataget) || preg_match('/updateinfouser_(\w+)/', $datain, $dataget) || strpos($text, "/user ") !== false || strpos($text, "/id ") !== false) {
     if ($user['step'] == "show_info") {
-        $id_user = $text;
+        $lookup = mirza_admin_parse_user_lookup((string) $text);
+        if ($lookup !== null) {
+            $id_user = mirza_admin_resolve_user_id($lookup, $pdo);
+        } elseif (ctype_digit(trim($text))) {
+            $id_user = trim($text);
+        } else {
+            $id_user = mirza_admin_resolve_user_id(ltrim(trim($text), '@'), $pdo) ?: trim($text);
+        }
+        if ($id_user === null || $id_user === '') {
+            sendmessage($from_id, $textbotlang['Admin']['not-user'], null, 'HTML');
+            return;
+        }
     } elseif (explode(" ", $text)[0] == "/user") {
-        $id_user = explode(" ", $text)[1];
+        $lookup = explode(" ", $text)[1] ?? '';
+        $id_user = mirza_admin_resolve_user_id($lookup, $pdo) ?: ltrim($lookup, '@');
     } elseif (explode(" ", $text)[0] == "/id") {
         $id_user = explode(" ", $text)[1];
     } else {
         $id_user = $dataget[1];
     }
-    if (!in_array($id_user, $users_ids)) {
-        sendmessage($from_id, $textbotlang['Admin']['not-user'], null, 'HTML');
-        return;
-    }
-    $date = date("Y-m-d");
-    $dayListSell = mysqli_fetch_assoc(mysqli_query($connect, "SELECT COUNT(*) FROM invoice WHERE (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND id_user = '$id_user'"));
-    $balanceall = mysqli_fetch_assoc(mysqli_query($connect, "SELECT SUM(price) FROM Payment_report WHERE payment_Status = 'paid' AND id_user = '$id_user' AND Payment_Method != 'low balance by admin'"));
-    $subbuyuser = mysqli_fetch_assoc(mysqli_query($connect, "SELECT SUM(price_product) FROM invoice WHERE (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND id_user = '$id_user'"));
-    $invoicecount = select("invoice", '*', "id_user", $id_user, "count");
-    if ($invoicecount == 0) {
-        $sumvolume['SUM(Volume)'] = 0;
-    } else {
-        $sumvolume = mysqli_fetch_assoc(mysqli_query($connect, "SELECT SUM(Volume) FROM invoice WHERE (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND id_user = '$id_user' AND name_product != 'سرویس تست'"));
-    }
-    $user = select("user", "*", "id", $id_user, "select");
-    $roll_Status = [
-        '1' => $textbotlang['Admin']['ManageUser']['Acceptedphone'],
-        '0' => $textbotlang['Admin']['ManageUser']['Failedphone'],
-    ][$user['roll_Status']];
-    if ($subbuyuser['SUM(price_product)'] == null)
-        $subbuyuser['SUM(price_product)'] = 0;
-    $keyboardmanage = [
-        'inline_keyboard' => [
-            [['text' => "♻️  بروزرسانی اطلاعات", 'callback_data' => "updateinfouser_" . $id_user],],
-            [['text' => $textbotlang['Admin']['ManageUser']['addbalanceuser'], 'callback_data' => "addbalanceuser_" . $id_user], ['text' => $textbotlang['Admin']['ManageUser']['lowbalanceuser'], 'callback_data' => "lowbalanceuser_" . $id_user],],
-            [['text' => $textbotlang['Admin']['ManageUser']['banuserlist'], 'callback_data' => "banuserlist_" . $id_user], ['text' => $textbotlang['Admin']['ManageUser']['unbanuserlist'], 'callback_data' => "unbanuserr_" . $id_user]],
-            [['text' => $textbotlang['Admin']['ManageUser']['addagent'], 'callback_data' => "addagent_" . $id_user], ['text' => $textbotlang['Admin']['ManageUser']['removeagent'], 'callback_data' => "removeagent_" . $id_user]],
-            [['text' => $textbotlang['Admin']['ManageUser']['confirmnumber'], 'callback_data' => "confirmnumber_" . $id_user]],
-            [['text' => "🎁 درصد تخفیف", 'callback_data' => "Percentlow_" . $id_user], ['text' => "✍️ ارسال پیام به کاربر", 'callback_data' => "sendmessageuser_" . $id_user]],
-            [['text' => $textbotlang['Admin']['ManageUser']['vieworderuser'], 'callback_data' => "vieworderuser_" . $id_user]],
-            [['text' => "👥 زیرمجموعه های کاربر", 'callback_data' => "affiliates-" . $id_user]],
-            [['text' => "🔄 خارج کردن از زیرمجموعه", 'callback_data' => "removeaffiliate-" . $id_user], ['text' => "🔄 حذف زیرمجموعه های کاربر", 'callback_data' => "removeaffiliateuser-" . $id_user]],
-            [['text' => "💳 فعالسازی شماره کارت", 'callback_data' => "showcarduser-" . $id_user]],
-            [['text' => "احراز هویت کاربر", 'callback_data' => "verify_" . $id_user], ['text' => "عدم احراز کاربر", 'callback_data' => "unverify-" . $id_user]],
-            [['text' => "💳  غیرفعالسازی شماره کارت", 'callback_data' => "carduserhide-" . $id_user]],
-            [['text' => "🛒 افزودن سفارش", 'callback_data' => "addordermanualـ" . $id_user], ['text' => "➕ محدودیت اکانت تست", 'callback_data' => "limitusertest_" . $id_user]],
-            [['text' => $textbotlang['Admin']['ManageUser']['viewpaymentuser'], 'callback_data' => "viewpaymentuser_" . $id_user], ['text' => "انتقال حساب کاربری ", 'callback_data' => "transferaccount_" . $id_user]],
-            [['text' => "💡 خاموش کردن اکانت", 'callback_data' => "disableconfig-" . $id_user], ['text' => "💡 روشن کردن اکانت", 'callback_data' => "activeconfig-" . $id_user]],
-            [['text' => "📑 احراز عضویت کانال", 'callback_data' => "confirmchannel-" . $id_user], ['text' => "0️⃣ صفر کردن موجودی", 'callback_data' => "zerobalance-" . $id_user]],
-            [['text' => "🕚 وضعیت ارسال پیام های کرون", 'callback_data' => "statuscronuser-" . $id_user]],
-        ]
-    ];
-    if ($user['agent'] == "n2")
-        $keyboardmanage['inline_keyboard'][] = [['text' => "سقف خرید  نماینده", 'callback_data' => "maxbuyagent_" . $id_user]];
-    if ($user['agent'] != "f") {
-        $keyboardmanage['inline_keyboard'][] = [
-            ['text' => "🤖 فعالسازی ربات فروش", 'callback_data' => "createbot_" . $id_user],
-            ['text' => "❌ حذف ربات فروش", 'callback_data' => "removebotsell_" . $id_user]
-        ];
-    }
-    if ($user['agent'] != "f") {
-        $keyboardmanage['inline_keyboard'][] = [
-            ['text' => "🔋 قیمت پایه حجم", 'callback_data' => "setvolumesrc_" . $id_user],
-            ['text' => "⏳ قیمت پایه زمان", 'callback_data' => "settimepricesrc_" . $id_user]
-        ];
-        $keyboardmanage['inline_keyboard'][] = [
-            ['text' => "❌ مخفی کردن یک پنل برای نماینده", 'callback_data' => "hidepanel_" . $id_user],
-        ];
-        $keyboardmanage['inline_keyboard'][] = [
-            ['text' => "🗑 نمایش پنل های مخفی شده", 'callback_data' => "removehide_" . $id_user],
-        ];
-        $keyboardmanage['inline_keyboard'][] = [
-            ['text' => "⏱️ زمان انقضا نمایندگی", 'callback_data' => "expireset_" . $id_user],
-        ];
-    }
-    if (intval($setting['statuslimitchangeloc']) == 1) {
-        $keyboardmanage['inline_keyboard'][] = [
-            ['text' => "محدودیت تغییر لوکیشن", 'callback_data' => "changeloclimitbyuser_" . $id_user]
-        ];
-    }
-    $keyboardmanage = json_encode($keyboardmanage, JSON_UNESCAPED_UNICODE);
-    $user['Balance'] = number_format($user['Balance']);
-    if ($user['register'] != "none") {
-        if ($user['register'] == null)
-            return;
-        $userjoin = jdate('Y/m/d H:i:s', $user['register']);
-    } else {
-        $userjoin = "نامشخص";
-    }
-    $userverify = [
-        '0' => "احراز نشده",
-        '1' => "احراز شده"
-    ][$user['verify']];
-    $showcart = [
-        '0' => "مخفی",
-        '1' => "نمایش داده می شود"
-    ][$user['cardpayment']];
-    if ($user['last_message_time'] == null) {
-        $lastmessage = "";
-    } else {
-        $lastmessage = jdate('Y/m/d H:i:s', $user['last_message_time']);
-    }
-    $datefirst = time() - 86400;
-    $desired_date_time_start = time() - 3600;
-    $month_date_time_start = time() - 2592000;
-    $sql = "SELECT * FROM invoice WHERE time_sell > :requestedDate AND (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND name_product != 'سرویس تست' AND id_user = :id_user";
-    $stmt = $pdo->prepare($sql);
-    $stmt->bindParam(':id_user', $id_user);
-    $stmt->bindParam(':requestedDate', $desired_date_time_start);
-    $stmt->execute();
-    $listhours = $stmt->rowCount();
-    $sql = "SELECT SUM(price_product) FROM invoice WHERE time_sell > :requestedDate AND (Status = 'active' OR Status = 'end_of_time'  OR Status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND name_product != 'سرویس تست' AND id_user = :id_user";
-    $stmt = $pdo->prepare($sql);
-    $stmt->bindParam(':id_user', $id_user);
-    $stmt->bindParam(':requestedDate', $desired_date_time_start);
-    $stmt->execute();
-    $suminvoicehours = $stmt->fetchColumn();
-    if ($suminvoicehours == null) {
-        $suminvoicehours = "0";
-    }
-    $sql = "SELECT * FROM invoice WHERE time_sell > :requestedDate AND (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND name_product != 'سرویس تست' AND id_user = :id_user";
-    $stmt = $pdo->prepare($sql);
-    $stmt->bindParam(':id_user', $id_user);
-    $stmt->bindParam(':requestedDate', $month_date_time_start);
-    $stmt->execute();
-    $listmonth = $stmt->rowCount();
-    $sql = "SELECT SUM(price_product) FROM invoice WHERE time_sell > :requestedDate AND (Status = 'active' OR Status = 'end_of_time'  OR Status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND name_product != 'سرویس تست' AND id_user = :id_user";
-    $stmt = $pdo->prepare($sql);
-    $stmt->bindParam(':id_user', $id_user);
-    $stmt->bindParam(':requestedDate', $month_date_time_start);
-    $stmt->execute();
-    $suminvoicemonth = $stmt->fetchColumn();
-    if ($suminvoicemonth == null) {
-        $suminvoicemonth = "0";
-    }
-    if ($user['agent'] != "f" && $user['expire'] != null) {
-        $text_expie_agent = "⭕️ تاریخ پایان نمایندگی : " . jdate('Y/m/d H:i:s', $user['expire']);
-    } else {
-        $text_expie_agent = "";
-    }
-    $textinfouser = "👀 اطلاعات کاربر:
-
-🔗 اطلاعات کاربری کاربر
-
-⭕️ وضعیت کاربر : {$user['User_Status']}
-⭕️ نام کاربری کاربر : @{$user['username']}
-⭕️ آیدی عددی کاربر :  <a href = \"tg://user?id=$id_user\">$id_user</a>
-⭕️ کد معرف کاربر : {$user['codeInvitation']}
-⭕️ زمان عضویت کاربر : $userjoin
-⭕️ آخرین زمان  استفاده کاربر از ربات : $lastmessage
-⭕️ محدودیت اکانت تست :  {$user['limit_usertest']} 
-⭕️ وضعیت تایید قانون : $roll_Status
-⭕️ شماره موبایل : <code>{$user['number']}</code>
-⭕️ نوع کاربری : {$user['agent']}
-⭕️ تعداد زیرمجموعه کاربر : {$user['affiliatescount']}
-⭕  معرف کاربر : {$user['affiliates']}
-⭕  وضعیت احراز هویت: $userverify   
-⭕  نمایش شماره کارت :‌$showcart
-⭕ امتیاز کاربر : {$user['score']}
-⭕️  مجموع حجم خریداری شده فعال ( برای آمار دقیق حجم باید کرون روشن باشد): {$sumvolume['SUM(Volume)']}
-$text_expie_agent
-
-💎 گزارشات مالی
-
-🔰 موجودی کاربر : {$user['Balance']}
-🔰 تعداد خرید کل کاربر : {$dayListSell['COUNT(*)']}
-🔰️ مبلغ کل پرداختی  :  {$balanceall['SUM(price)']}
-🔰 جمع کل خرید : {$subbuyuser['SUM(price_product)']}
-🔰 درصد تخفیف کاربر : {$user['pricediscount']}
-🔰 تعداد فروش یک ساعت گذشته : $listhours عدد
-🔰 مجموع فروش یک ساعت گذشته : $suminvoicehours تومان
-🔰 تعداد فروش یک ماه گذشته : $listmonth عدد
-🔰 مجموع فروش یک ماه گذشته : $suminvoicemonth تومان
-
-";
-    if (isset($datain[0]) && $datain[0] == "u") {
-        telegram('answerCallbackQuery', array(
-            'callback_query_id' => $callback_query_id,
-            'text' => "اطلاعات بروزرسانی گردید",
-            'show_alert' => true,
-            'cache_time' => 5,
-        ));
-        Editmessagetext($from_id, $message_id, $textinfouser, $keyboardmanage);
-    } else {
-        sendmessage($from_id, $textinfouser, $keyboardmanage, 'HTML');
-        sendmessage($from_id, $textbotlang['users']['selectoption'], $keyboardadmin, 'HTML');
-    }
-    step('home', $from_id);
+    $isRefresh = preg_match('/^updateinfouser_/', (string) $datain);
+    $isInlineNav = (bool) preg_match('/^(updateinfouser_|manageuser_)/', (string) $datain);
+    mirza_admin_show_user_manage($from_id, (string) $id_user, [
+        'category' => 'main',
+        'edit' => $isInlineNav && !empty($message_id),
+        'message_id' => $message_id,
+        'refresh_alert' => $isRefresh,
+    ]);
 } elseif ($text == "🎁 ساخت کد هدیه" && $adminrulecheck['rule'] == "administrator") {
     sendmessage($from_id, $textbotlang['Admin']['Discount']['GetCode'], $backadmin, 'HTML');
     step('get_code', $from_id);
@@ -4505,21 +4363,19 @@ $text_expie_agent
             sendmessage($from_id, $text_marzban, $optionMarzban, 'HTML');
         }
     } elseif ($marzban_list_get['type'] == "x-ui_single") {
-        $x_ui_check_connect = login($marzban_list_get['code_panel'], true, true);
+        $x_ui_check_connect = mirza_xui_test_connection($marzban_list_get['code_panel']);
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $text, "select");
         $dash = mirza_xui_admin_dashboard_text($marzban_list_get, $x_ui_check_connect);
         $dash .= "\n\n⭕️ از منوی زیر یا دکمه‌های بالا (اینباند / تست اتصال) استفاده کنید.";
         sendmessage($from_id, $dash, mirza_xui_hub_inline_keyboard($marzban_list_get['name_panel']), 'HTML');
-        if (!empty($x_ui_check_connect['success'])) {
-            sendmessage($from_id, $textbotlang['Admin']['managepanel']['connectXUi'], $optionX_ui_single, 'HTML');
-        } else {
+        if (!$x_ui_check_connect['success']) {
             $err = (string) ($x_ui_check_connect['msg'] ?? 'اتصال برقرار نیست');
             sendmessage($from_id, $err, $optionX_ui_single, 'HTML');
         }
     } elseif ($marzban_list_get['type'] == "mirza_agent") {
         sendmessage($from_id, $textbotlang['users']['selectoption'] ?? 'یک گزینه را انتخاب کنید', $optionMarzban, 'HTML');
     } elseif ($marzban_list_get['type'] == "alireza_single") {
-        $x_ui_check_connect = login($marzban_list_get['code_panel'], true, true);
+        $x_ui_check_connect = mirza_xui_test_connection($marzban_list_get['code_panel']);
         if ($x_ui_check_connect['success']) {
             sendmessage($from_id, $textbotlang['Admin']['managepanel']['connectXUi'], $optionalireza_single, 'HTML');
         } elseif ($x_ui_check_connect['msg'] == "The username or password is incorrect") {
@@ -4800,7 +4656,7 @@ $text_expie_agent
         telegram('answerCallbackQuery', array('callback_query_id' => $callback_query_id));
         mirza_xui_admin_open_inbound_picker($from_id, $namePanel, $message_id);
     } elseif ($action === 'tst') {
-        $xuiLogin = login($panel['code_panel'], false, true);
+        $xuiLogin = mirza_xui_test_connection($panel['code_panel']);
         $ok = !empty($xuiLogin['success']);
         telegram('answerCallbackQuery', array(
             'callback_query_id' => $callback_query_id,
@@ -5027,7 +4883,7 @@ $text_expie_agent
             ]
         ]
     ]);
-    $text_list_users = "📌 از لیست زیر یک گزینه را انتخاب نمایید";
+    $text_list_users = "📌 از لیست زیر یک گزینه را انتخاب نمایید\n\n💡 جستجوی سریع: <code>/آیدی</code> یا <code>/username</code> یا لینk t.me";
     if ($datain == "backlistuser") {
         Editmessagetext($from_id, $message_id, $text_list_users, $keyboardtypelistuser);
     } else {

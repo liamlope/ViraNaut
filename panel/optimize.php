@@ -58,9 +58,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['opt_action'])) {
 $previewDaysExpire = mirza_optimize_sanitize_days($_POST['days_expire'] ?? $daysExpireDefault, $daysExpireDefault);
 $previewDaysUnpaid = mirza_optimize_sanitize_days($_POST['days_unpaid'] ?? $daysUnpaidDefault, $daysUnpaidDefault);
 $preview = mirza_optimize_preview($pdo, $previewDaysExpire, $previewDaysUnpaid);
+$previewTotal = (int) $preview['expired_services']
+    + (int) $preview['junk_orders']
+    + (int) $preview['old_payments']
+    + (int) $preview['old_unpaid_payments'];
 
 $pageTitle = 'بهینه‌سازی';
-$pageLede = 'سبک‌سازی دیتابیس و لاگ‌ها — سرویس‌های فعال و داده‌های مالی حساس حفظ می‌شوند.';
+$pageLede = 'پیش‌نمایش پیش‌فرض — اجرای واقعی فقط با تأیید دوباره.';
 $activeNav = 'optimize';
 $extraCss = ['css/optimize.css'];
 $extraJs = [];
@@ -176,6 +180,17 @@ window.ViraOptimizePage = (function () {
 
     function runFull(ev) {
         if (ev && ev.preventDefault) ev.preventDefault();
+        var execZone = el('optExecuteZone');
+        if (execZone && execZone.hidden) {
+            execZone.hidden = false;
+            execZone.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            showResult('پیش‌نمایش را بررسی کنید. برای حذف واقعی «اجرای واقعی بهینه‌سازی» را بزنید.', true);
+        }
+        return false;
+    }
+
+    function runFullExecute(ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
         if (!window.mirzaBotTools) {
             askConfirm('بهینه‌سازی کامل (حالت ساده بدون AJAX) انجام شود؟', 'تأیید', function () {
                 submitFallback('full');
@@ -184,12 +199,16 @@ window.ViraOptimizePage = (function () {
         }
         var d = getDays();
         askConfirm(
-            'بهینه‌سازی کامل انجام شود؟\n\n'
+            '⚠️ اجرای واقعی — این عملیات برگشت‌ناپذیر است.\n\n'
             + 'پرداخت منقضی/رد: قدیمی‌تر از ' + d.days_expire + ' روز\n'
             + 'پرداخت Unpaid: قدیمی‌تر از ' + d.days_unpaid + ' روز\n\n'
-            + 'سرویس‌های فعال و پرداخت‌های موفق حفظ می‌شوند.',
-            'تأیید بهینه‌سازی',
+            + 'ادامه می‌دهید؟',
+            'تأیید نهایی بهینه‌سازی',
             function () {
+                askConfirm(
+                    'آخرین تأیید: حذف داده‌ها انجام شود؟',
+                    'اجرای واقعی',
+                    function () {
                 runWithProgress({
                     title: 'در حال بهینه‌سازی ربات…',
                     steps: FULL_STEPS,
@@ -219,6 +238,7 @@ window.ViraOptimizePage = (function () {
                 }).catch(function (err) {
                     showResult('خطا: ' + (err && err.message ? err.message : 'ارتباط با سرور'), false);
                 });
+                    });
             }
         );
         return false;
@@ -301,7 +321,7 @@ window.ViraOptimizePage = (function () {
 
     window.addEventListener('load', init);
 
-    return { runFull: runFull, runCleanup: runCleanup, init: init };
+    return { runFull: runFull, runFullExecute: runFullExecute, runCleanup: runCleanup, refreshPreview: refreshPreview, init: init };
 }());
 JS;
 
@@ -336,7 +356,20 @@ window.ViraOptimizePage = window.ViraOptimizePage || {
         <p class="opt-hero-lede">سرویس‌های تمام‌شده و سفارش‌های بلااستفاده حذف می‌شوند. بازهٔ پاکسازی پرداخت‌ها قابل انتخاب است.</p>
     </div>
 
-    <div class="opt-stats" id="optStats">
+    <div class="card opt-preview-card">
+        <div class="card-head">
+            <div>
+                <div class="card-title">پیش‌نمایش (Dry-run)</div>
+                <div class="card-subtitle">تغییر بازهٔ زمانی، اعداد را به‌روز می‌کند — هنوز چیزی حذف نشده</div>
+            </div>
+            <div class="opt-preview-total">
+                <span class="opt-preview-total-val"><?= (int) $previewTotal ?></span>
+                <span class="opt-preview-total-label">مورد قابل حذف</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="opt-stats opt-stats-lg" id="optStats">
         <div class="opt-stat is-warn">
             <div class="opt-stat-val" data-stat="expired_services"><?= (int) $preview['expired_services'] ?></div>
             <div class="opt-stat-label">سرویس تمام‌شده</div>
@@ -345,11 +378,11 @@ window.ViraOptimizePage = window.ViraOptimizePage || {
             <div class="opt-stat-val" data-stat="junk_orders"><?= (int) $preview['junk_orders'] ?></div>
             <div class="opt-stat-label">سفارش بلااستفاده</div>
         </div>
-        <div class="opt-stat">
+        <div class="opt-stat is-pay">
             <div class="opt-stat-val" data-stat="old_payments"><?= (int) $preview['old_payments'] ?></div>
             <div class="opt-stat-label" id="lblOldPayments">پرداخت منقضی/رد (<span id="lblDaysExpire"><?= $previewDaysExpire ?></span>+ روز)</div>
         </div>
-        <div class="opt-stat">
+        <div class="opt-stat is-pay">
             <div class="opt-stat-val" data-stat="old_unpaid_payments"><?= (int) $preview['old_unpaid_payments'] ?></div>
             <div class="opt-stat-label" id="lblOldUnpaid">پرداخت Unpaid (<span id="lblDaysUnpaid"><?= $previewDaysUnpaid ?></span>+ روز)</div>
         </div>
@@ -404,8 +437,16 @@ window.ViraOptimizePage = window.ViraOptimizePage || {
             </ul>
 
             <div class="opt-actions">
-                <button type="button" class="btn btn-primary" id="runFullOptimize" onclick="return ViraOptimizePage.runFull(event)"><?= icon('check', 14) ?> اجرای بهینه‌سازی کامل</button>
-                <button type="button" class="btn btn-no btn-sm" id="runCleanupOnly" onclick="return ViraOptimizePage.runCleanup(event)">فقط پاکسازی پرداخت‌ها</button>
+                <button type="button" class="btn btn-ghost" id="runPreviewRefresh" onclick="return ViraOptimizePage.refreshPreview && ViraOptimizePage.refreshPreview(event)"><?= icon('settings', 14) ?> بروزرسانی پیش‌نمایش</button>
+                <button type="button" class="btn btn-primary" id="runFullOptimize" onclick="return ViraOptimizePage.runFull(event)"><?= icon('check', 14) ?> ادامه به اجرای واقعی</button>
+            </div>
+
+            <div id="optExecuteZone" class="opt-execute-zone" hidden>
+                <p class="field-hint">پیش از اجرا از <a href="backup.php">پشتیبان‌گیری</a> بکاپ بگیرید.</p>
+                <div class="opt-actions">
+                    <button type="button" class="btn btn-no" id="runFullExecute" onclick="return ViraOptimizePage.runFullExecute(event)"><?= icon('trash', 14) ?> اجرای واقعی بهینه‌سازی</button>
+                    <button type="button" class="btn btn-no btn-sm" id="runCleanupOnly" onclick="return ViraOptimizePage.runCleanup(event)">فقط پاکسازی پرداخت‌ها</button>
+                </div>
             </div>
 
             <form method="post" id="optFormFull" style="display:none" aria-hidden="true">

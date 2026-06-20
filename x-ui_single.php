@@ -412,7 +412,7 @@ function mirza_xui_apply_session(CurlRequest $req)
     }
 }
 
-function login($code_panel, $verify = true, $quick = false)
+function login($code_panel, $verify = true, $quick = false, $forceProbe = false)
 {
     $GLOBALS['mirza_xui_csrf'] = null;
     $panel = select("marzban_panel", "*", "code_panel", $code_panel, "select");
@@ -420,7 +420,7 @@ function login($code_panel, $verify = true, $quick = false)
 
     $bearer = mirza_xui_bearer_token($panel);
     if ($bearer !== '') {
-        if ($panel['datelogin'] != null) {
+        if (!$forceProbe && $panel['datelogin'] != null) {
             $date = json_decode($panel['datelogin'], true);
             if (is_array($date) && isset($date['time'], $date['mode']) && $date['mode'] === 'bearer') {
                 $start_date = time() - strtotime($date['time']);
@@ -453,7 +453,7 @@ function login($code_panel, $verify = true, $quick = false)
         );
     }
 
-    if ($panel['datelogin'] != null) {
+    if (!$forceProbe && $panel['datelogin'] != null) {
         $date = json_decode($panel['datelogin'], true);
         if (
             is_array($date) && isset($date['time'], $date['access_token']) && $date['access_token'] !== ''
@@ -600,6 +600,12 @@ function mirza_xui_resolve_inbounds(array $panel, $product = null, $override = n
     }
     if (is_array($product) && $product !== []) {
         $nameProduct = $product['name_product'] ?? '';
+        if ($nameProduct === 'usertest') {
+            $ids = mirza_xui_parse_id_list($panel['inboundid'] ?? '');
+            if ($ids !== []) {
+                return $ids;
+            }
+        }
         if (
             $nameProduct !== ''
             && $nameProduct !== 'usertest'
@@ -1418,24 +1424,38 @@ function mirza_xui_fetch_server_status($name_panel)
     return $dec['obj'];
 }
 
+function mirza_xui_test_connection($code_panel)
+{
+    return login($code_panel, true, true, true);
+}
+
 function mirza_xui_admin_dashboard_text(array $panel, $connect = null)
 {
     $name = htmlspecialchars((string) ($panel['name_panel'] ?? ''), ENT_QUOTES, 'UTF-8');
     $ok = is_array($connect) && !empty($connect['success']);
-    $stateIcon = $ok ? '✅' : '⚠️';
-    $authMode = !empty(trim((string) ($panel['xui_api_token'] ?? ''))) ? 'توکن API' : 'نام‌کاربری/رمز';
+    $stateLine = $ok ? '✅ <b>اتصال:</b> برقرار' : '❌ <b>اتصال:</b> قطع';
+    $authMode = !empty(trim((string) ($panel['xui_api_token'] ?? ''))) ? 'توکن API' : 'نام کاربری و رمز';
     $inbounds = mirza_xui_resolve_inbounds($panel, null);
-    $ibText = $inbounds !== [] ? implode(', ', $inbounds) : 'تنظیم نشده';
-    $sub = htmlspecialchars((string) ($panel['linksubx'] ?? '—'), ENT_QUOTES, 'UTF-8');
+    $ibText = $inbounds !== [] ? implode(', ', $inbounds) : 'انتخاب نشده';
+    $subRaw = trim((string) ($panel['linksubx'] ?? ''));
+    $panelRaw = trim((string) ($panel['url_panel'] ?? ''));
 
     $lines = array(
-        "🎛 <b>مرکز پنل ۳x-ui</b> — {$name}",
+        "🎛 <b>مرکز پنل</b> — {$name}",
         '',
-        "{$stateIcon} <b>اتصال:</b> " . ($ok ? 'برقرار' : 'مشکل دارد'),
+        $stateLine,
         "🔐 <b>احراز:</b> {$authMode}",
         "📡 <b>اینباندها:</b> <code>{$ibText}</code>",
-        "🔗 <b>لینک ساب:</b> {$sub}",
     );
+
+    if ($panelRaw !== '') {
+        $panelEsc = htmlspecialchars($panelRaw, ENT_QUOTES, 'UTF-8');
+        $lines[] = "🖥 <b>آدرس پنل:</b> <a href=\"{$panelEsc}\">{$panelEsc}</a>";
+    }
+    if ($subRaw !== '') {
+        $subEsc = htmlspecialchars($subRaw, ENT_QUOTES, 'UTF-8');
+        $lines[] = "🔗 <b>لینک اشتراک:</b> <a href=\"{$subEsc}\">باز کردن لینک ساب</a>";
+    }
 
     if ($ok) {
         $stats = mirza_xui_fetch_server_status($panel['name_panel']);
@@ -1448,7 +1468,7 @@ function mirza_xui_admin_dashboard_text(array $panel, $connect = null)
                 $memPct = round(((float) $stats['mem']['current'] / (float) $stats['mem']['total']) * 100, 1);
             }
             $lines[] = '';
-            $lines[] = '📊 <b>وضعیت لحظه‌ای</b>';
+            $lines[] = '📊 <b>وضعیت سرور</b>';
             $lines[] = "CPU: {$cpu}% · RAM: {$memPct}%";
             $lines[] = 'Xray: ' . htmlspecialchars((string) $xray, ENT_QUOTES, 'UTF-8')
                 . ($xver !== '' ? ' (' . htmlspecialchars((string) $xver, ENT_QUOTES, 'UTF-8') . ')' : '');
@@ -1459,16 +1479,12 @@ function mirza_xui_admin_dashboard_text(array $panel, $connect = null)
         if (function_exists('mirza_xui_format_panel_error') && stripos($msg, 'Failed to connect') !== false) {
             $msg = mirza_xui_format_panel_error(array('error' => $msg));
         }
-        $lines[] = '💬 ' . htmlspecialchars(mb_substr($msg, 0, 400), ENT_QUOTES, 'UTF-8');
-    }
-    $portNote = mirza_xui_panel_sub_port_note($panel);
-    if ($portNote !== '') {
-        $lines[] = $portNote;
+        $lines[] = '💬 ' . htmlspecialchars(mb_substr(strip_tags($msg), 0, 300), ENT_QUOTES, 'UTF-8');
     }
 
     if ($inbounds === []) {
         $lines[] = '';
-        $lines[] = '👇 برای شروع، از دکمه <b>انتخاب اینباند</b> استفاده کنید.';
+        $lines[] = '👇 برای شروع، اینباند پنل را انتخاب کنید.';
     }
 
     return implode("\n", $lines);

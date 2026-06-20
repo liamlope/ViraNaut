@@ -10,14 +10,6 @@
     margin: 0 0 8px;
     font-size: 0.78rem;
 }
-.inbound-default-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-    font-size: 0.85rem;
-    cursor: pointer;
-}
 .inbound-check-list {
     display: flex;
     flex-direction: column;
@@ -30,4 +22,25 @@
     font-size: 0.82rem;
     cursor: pointer;
     padding: 4px 0;
+}
+
+.product-bulk-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: var(--sf2);
+    border: 1px solid var(--bd);
+    border-radius: 10px;
+    position: sticky;
+    top: 8px;
+    z-index: 2;
+}
+
+.product-bulk-count {
+    font-size: 0.82rem;
+    color: var(--mute);
+    min-width: 120px;
 }

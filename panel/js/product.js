@@ -29,6 +29,11 @@
         }, 50);
     };
 
+    function shouldValidateInbounds(pickerId) {
+        var picker = document.getElementById(pickerId);
+        return !!(picker && picker.querySelector('.inbound-id-cb'));
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         var addPanel = document.getElementById('add_panel');
         if (addPanel) {
@@ -53,14 +58,22 @@
         }
         var addForm = document.querySelector('#addModal form');
         if (addForm) {
-            addForm.addEventListener('submit', function () {
-                P.syncHiddenInput(document.getElementById('add_inbound_picker'), document.getElementById('add_inbounds'));
+            addForm.addEventListener('submit', function (ev) {
+                if (shouldValidateInbounds('add_inbound_picker') && !P.validateBeforeSubmit('add_inbound_picker', 'add_inbounds', true)) {
+                    ev.preventDefault();
+                    return;
+                }
+                P.syncHiddenInput(document.getElementById('add_inbound_picker'), document.getElementById('add_inbounds'), false);
             });
         }
         var editForm = document.querySelector('#editModal form');
         if (editForm) {
-            editForm.addEventListener('submit', function () {
-                P.syncHiddenInput(document.getElementById('edit_inbound_picker'), document.getElementById('edit_inbounds'));
+            editForm.addEventListener('submit', function (ev) {
+                if (shouldValidateInbounds('edit_inbound_picker') && !P.validateBeforeSubmit('edit_inbound_picker', 'edit_inbounds', true)) {
+                    ev.preventDefault();
+                    return;
+                }
+                P.syncHiddenInput(document.getElementById('edit_inbound_picker'), document.getElementById('edit_inbounds'), false);
             });
         }
     });
