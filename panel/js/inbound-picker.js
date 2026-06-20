@@ -139,7 +139,16 @@
                 var items = data.items || [];
                 renderPicker(picker, items, parsed.ids, data.msg, required);
                 bindPickerEvents(picker, hidden, required);
-                syncHiddenInput(picker, hidden, required);
+                if (!items.length && parsed.valid) {
+                    hidden.value = JSON.stringify(parsed.ids);
+                    var keep = document.createElement('p');
+                    keep.className = 'field-hint inbound-kept-msg';
+                    keep.textContent = 'اینباند فعلی حفظ شد: #' + parsed.ids.join(', #')
+                        + ' — لیست از پنل بارگذاری نشد؛ پس از ذخیرهٔ آدرس، «تست اتصال» بزنید و در صورت نیاز اینباند را عوض کنید.';
+                    picker.appendChild(keep);
+                } else {
+                    syncHiddenInput(picker, hidden, required);
+                }
             })
             .catch(function (err) {
                 picker.innerHTML = '<span class="tag tag-no">خطا در دریافت اینباندها' + (err && err.message ? ' (' + err.message + ')' : '') + '</span>';

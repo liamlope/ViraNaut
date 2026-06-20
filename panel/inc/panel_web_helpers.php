@@ -12,6 +12,29 @@ function panel_web_default_json_prices(): array
     ];
 }
 
+/** اینباند ذخیره‌شده در DB (ستون inbounds یا inboundid) */
+function panel_web_stored_inbounds_raw(array $row): string
+{
+    $candidates = [
+        trim((string) ($row['inbounds'] ?? '')),
+        trim((string) ($row['inboundid'] ?? '')),
+    ];
+    foreach ($candidates as $raw) {
+        if ($raw === '' || $raw === 'null' || $raw === '-') {
+            continue;
+        }
+        if (function_exists('mirza_xui_parse_id_list')) {
+            require_once __DIR__ . '/../../x-ui_single.php';
+            if (mirza_xui_parse_id_list($raw) !== []) {
+                return $raw;
+            }
+            continue;
+        }
+        return $raw;
+    }
+    return '';
+}
+
 function panel_web_validate_inbounds(string $type, string $raw): ?string
 {
     if (!panel_web_type_needs_inbounds($type)) {
@@ -171,6 +194,9 @@ function panel_web_update_panel(PDO $pdo, string $name, array $data): array
 
     $inboundsRaw = trim((string) ($data['panel_inbounds'] ?? ''));
     if (!empty($defs[$type]['needs_inbounds'])) {
+        if ($inboundsRaw === '' || $inboundsRaw === '-') {
+            $inboundsRaw = panel_web_stored_inbounds_raw($row);
+        }
         if ($inboundsRaw === '' || $inboundsRaw === '-') {
             return ['ok' => false, 'msg' => 'حداقل یک اینباند باید انتخاب شود.'];
         }

@@ -181,13 +181,14 @@
             '</select>';
     }
 
-    function buildDynamicFields(typeDef, panel) {
+    function buildDynamicFields(typeDef, panel, idPrefix) {
+        var prefix = idPrefix || 'add_dyn';
         var html = '<input type="hidden" name="panel_type" value="' + (typeDef.type || '') + '">';
         (typeDef.fields || []).forEach(function (f) {
             if (f.type === 'inbounds') {
                 html += '<div class="field full"><label>' + f.label + ' *</label>';
-                html += '<input type="hidden" name="panel_inbounds" id="add_dyn_inbounds" value="">';
-                html += '<div id="add_dyn_inbound_picker" class="inbound-picker-box"></div></div>';
+                html += '<input type="hidden" name="panel_inbounds" id="' + prefix + '_inbounds" value="">';
+                html += '<div id="' + prefix + '_inbound_picker" class="inbound-picker-box"></div></div>';
                 return;
             }
             if (f.type === 'agent') {
@@ -228,7 +229,7 @@
         loadTypeDefs().then(function (types) {
             var def = types.find(function (t) { return t.type === type; });
             if (!def) return;
-            wrap.innerHTML = buildDynamicFields(def, null);
+            wrap.innerHTML = buildDynamicFields(def, null, 'add_dyn');
             if (P && document.getElementById('add_dyn_inbound_picker')) {
                 var nameInput = wrap.querySelector('[name="name_panel"]');
                 var reload = function () {
@@ -258,8 +259,16 @@
     };
 
     function panelEffectiveType(p) {
-        if (p.type === 'marzban' && String(p.version_panel) === '1') return 'pasarguard';
-        return p.type;
+        if (p.type === 'marzban' && String(p.version_panel) === '1') {
+            return 'pasarguard';
+        }
+        var aliases = {
+            'x-ui': 'x-ui_single',
+            '3x-ui': 'x-ui_single',
+            '3xui': 'x-ui_single',
+            'x_ui_single': 'x-ui_single'
+        };
+        return aliases[p.type] || p.type;
     }
 
     function fillEditForm(p) {
@@ -277,7 +286,7 @@
             if (!def || !wrap) return;
             var clone = JSON.parse(JSON.stringify(def));
             clone.fields = (clone.fields || []).filter(function (f) { return f.key !== 'name_panel'; });
-            wrap.innerHTML = buildDynamicFields(clone, p).replace(/add_dyn/g, 'edit_dyn');
+            wrap.innerHTML = buildDynamicFields(clone, p, 'edit_dyn');
             if (P) {
                 var ib = p.inbounds || '';
                 if (ib === '' || ib === 'null') ib = p.inboundid ? String(p.inboundid) : '';
@@ -315,10 +324,13 @@
                 ev.preventDefault();
                 if (P && document.getElementById('edit_dyn_inbound_picker')) {
                     var ep = document.getElementById('edit_dyn_inbound_picker');
-                    if (ep.querySelector('.inbound-id-cb') && !P.validateBeforeSubmit('edit_dyn_inbound_picker', 'edit_dyn_inbounds', true)) {
-                        return;
+                    var eh = document.getElementById('edit_dyn_inbounds');
+                    if (ep.querySelector('.inbound-id-cb')) {
+                        if (!P.validateBeforeSubmit('edit_dyn_inbound_picker', 'edit_dyn_inbounds', true)) {
+                            return;
+                        }
+                        P.syncHiddenInput(ep, eh, false);
                     }
-                    P.syncHiddenInput(ep, document.getElementById('edit_dyn_inbounds'), false);
                 }
                 var fd = new FormData(form);
                 fd.append('action', 'update');
