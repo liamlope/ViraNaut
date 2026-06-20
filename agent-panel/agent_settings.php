@@ -15,12 +15,11 @@ require __DIR__ . '/inc/layout_head.php';
 ?>
 <div class="card"><div class="card-body">
 <?php if ($botsaz): ?>
-<p>ربات فروش: @<?= htmlspecialchars($botsaz['username'] ?? '') ?></p>
 <p>قیمت پایه حجم: <?= number_format((int)($botSetting['minpricevolume'] ?? 0)) ?> — قیمت فعلی: <?= number_format((int)($botSetting['pricevolume'] ?? 0)) ?></p>
 <p>قیمت پایه زمان: <?= number_format((int)($botSetting['minpricetime'] ?? 0)) ?> — قیمت فعلی: <?= number_format((int)($botSetting['pricetime'] ?? 0)) ?></p>
-<p class="lede">تغییر قیمت از پنل ادمین یا ربات فروش اختصاصی شما.</p>
+<p class="lede">برای تغییر تعرفه با ادمین تماس بگیرید.</p>
 <?php else: ?>
-<p>ربات فروش (vpnbot) برای شما فعال نیست. از ادمین درخواست «فعالسازی ربات فروش» کنید.</p>
+<p>تعرفه اختصاصی n2 فعال نیست. برای فعال‌سازی با ادمین تماس بگیرید.</p>
 <?php endif; ?>
 <?php if (!empty($user['expire'])): ?>
 <p>انقضای نمایندگی: <?= date('Y/m/d', (int)$user['expire']) ?></p>

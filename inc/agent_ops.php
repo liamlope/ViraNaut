@@ -697,9 +697,6 @@ function agent_payment_gateways(): array
     if (agent_pay_setting('statusaqayepardakht') === 'onaqayepardakht') {
         $gates[] = ['id' => 'aqayepardakht', 'label' => 'آقای پرداخت'];
     }
-    if (agent_pay_setting('Cartstatus') === 'oncard') {
-        $gates[] = ['id' => 'cart', 'label' => 'کارت به کارت'];
-    }
     return $gates;
 }
 
@@ -754,15 +751,6 @@ function agent_create_topup_payment(PDO $pdo, array $user, int $amount, string $
         $stmt->execute();
         $stmt->close();
         return ['ok' => true, 'url' => 'https://panel.aqayepardakht.ir/startpay/' . ($pay['transid'] ?? ''), 'order_id' => $randomString];
-    }
-
-    if ($gatewayId === 'cart') {
-        $min = (int) agent_pay_setting('minbalancecart');
-        $max = (int) agent_pay_setting('maxbalancecart');
-        if ($min > 0 && ($amount < $min || $amount > $max)) {
-            return ['ok' => false, 'msg' => "مبلغ باید بین {$min} و {$max} تومان باشد"];
-        }
-        return ['ok' => false, 'msg' => 'کارت به کارت فقط از ربات تلگرام پشتیبانی می‌شود'];
     }
 
     return ['ok' => false, 'msg' => 'درگاه نامعتبر یا غیرفعال'];

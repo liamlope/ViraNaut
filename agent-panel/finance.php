@@ -4,6 +4,7 @@ require_once __DIR__ . '/inc/bootstrap.php';
 $user = agent_panel_require_auth($pdo);
 $metrics = agent_dashboard_metrics($pdo, $user);
 $gates = agent_payment_gateways();
+$topupAmount = max(5000, (int) ($_GET['amount'] ?? 10000));
 $pageTitle = 'مرکز مالی';
 $activeNav = 'finance';
 require __DIR__ . '/inc/layout_head.php';
@@ -20,7 +21,7 @@ require __DIR__ . '/inc/layout_head.php';
 <p class="notice notice-warn">درگاه پرداخت فعالی یافت نشد. از پنل ادمین درگاه را فعال کنید.</p>
 <?php else: ?>
 <form id="topup-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
-<input type="number" name="amount" class="input" min="5000" step="1000" placeholder="مبلغ (تومان)" required style="max-width:200px" value="10000">
+<input type="number" name="amount" class="input" min="5000" step="1000" placeholder="مبلغ (تومان)" required style="max-width:200px" value="<?= (int) $topupAmount ?>">
 <select name="gateway" class="input">
 <?php foreach ($gates as $g): ?><option value="<?= htmlspecialchars($g['id']) ?>"><?= htmlspecialchars($g['label']) ?></option><?php endforeach; ?>
 </select>

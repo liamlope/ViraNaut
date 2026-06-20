@@ -24,6 +24,11 @@
 
   window.agentFetch = agentFetch;
 
+  function agentGoTopup(amount) {
+    var n = Math.max(5000, parseInt(amount, 10) || 5000);
+    window.location.href = 'finance.php?amount=' + encodeURIComponent(String(n));
+  }
+
   function initChart(days) {
     var canvas = document.getElementById('agent-chart');
     if (!canvas || typeof Chart === 'undefined') return;
@@ -73,6 +78,7 @@
         if (gb) body.set('gb', gb);
         if (days) body.set('days', days);
         agentFetch('api/service_action.php', { method: 'POST', body: body }).then(function (j) {
+          if (j.needs_gateway) { agentGoTopup(j.gateway_amount); return; }
           if (typeof toast === 'function') toast(j.msg || (j.ok ? 'انجام شد' : 'خطا'), j.ok ? 'ok' : 'no');
           else alert(j.msg);
           if (j.ok) setTimeout(function () { location.reload(); }, 800);
@@ -92,14 +98,18 @@
       var html = '<p>قیمت: <strong>' + Number(p.price).toLocaleString('fa-IR') + '</strong> تومان</p>';
       html += '<p>موجودی فعلی: ' + Number(p.balance).toLocaleString('fa-IR') + '</p>';
       html += '<p>موجودی بعد: <strong>' + Number(p.after).toLocaleString('fa-IR') + '</strong></p>';
-      if (p.needs_gateway) html += '<p class="notice notice-warn">نیاز به شارژ: ' + Number(p.gateway_amount).toLocaleString('fa-IR') + ' تومان</p>';
+      if (p.needs_gateway) html += '<p class="notice notice-warn">موجودی کافی نیست — پس از تأیید به بخش «افزایش موجودی» منتقل می‌شوید.</p>';
       var el = document.getElementById('checkout-body');
       if (el) el.innerHTML = html;
       openModal('checkout-modal');
       var btn = document.getElementById('checkout-confirm');
       btn.onclick = function () {
         closeModal('checkout-modal');
-        if (p.needs_gateway && typeof onGateway === 'function') { onGateway(p.gateway_amount); return; }
+        if (p.needs_gateway) {
+          if (typeof onGateway === 'function') { onGateway(p.gateway_amount); return; }
+          agentGoTopup(p.gateway_amount);
+          return;
+        }
         if (onConfirm) onConfirm();
       };
     });
@@ -110,9 +120,8 @@
     return agentFetch('api/buy.php', { method: 'POST', body: body }).then(function (j) {
       if (typeof toast === 'function') toast(j.msg || (j.ok ? 'موفق' : 'خطا'), j.ok ? 'ok' : 'no');
       if (j.needs_gateway) {
-        agentFetch('api/buy.php', { method: 'POST', body: new URLSearchParams({ action: 'gateway_intent', amount: j.gateway_amount, csrf: csrf() }) }).then(function (g) {
-          if (g.ok && g.gateways && g.gateways[0]) window.open(g.gateways[0].url + '?from_id=' + encodeURIComponent(document.body.dataset.agentId || ''), '_blank');
-        });
+        agentGoTopup(j.gateway_amount);
+        return j;
       }
       return j;
     });
