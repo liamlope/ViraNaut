@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 dirname(__DIR__) . '/migrations/viranaut_migrate_2_1_0.sql',
                 dirname(__DIR__) . '/migrations/viranaut_migrate_3_0_0.sql',
                 dirname(__DIR__) . '/migrations/viranaut_migrate_3_1_0.sql',
+                dirname(__DIR__) . '/migrations/viranaut_migrate_3_2_0_agent_panel.sql',
             ];
             foreach ($migrationFiles as $sqlPath) {
                 if (!is_readable($sqlPath)) {

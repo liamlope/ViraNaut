@@ -96,13 +96,13 @@ chmod +x /root/ViraNaut_manage.sh
 
 ### بعد از مهاجرت
 
+مهاجرت دیتابیس **خودکار** داخل همان اسکریپت (`viranaut_db_migrate`) اجرا می‌شود — **نیازی به کار دستی در مرورگر نیست.**
+
 ```bash
-viranaut          # میانبر مدیریت
-# یا
-/root/ViraNaut_manage.sh update
+viranaut    # میانبر مدیریت — ربات باید بلافاصله آماده باشد
 ```
 
-یک‌بار از مرورگر: `https://دامنه/panel/migration.php`
+در صورت خطا: `viranaut` → **Diagnose** → **Auto-fix** یا `@eronum` در تلگرام.
 
 ---
 
@@ -114,7 +114,7 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 
 - بکاپ ZIP خودکار → `/root/viranaut_backups/`
 - `config.php` و DB دست‌نخورده
-- اجرای `viranaut_migrate*.sql`
+- مهاجرت دیتابیس **خودکار** (همهٔ `viranaut_migrate*.sql`) — بدون نیاز به مرورگر
 
 ---
 
@@ -162,8 +162,8 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 | مشکل | راه‌حل |
 |------|--------|
 | ربات جواب نمی‌دهد | `viranaut` → Diagnose → Auto-fix |
-| بعد از آپدیت | بکاپ: `/root/viranaut_backups/` |
-| migration | `panel/migration.php` |
+| بعد از آپدیت | بکاپ: `/root/viranaut_backups/` · دوباره `update` |
+| خطای دیتابیس | `viranaut update` یا Auto-fix — مهاجرت خودکار است |
 | تست | `php tools/smoke_test.php` |
 
 ---
@@ -173,6 +173,21 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 اگر در **نصب، پیاده‌سازی، آپدیت** یا **گزارش باگ** به کمک نیاز دارید:
 
 **تلگرام:** [@eronum](https://t.me/eronum)
+
+---
+
+## حمایت مالی
+
+| شبکه | ارز | آدرس |
+|------|-----|------|
+| بیت‌کوین | BTC | `bc1q24r7j79eghk0lcury2ly4hm04mt2yh59ejajxz` |
+| اتریوم | ETH · USDT · USDC | `0xb60a111813bae216e3b178a5f9e31a95549c000e` |
+| BNB | BNB · USDT · USDC | `0xb60a111813bae216e3b178a5f9e31a95549c000e` |
+| پالیگان | MATIC · USDT | `0xb60a111813bae216e3b178a5f9e31a95549c000e` |
+| سولانا | SOL | `8NE5a13aHCQF38mEHspRwikskEg8JMAG9ZA9qtgwRUdM` |
+| ترون | TRX · USDT · USDC | `TFxj93JHJ9s2jybwcWQ3C4b4rppM8Vvuc5` |
+| دوج‌کوین | DOGE | `DFAfCU1LHdc7sKFVs9dD7MySA7Wt4EJQtX` |
+| تون | TON | `UQDpQupJJM8bcxk19XmEZtwe-oQ4XmIbxM8SB88z0MXmXYsu` |
 
 ---
 
