@@ -2,12 +2,12 @@
 
 <div align="center">
 
-# ویرانات · ViraNaut
+# ویرانات
 
 **ربات تلگرام فروش VPN — نصب، مهاجرت از میرزا، مدیریت سرور**
 
-[![نسخه](https://img.shields.io/badge/نسخه-3.2.0--ViraNaut-blue?style=for-the-badge)](https://github.com/liamlope/ViraNaut)
-[![لایسنس](https://img.shields.io/badge/لایسنس-MIT-green?style=for-the-badge)](LICENSE)
+[![نسخه](https://img.shields.io/badge/نسخه-3.2.0-blue?style=for-the-badge)](https://github.com/liamlope/ViraNaut)
+[![لایسنس](https://img.shields.io/badge/لایسنس-آزاد-green?style=for-the-badge)](LICENSE)
 
 [⭐ گیت‌هاب](https://github.com/liamlope/ViraNaut) · [📖 معرفی و مقایسه](docs/MOAREFI.md) · [📝 تغییرات](CHANGELOG.md)
 
@@ -17,8 +17,8 @@
 
 ## خلاصه
 
-**ویرانات** fork رایگان و پیشرفتهٔ [میرزا Bot](https://github.com/mahdiMGF2/mirzabot) است.  
-نصب و آپدیت با **`ViraNaut_manage.sh`** انجام می‌شود — مهاجرت از میرزا بدون از دست دادن دیتابیس و توکن.
+**ویرانات** فورک رایگان و پیشرفتهٔ [میرزا](https://github.com/mahdiMGF2/mirzabot) است.  
+نصب و آپدیت با اسکریپت **`ViraNaut_manage.sh`** انجام می‌شود — مهاجرت از میرزا بدون از دست دادن دیتابیس و توکن.
 
 > معرفی کامل، جدول مقایسه و لیست قابلیت پنل‌ها → **[docs/MOAREFI.md](docs/MOAREFI.md)**
 
@@ -26,7 +26,7 @@
 
 ## نصب (یک خط)
 
-**Ubuntu · root · دامنه subdomain**
+**اوبونتو · کاربر ریشه · زیردامنه**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_manage.sh -o /root/ViraNaut_manage.sh && chmod +x /root/ViraNaut_manage.sh && /root/ViraNaut_manage.sh
@@ -34,32 +34,36 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 
 | مرحله | کار |
 |-------|-----|
-| ۱ | منو → **Install** |
+| ۱ | منو → **نصب** |
 | ۲ | دامنه، توکن ربات، آیدی ادمین |
-| ۳ | SSL و webhook خودکار |
+| ۳ | گواهی امن و وبهوک خودکار |
 
 **نصب بدون سؤال:**
 
 ```bash
 /root/ViraNaut_manage.sh install -y \
-  --domain bot.example.com \
-  --token "TOKEN" \
+  --domain bot.shop.ir \
+  --token "توکن_ربات" \
   --admin "123456789" \
-  --bot "BotUsername"
+  --bot "نام_کاربری_ربات"
 ```
 
-**مسیر نصب:** `/var/www/html/viranaut`
+**مسیر نصب روی سرور:** `/var/www/html/viranaut`
 
-| پنل | آدرس |
+### ورود به پنل‌ها (بعد از نصب)
+
+دامنه را با **دامنهٔ واقعی ربات** عوض کنید — مثلاً اگر دامنه `bot.shop.ir` است:
+
+| بخش | آدرس |
 |-----|------|
-| ادمین | `https://دامنه/panel/` |
-| نمایندگی | `https://دامنه/agent-panel/` |
+| پنل ادمین | `https://bot.shop.ir/panel/` |
+| پنل نمایندگی | `https://bot.shop.ir/agent-panel/` |
 
 ---
 
 ## مهاجرت از میرزا
 
-اسکریپت `ViraNaut_manage.sh` نصب قبلی میرزا را **خودکار پیدا می‌کند** و دیتابیس را حفظ می‌کند.
+اسکریپت **`ViraNaut_manage.sh`** نصب قبلی میرزا را **خودکار پیدا می‌کند** و دیتابیس را حفظ می‌کند.
 
 ### مسیرهای شناخته‌شده
 
@@ -74,35 +78,35 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 ### مراحل
 
 ```bash
-# ۱) اسکریپت را بگیرید
+# ۱) دریافت اسکریپت
 curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_manage.sh -o /root/ViraNaut_manage.sh
 chmod +x /root/ViraNaut_manage.sh
 
 # ۲) اجرا
 /root/ViraNaut_manage.sh
-# → 1) Install
-# → وقتی پرسید: Migrate Mirza → ViraNaut? → y
+# → گزینه ۱) نصب
+# → وقتی پرسید «مهاجرت از میرزا؟» → y
 ```
 
 ### چه چیزهایی حفظ می‌شود؟
 
 | مورد | وضعیت |
 |------|--------|
-| دیتابیس MySQL | ✅ حفظ |
-| `config.php` (توکن، دامنه) | ✅ حفظ |
+| دیتابیس | ✅ حفظ |
+| تنظیمات (توکن، دامنه) | ✅ حفظ |
 | کاربران، موجودی، فاکتور | ✅ حفظ |
-| فایل‌های ربات | 🔄 از GitHub ویرانات |
-| vhost · SSL · webhook | 🔄 بازسازی خودکار |
+| فایل‌های ربات | 🔄 از گیت‌هاب ویرانات |
+| سرور، گواهی امن، وبهوک | 🔄 بازسازی خودکار |
 
 ### بعد از مهاجرت
 
-مهاجرت دیتابیس **خودکار** داخل همان اسکریپت (`viranaut_db_migrate`) اجرا می‌شود — **نیازی به کار دستی در مرورگر نیست.**
+مهاجرت دیتابیس **خودکار** داخل همان اسکریپت اجرا می‌شود — **نیازی به کار دستی در مرورگر نیست.**
 
 ```bash
 viranaut    # میانبر مدیریت — ربات باید بلافاصله آماده باشد
 ```
 
-در صورت خطا: `viranaut` → **Diagnose** → **Auto-fix** یا `@eronum` در تلگرام.
+در صورت خطا: `viranaut` → **عیب‌یابی** → **تعمیر خودکار** یا [@eronum](https://t.me/eronum) در تلگرام.
 
 ---
 
@@ -112,24 +116,24 @@ viranaut    # میانبر مدیریت — ربات باید بلافاصله �
 curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_manage.sh -o /root/ViraNaut_manage.sh && chmod +x /root/ViraNaut_manage.sh && /root/ViraNaut_manage.sh update
 ```
 
-- بکاپ ZIP خودکار → `/root/viranaut_backups/`
-- `config.php` و DB دست‌نخورده
-- مهاجرت دیتابیس **خودکار** (همهٔ `viranaut_migrate*.sql`) — بدون نیاز به مرورگر
+- بکاپ فشرده خودکار → `/root/viranaut_backups/`
+- تنظیمات و دیتابیس دست‌نخورده
+- مهاجرت دیتابیس **خودکار** — بدون نیاز به مرورگر
 
 ---
 
-## منوی `ViraNaut_manage.sh`
+## منوی اسکریپت مدیریت
 
 بعد از نصب دستور **`viranaut`** در سرور فعال می‌شود.
 
 | # | کار |
 |---|-----|
 | **1** | نصب (تشخیص میرزا) |
-| **2** | آپدیت از GitHub |
-| **3–5** | توقف / استارت / ری‌استارت Apache + MySQL + webhook |
+| **2** | آپدیت از گیت‌هاب |
+| **3–5** | توقف / استارت / ری‌استارت سرویس‌ها |
 | **6** | لاگ‌ها |
-| **7** | عیب‌یابی (Diagnose) |
-| **8** | تعمیر خودکار (Auto-fix) |
+| **7** | عیب‌یابی |
+| **8** | تعمیر خودکار |
 | **9** | حذف کامل |
 | **0** | خروج |
 
@@ -149,10 +153,10 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 
 | مورد | مقدار |
 |------|--------|
-| سیستم‌عامل | Ubuntu 20.04+ (توصیه: 22.04) |
-| دسترسی | root |
-| دامنه | subdomain با DNS روی سرور |
-| PHP | 8.0+ |
+| سیستم‌عامل | اوبونتو ۲۰.۰۴+ (توصیه: ۲۲.۰۴) |
+| دسترسی | کاربر ریشه |
+| دامنه | زیردامنه با DNS روی سرور |
+| PHP | نسخه ۸.۰+ |
 | دیتابیس | MySQL / MariaDB |
 
 ---
@@ -161,9 +165,9 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 
 | مشکل | راه‌حل |
 |------|--------|
-| ربات جواب نمی‌دهد | `viranaut` → Diagnose → Auto-fix |
+| ربات جواب نمی‌دهد | `viranaut` → عیب‌یابی → تعمیر خودکار |
 | بعد از آپدیت | بکاپ: `/root/viranaut_backups/` · دوباره `update` |
-| خطای دیتابیس | `viranaut update` یا Auto-fix — مهاجرت خودکار است |
+| خطای دیتابیس | `viranaut update` یا تعمیر خودکار |
 | تست | `php tools/smoke_test.php` |
 
 ---
@@ -201,8 +205,8 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 
 ---
 
-## لایسنس
+## مجوز
 
-MIT — [LICENSE](LICENSE)
+مجوز آزاد MIT — [LICENSE](LICENSE)
 
 </div>
