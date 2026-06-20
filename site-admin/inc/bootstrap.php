@@ -38,3 +38,21 @@ function site_admin_is_admin(string $pin): bool
     }
     return in_array($pin, $ids, true);
 }
+
+function site_admin_telegram_file_url(string $fileId): ?string
+{
+    global $APIKEY, $domainhosts;
+    if ($fileId === '' || empty($APIKEY) || strpos((string) $APIKEY, '{') !== false) {
+        return null;
+    }
+    $ctx = stream_context_create(['http' => ['timeout' => 8]]);
+    $raw = @file_get_contents('https://api.telegram.org/bot' . $APIKEY . '/getFile?file_id=' . urlencode($fileId), false, $ctx);
+    if ($raw === false) {
+        return null;
+    }
+    $data = json_decode($raw, true);
+    if (empty($data['ok']) || empty($data['result']['file_path'])) {
+        return null;
+    }
+    return 'https://api.telegram.org/file/bot' . $APIKEY . '/' . $data['result']['file_path'];
+}

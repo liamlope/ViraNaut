@@ -2,6 +2,30 @@
 
 All notable changes from Mirza 0.2.2 + Pro 6.7 upgrade path.
 
+## [3.1.0-ViraNaut] — 2026-06-20
+
+### Added
+- **docs/PANEL_SUPPORT.md** — ماتریس ۱۴ نوع پنل و وضعیت عملیات
+- **agent-panel Pro** — داشبورد + Chart.js، تمدید/حجم/لینک جدید، تم، CSRF، rate limit
+- **api/agent.php** — API Bearer scoped به نماینده (dashboard, services, renew, volume, revoke)
+- **PHPUnit** — suites Unit / PanelMock / Integration / Agent / Migration + GitHub Actions CI
+- **composer.json** — `composer test` و `composer smoke`
+- دکمه «پنل وب نمایندگی» در منوی نماینده (`keyboard.php` + handler در `index.php`)
+- **site-admin** — نمایش عکس Telegram + پاسخ/وضعیت از وب
+- wiring `mirza_site_admin_log_request()` هنگام تیکت پشتیبانی
+
+### Changed
+- **ilan** — از stub به full hooks (create, DataUser, revoke, extend, volume/time, reset)
+- **mirza_agent** — reset usage واقعی؛ **hiddify** — revoke via UUID regen
+- نسخه سراسری → `3.1.0-ViraNaut`
+- `ViraNaut_manage.sh` — diagnose agent-panel، api/agent، PANEL_SUPPORT، phpunit
+- README redesign — جدول پنل‌ها، agent-panel Pro، راهنمای تست
+
+### Fixed
+- مسیر require در `api/agent.php` (`../config.php`)
+
+---
+
 ## [3.0.0-ViraNaut] — 2026-06-20
 
 ### Added

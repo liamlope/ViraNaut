@@ -75,6 +75,18 @@ function updateuserhi($username, $location, array $data)
     return $response;
 }
 //----------------------------------
+function revokeuserhi($username, $location)
+{
+    $paneldata = getdatauser($username, $location);
+    if (empty($paneldata['uuid'])) {
+        return ['error' => 'user not found'];
+    }
+    $newUuid = function_exists('generateUUID') ? generateUUID() : bin2hex(random_bytes(16));
+    return updateuserhi($username, $location, [
+        'uuid' => $newUuid,
+        'name' => $username,
+    ]);
+}
 function removeuserhi($location, $uuid)
 {
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");

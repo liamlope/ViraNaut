@@ -1,0 +1,10 @@
+{
+  "update_id": 1003,
+  "message": {
+    "message_id": 3,
+    "from": {"id": 999, "is_bot": false, "first_name": "User"},
+    "chat": {"id": 999, "type": "private"},
+    "date": 1710000002,
+    "text": "/unknowncommand_xyz"
+  }
+}

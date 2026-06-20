@@ -2,6 +2,28 @@
     var P = window.MirzaInboundPicker;
     var base = document.body && document.body.getAttribute('data-panel-base') || '';
 
+    window.PANEL_TYPE_LABELS = {
+        marzban: 'Marzban',
+        pasarguard: 'Pasarguard',
+        mirza_agent: 'Mirza Agent',
+        ilan: 'Ilan',
+        marzneshin: 'Marzneshin',
+        'x-ui_single': '3x-ui',
+        'x-ui': '3x-ui',
+        s_ui: 'S-UI',
+        alireza_single: 'Alireza',
+        alireza: 'Alireza',
+        wgdashboard: 'WG',
+        hiddify: 'Hiddify',
+        ibsng: 'IBSng',
+        mikrotik: 'Mikrotik',
+        Manualsale: 'Manual'
+    };
+
+    window.panelTypeLabel = function (type) {
+        return window.PANEL_TYPE_LABELS[type] || type || '—';
+    };
+
     function apiUrl(action, query) {
         var q = query || '';
         return base + 'api/panels.php?action=' + encodeURIComponent(action) + (q ? '&' + q : '');

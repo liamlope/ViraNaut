@@ -1306,11 +1306,15 @@ $keyboardtypepanel = json_encode([
 
 $panelechekc = select("marzban_panel", "*", "MethodUsername", "متن دلخواه نماینده + عدد ترتیبی", "count");
 if ($setting['inlinebtnmain'] == "oninline") {
+    $agentWebUrl = 'https://' . ($domainhosts ?? 'localhost') . '/agent-panel/';
     $keyboardagent = [
         'inline_keyboard' => [
             [
                 ['text' => "🗂 خرید انبوه", 'callback_data' => "kharidanbuh"],
                 ['text' => "👤 انتخاب نام دلخواه", 'callback_data' => "selectname"]
+            ],
+            [
+                ['text' => "🌐 پنل وب نمایندگی", 'url' => $agentWebUrl]
             ],
             [
                 ['text' => $textbotlang['users']['backbtn'], 'callback_data' => "backuser"]
@@ -1325,6 +1329,7 @@ if ($setting['inlinebtnmain'] == "oninline") {
     $keyboardagent = [
         'keyboard' => [
             [['text' => "🗂 خرید انبوه"], ['text' => "👤 انتخاب نام دلخواه"]],
+            [['text' => "🌐 پنل وب نمایندگی"]],
             [['text' => $textbotlang['users']['backbtn']]]
         ],
         'resize_keyboard' => true

@@ -130,17 +130,26 @@ function remove_service_mirza(array $panel, string $username)
 function revoke_service_mirza(array $panel, string $username)
 {
     $url = $panel['url_panel'];
-    $headers = array(
-        'accept: application/json'
-    );
-    $data = json_encode(array(
-        'actions' => "change_link",
+    $data = json_encode([
+        'actions' => 'change_link',
         'username' => $username,
-    ));
+    ]);
     $req = new CurlRequest($url);
-    $req->setHeaders($headers);
+    $req->setHeaders(['accept: application/json']);
     $req->setBearerToken($panel['password_panel']);
-    $response = $req->put($data);
-    return $response;
+    return $req->put($data);
+}
+
+function reset_usage_service_mirza(array $panel, string $username)
+{
+    $url = $panel['url_panel'];
+    $data = json_encode([
+        'actions' => 'reset_usage',
+        'username' => $username,
+    ]);
+    $req = new CurlRequest($url);
+    $req->setHeaders(['accept: application/json']);
+    $req->setBearerToken($panel['password_panel']);
+    return $req->put($data);
 }
 

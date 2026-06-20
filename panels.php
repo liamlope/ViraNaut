@@ -12,6 +12,7 @@ require_once __DIR__ . '/ibsng.php';
 require_once __DIR__ . '/mikrotik.php';
 require_once __DIR__ . '/mirza_agent.php';
 require_once __DIR__ . '/ilan.php';
+require_once __DIR__ . '/ilan_panels_bridge.php';
 
 class ManagePanel
 {
@@ -975,6 +976,8 @@ class ManagePanel
                     'data_limit_reset' => $UsernameData['data_limit_reset'] ?? null
                 );
             }
+        } elseif ($Get_Data_Panel['type'] == "ilan") {
+            $Output = ilan_bridge_data_user($Get_Data_Panel, $username, $inoice, $domainhosts);
         } elseif ($Get_Data_Panel['type'] == "mikrotik") {
             $UsernameData = GetUsermikrotik($Get_Data_Panel['name_panel'], $username)[0];
             if (isset($UsernameData['error'])) {
@@ -1108,10 +1111,18 @@ class ManagePanel
                 );
             }
         } elseif ($Get_Data_Panel['type'] == "hiddify") {
-            $Output = array(
-                'status' => 'Unsuccessful',
-                'msg' => 'panel not supported'
-            );
+            $revoke = revokeuserhi($username, $name_panel);
+            if (!empty($revoke['error'])) {
+                $Output = ['status' => 'Unsuccessful', 'msg' => $revoke['error']];
+            } else {
+                $data_user = getdatauser($username, $name_panel);
+                $sub = rtrim($Get_Data_Panel['linksubx'], '/') . '/' . ($data_user['uuid'] ?? '') . '/';
+                $Output = [
+                    'status' => 'successful',
+                    'configs' => [outputlink($sub)],
+                    'subscription_url' => $sub,
+                ];
+            }
         } elseif ($Get_Data_Panel['type'] == "s_ui") {
             $clients = GetClientsS_UI($username, $name_panel);
             $password = bin2hex(random_bytes(16));
@@ -1223,6 +1234,8 @@ class ManagePanel
                     'subscription_url' => $Data_User['subscription_url']
                 );
             }
+        } elseif ($Get_Data_Panel['type'] == "ilan") {
+            $Output = ilan_bridge_revoke($Get_Data_Panel, $username, $ManagePanel, $name_panel);
         } else {
             $Output = array(
                 'status' => 'Unsuccessful',
@@ -1388,6 +1401,8 @@ class ManagePanel
                     'username' => $username,
                 );
             }
+        } elseif ($Get_Data_Panel['type'] == "ilan") {
+            $Output = ilan_bridge_remove($Get_Data_Panel, $username);
         } elseif ($Get_Data_Panel['type'] == "mikrotik") {
             $UsernameData = GetUsermikrotik($Get_Data_Panel['name_panel'], $username)[0];
             if (isset($UsernameData['error'])) {
@@ -1906,10 +1921,20 @@ class ManagePanel
                 'status' => true
             );
         } elseif ($panel['type'] == "mirza_agent") {
-            return array(
-                'status' => true,
-                'msg' => 'successful'
-            );
+            $reset = reset_usage_service_mirza($panel, $username);
+            if (!empty($reset['error'])) {
+                return ['status' => false, 'msg' => $reset['error']];
+            }
+            if (!empty($reset['status']) && (int) $reset['status'] >= 400) {
+                return ['status' => true, 'msg' => 'successful'];
+            }
+            $body = json_decode($reset['body'] ?? '', true);
+            if (is_array($body) && isset($body['status']) && !$body['status']) {
+                return ['status' => false, 'msg' => $body['msg'] ?? 'reset failed'];
+            }
+            return ['status' => true, 'msg' => 'successful'];
+        } elseif ($panel['type'] == "ilan") {
+            return ilan_bridge_reset($panel, $username);
         }
     }
     function extend($Method_extend, $new_limit, $time_day, $username, $code_product, $name_panel)
@@ -2126,6 +2151,8 @@ class ManagePanel
                 'status' => true,
                 'msg' => 'successful'
             );
+        } elseif ($panel['type'] == "ilan") {
+            return ilan_bridge_mirza_style_result(ilan_extend_user($panel, $username, $new_limit, $time_day));
         }
         $extend = $this->Modifyuser($username, $panel['name_panel'], $data);
         if ($extend['status'] == false) {
@@ -2263,6 +2290,8 @@ class ManagePanel
                 'status' => true,
                 'msg' => 'successful'
             );
+        } elseif ($panel['type'] == "ilan") {
+            return ilan_bridge_mirza_style_result(ilan_add_volume($panel, $username_account, $limit_volume_new));
         }
         $extra_volume = $this->Modifyuser($username_account, $panel['name_panel'], $data);
         if ($extra_volume['status'] == false) {
@@ -2406,6 +2435,8 @@ class ManagePanel
                 'status' => true,
                 'msg' => 'successful'
             );
+        } elseif ($panel['type'] == "ilan") {
+            return ilan_bridge_mirza_style_result(ilan_add_time($panel, $username_account, $limit_time_new));
         }
         $extra_time = $this->Modifyuser($username_account, $panel['name_panel'], $data);
         if ($extra_time['status'] == false) {

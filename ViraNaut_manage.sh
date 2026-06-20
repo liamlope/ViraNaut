@@ -13,7 +13,7 @@ LEGACY_PROJECT_DIR="/var/www/mirza_pro"
 ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
 MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
-VIRANAUT_MANAGE_VERSION="3.0.0-ViraNaut"
+VIRANAUT_MANAGE_VERSION="3.1.0-ViraNaut"
 MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
 VIRANAUT_GITHUB_REPO="${VIRANAUT_GITHUB_REPO:-https://github.com/liamlope/ViraNaut.git}"
 VIRANAUT_GITHUB_BRANCH="${VIRANAUT_GITHUB_BRANCH:-main}"
@@ -3557,6 +3557,14 @@ do_diagnose_bot() {
   echo -e "    ilan.php:    $([ -f "$PROJECT_DIR/ilan.php" ] && echo OK || echo MISSING)"
   echo -e "    croncard:    $(crontab -l 2>/dev/null | grep -F 'cronbot/croncard.php' >/dev/null && echo OK || echo 'MISSING — run menu 5 Restart or fix')"
   echo -e "    site-admin:  $([ -f "$PROJECT_DIR/site-admin/index.php" ] && echo OK || echo MISSING)"
+  echo -e "    agent-panel: $([ -f "$PROJECT_DIR/agent-panel/index.php" ] && echo OK || echo MISSING)"
+  echo -e "    agent API:   $([ -f "$PROJECT_DIR/api/agent.php" ] && echo OK || echo MISSING)"
+  echo -e "    PANEL_SUPPORT: $([ -f "$PROJECT_DIR/docs/PANEL_SUPPORT.md" ] && echo OK || echo MISSING)"
+  if [ -f "$PROJECT_DIR/composer.json" ] && [ -f "$PROJECT_DIR/vendor/bin/phpunit" ]; then
+    echo -e "    phpunit:     $(cd "$PROJECT_DIR" && php vendor/bin/phpunit --no-output 2>/dev/null && echo PASS || echo 'run composer install')"
+  else
+    echo -e "    phpunit:     MISSING — composer install in $PROJECT_DIR"
+  fi
   echo ""
 
   domain=$(read_php_var "domainhosts")

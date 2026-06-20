@@ -4,18 +4,22 @@ require_once __DIR__ . '/inc/bootstrap.php';
 $user = agent_panel_require_auth($pdo);
 $token = agent_panel_ensure_token($pdo, (string) $user['id']);
 $domain = $domainhosts ?? '';
-?><!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head><meta charset="utf-8"><title>API نماینده</title>
-<style>body{font-family:Tahoma,sans-serif;background:#0f1419;color:#e7ecf1;padding:24px}pre{background:#1a2332;padding:16px;border-radius:8px;overflow:auto}a{color:#3390ec}</style>
-</head>
-<body>
-<nav><a href="index.php">داشبورد</a><a href="api.php">API</a></nav>
-<h1>مستندات API نماینده</h1>
-<p>Header: <code>Authorization: Bearer <?= htmlspecialchars($token) ?></code></p>
-<pre>POST https://<?= htmlspecialchars($domain) ?>/api/users.php
-{
-  "actions": "get_user_data",
-  "id_user": "<?= htmlspecialchars((string) $user['id']) ?>"
-}</pre>
-</body></html>
+$pageTitle = 'API نماینده';
+$activeNav = 'api';
+require __DIR__ . '/inc/layout_head.php';
+?>
+<h1>مستندات API</h1>
+<div class="agent-card">
+<p>Header: <code>Authorization: Bearer YOUR_TOKEN</code></p>
+<pre style="white-space:pre-wrap;background:#0f172a;padding:12px;border-radius:8px">POST https://<?= htmlspecialchars($domain) ?>/api/agent.php
+Content-Type: application/json
+
+{"action":"dashboard"}
+{"action":"services","limit":50}
+{"action":"service_detail","username":"user123"}
+{"action":"renew","username":"user123"}
+{"action":"add_volume","username":"user123","gb":10}
+{"action":"revoke","username":"user123"}</pre>
+<p>توکن شما: <code><?= htmlspecialchars($token) ?></code></p>
+</div>
+<?php require __DIR__ . '/inc/layout_foot.php'; ?>

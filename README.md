@@ -1,8 +1,8 @@
 # ViraNaut · ویرانات
 
-**نسخه فعلی:** `3.0.0-ViraNaut`
+**نسخه فعلی:** `3.1.0-ViraNaut`
 
-ربات تلگرام فروش VPN با پنل وب پیشرفته، مینی‌اپ، تأیید خودکار کارت‌به‌کارت از SMS بانک، و مهاجرت یک‌کلیکی از Mirza.
+ربات تلگرام فروش VPN با پنل وب پیشرفته، **پنل نمایندگی Pro**، مینی‌اپ، تأیید خودکار کارت‌به‌کارت از SMS بانک، و مهاجرت یک‌کلیکی از Mirza.
 
 **GitHub:** [github.com/liamlope/ViraNaut](https://github.com/liamlope/ViraNaut)
 
@@ -12,20 +12,58 @@
 
 **ViraNaut یک fork پیشرفته از [Mirza Bot رایگان (Free)](https://github.com/mahdiMGF2/mirzabot) است** — نه جایگزین ساده و نه کپی کور.
 
-| | Mirza Free 0.2.2 | ViraNaut 3.0 |
+| | Mirza Free 0.2.2 | ViraNaut 3.1 |
 |---|------------------|--------------|
-| پایه کد | Mirza upstream | ViraNaut (حفظ پنل وب ۳۱ صفحه، SMS، x-ui گسترده) |
-| زبان per-user (`lang/`) | ✅ | ✅ پورت + `text.json` |
-| Pasarguard · mirza_agent | ✅ | ✅ پورت |
-| cron کارت auto-confirm | ✅ | ✅ + SMS receipt Vira (dual-mode) |
-| پنل وب ادمین | ~۱۲ صفحه | **۳۱+ صفحه** (مالی، bot-texts، …) |
-| پنل وب نمایندگی | ❌ (Pro) | ✅ MVP (`/agent-panel/`) |
-| تأیید SMS بانک | ❌ | ✅ |
-| x-ui_single کامل | stub | ✅ ۱۵۰۰+ خط |
+| پایه کد | Mirza upstream | ViraNaut (پنل وب ۳۱+ صفحه، SMS، x-ui گسترده) |
+| زبان per-user (`lang/`) | ✅ | ✅ |
+| Pasarguard · mirza_agent · ilan | partial / Pro | ✅ hooks کامل ([ماتریس پنل](docs/PANEL_SUPPORT.md)) |
+| cron کارت auto-confirm | ✅ | ✅ dual-mode + SMS Vira |
+| پنل وب ادمین | ~۱۲ صفحه | **۳۱+ صفحه** |
+| پنل وب نمایندگی | ❌ (Pro) | ✅ **Pro** — chart، تمدید/حجم/revoke، API Bearer |
+| site-admin | ❌ | ✅ درخواست از ربات + UI پاسخ |
+| تست / CI | ❌ | ✅ PHPUnit + GitHub Actions |
 
-اگر از Mirza رایگان استفاده می‌کردید، ViraNaut **همان قابلیت‌ها + موارد بالا** را دارد. جزئیات: [CHANGELOG.md](CHANGELOG.md) · [docs/UPGRADE_MATRIX.md](docs/UPGRADE_MATRIX.md)
+جزئیات: [CHANGELOG.md](CHANGELOG.md) · [docs/PANEL_SUPPORT.md](docs/PANEL_SUPPORT.md) · [docs/UPGRADE_MATRIX.md](docs/UPGRADE_MATRIX.md)
 
-> **Mirza Pro / اشتراکی** سورس عمومی ندارد؛ برخی فیچرهای Pro (مثل agent-panel کامل، Ilan، site-admin) به‌صورت MVP یا از changelog پیاده شده‌اند.
+---
+
+## پنل‌های پشتیبانی‌شده
+
+| نوع | وضعیت |
+|-----|--------|
+| marzban, pasarguard, marzneshin | full |
+| x-ui_single, alireza | full+ |
+| hiddify, mirza_agent, ibsng, mikrotik | partial |
+| **ilan** | full (REST generic + mock tests) |
+| Manualsale | full (داخلی) |
+
+لیست کامل عملیات: **[docs/PANEL_SUPPORT.md](docs/PANEL_SUPPORT.md)**
+
+---
+
+## agent-panel Pro
+
+| URL | `https://YOUR_DOMAIN/agent-panel/` |
+| API | `POST /api/agent.php` — `Authorization: Bearer {token}` |
+| Actions | `dashboard`, `services`, `service_detail`, `renew`, `add_volume`, `revoke` |
+
+- داشبورد + نمودار فروش (Chart.js)
+- عملیات سرویس: تمدید، افزایش حجم، لینک جدید
+- تم هم‌راستا با پنل ادمین
+- توکن API از **تنظیمات** یا **login** نماینده
+- دکمه «🌐 پنل وب نمایندگی» در منوی نماینده ربات
+
+---
+
+## توسعه و تست
+
+```bash
+composer install
+composer smoke          # php tools/smoke_test.php
+composer test           # vendor/bin/phpunit
+```
+
+CI روی هر push به `main` اجرا می‌شود (`.github/workflows/ci.yml`).
 
 ---
 
@@ -178,7 +216,7 @@ Cron (نصب/آپدیت خودکار):
 
 ## English
 
-**ViraNaut** is an **advanced open-source fork** of the free [Mirza Bot](https://github.com/mahdiMGF2/mirzabot), with a richer web panel, SMS card auto-verify, Mirza 0.2.2 feature parity (lang, Pasarguard, mirza_agent), and selected Pro-style modules (agent web panel MVP).
+**ViraNaut** is an **advanced open-source fork** of the free [Mirza Bot](https://github.com/mahdiMGF2/mirzabot), with a richer web panel, SMS card auto-verify, full panel driver matrix (v3.1), agent web panel Pro, PHPUnit CI, and Mirza 0.2.2 feature parity.
 
 **One-line install (Ubuntu, root):**
 

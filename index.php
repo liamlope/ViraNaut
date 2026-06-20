@@ -3522,6 +3522,9 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
     $stmt->bindParam(':time', $time);
     $stmt->bindParam(':status', $status);
     $stmt->execute();
+    if (function_exists('mirza_site_admin_log_request')) {
+        mirza_site_admin_log_request((string) $from_id, $text . ' ' . $caption, $photoid ?: null);
+    }
     if ($photo) {
         sendphoto($departeman['idsupport'], $photoid, null);
     }
@@ -4619,6 +4622,13 @@ $textonebuy
     $parametrsendvalue = $text . "_" . $info_product['price_product'];
     update("user", "Processing_value_four", $parametrsendvalue, "id", $from_id);
     sendmessage($from_id, $textin, $paymentDiscount, 'HTML');
+} elseif ($text == "🌐 پنل وب نمایندگی") {
+    if (($user['agent'] ?? 'f') === 'f') {
+        sendmessage($from_id, "❌ این بخش فقط برای نمایندگان فعال است.", null, 'HTML');
+        return;
+    }
+    $agentWeb = 'https://' . ($domainhosts ?? 'localhost') . '/agent-panel/';
+    sendmessage($from_id, "🌐 پنل وب نمایندگی:\n<a href=\"{$agentWeb}\">{$agentWeb}</a>\n\nبرای ورود از آیدی عددی تلگرام و PIN (در صورت تنظیم) استفاده کنید.", null, 'HTML');
 } elseif ($text == "🗂 خرید انبوه" || $datain == "kharidanbuh") {
     if ($setting['bulkbuy'] == "offbulk") {
         sendmessage($from_id, "❌ این بخش در حال غیرفعال می باشد", null, 'HTML');
