@@ -63,7 +63,7 @@ if (isset($chat_member))
 $first_name = sanitizeUserName($first_name);
 $setting = select("setting", "*");
 $keyboard_check = json_decode($setting['keyboardmain'], true);
-if (is_array($keyboard_check) && preg_match('/[\x{600}-\x{6FF}\x{FB50}-\x{FDFF}]/u', $keyboard_check['keyboard'][0][0]['text'])) {
+if (is_array($keyboard_check) && preg_match('/[\x{600}-\x{6FF}\x{FB50}-\x{FDFF}]/u', (string) ($keyboard_check['keyboard'][0][0]['text'] ?? ''))) {
     $keyboardmain = '{"keyboard":[[{"text":"text_sell"},{"text":"text_extend"}],[{"text":"text_usertest"},{"text":"text_wheel_luck"}],[{"text":"text_Purchased_services"},{"text":"accountwallet"}],[{"text":"text_affiliates"},{"text":"text_Tariff_list"}],[{"text":"text_support"},{"text":"text_help"}]]}';
     update("setting", "keyboardmain", $keyboardmain, null, null);
 }
@@ -80,7 +80,8 @@ if (intval($from_id) == 0)
     return;
 #-------------Variable----------#
 $users_ids = select("user", "id", null, null, "FETCH_COLUMN");
-$otherreport = select("topicid", "idreport", "report", "otherreport", "select")['idreport'];
+$otherreportRow = select("topicid", "idreport", "report", "otherreport", "select");
+$otherreport = is_array($otherreportRow) ? (string) ($otherreportRow['idreport'] ?? '0') : '0';
 if (!in_array($from_id, $users_ids) && $setting['statusnewuser'] == "onnewuser") {
     $Response = json_encode([
         'inline_keyboard' => [
@@ -161,6 +162,7 @@ $topic_id = select("topicid", "*", null, null, "fetchAll");
 mirza_datatextbot_apply_db($datatextbot, $pdo);
 mirza_datatextbot_ensure_defaults($datatextbot, $textbotlang);
 $statusnote = false;
+$reportnight = $reporttest = $errorreport = $porsantreport = $reportcron = $reportbackup = $buyreport = $otherservice = $paymentreports = $otherreport = '0';
 foreach ($topic_id as $topic) {
     if ($topic['report'] == "reportnight")
         $reportnight = $topic['idreport'];
@@ -439,6 +441,24 @@ if ($user['joinchannel'] != "active") {
         }
     }
 }
+if (in_array($from_id, $admin_ids) && (
+    mirza_admin_run_exclusive((string) ($user['step'] ?? 'home'))
+    || mirza_admin_is_panel_command($text, $textbotlang)
+)) {
+    if (!defined('VIRA_BOT_BOOTSTRAP')) {
+        define('VIRA_BOT_BOOTSTRAP', true);
+        if (!defined('MIRZA_BOT_BOOTSTRAP')) {
+            define('MIRZA_BOT_BOOTSTRAP', true);
+        }
+    }
+    require_once 'admin.php';
+    $pdo = null;
+    if (isset($connect) && $connect instanceof mysqli) {
+        $connect->close();
+    }
+    http_response_code(200);
+    exit;
+}
 if ($text == "/start" || $datain == "start" || $text == "start") {
     mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, "html");
     update("user", "Processing_value", "0", "id", $from_id);
@@ -543,6 +563,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         sendmessage($from_id, $textbotlang['users']['sell']['service_sell'], $keyboard_json, 'html');
     }
 } elseif ($datain == 'next_page') {
+    mirza_answer_callback_query($callback_query_id ?? null);
     $numpage = select("invoice", "id_user", "id_user", $from_id, "count");
     $page = $user['pagenumber'];
     $items_per_page = 20;
@@ -606,6 +627,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     update("user", "pagenumber", $next_page, "id", $from_id);
     Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['service_sell'], $keyboard_json);
 } elseif ($datain == 'previous_page') {
+    mirza_answer_callback_query($callback_query_id ?? null);
     $numpage = select("invoice", "id_user", "id_user", $from_id, "count");
     $page = $user['pagenumber'];
     $items_per_page = 20;
@@ -619,7 +641,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     $keyboardlists = [
         'inline_keyboard' => [],
     ];
-    $stmt = $pdo->prepare("SELECT * FROM invoice WHERE id_user = '$from_id' AND (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold') ORDER BY time_sell DESC LIMIT $previous_page, $items_per_page");
+    $stmt = $pdo->prepare("SELECT * FROM invoice WHERE id_user = '$from_id' AND (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold') ORDER BY time_sell DESC LIMIT $start_index, $items_per_page");
     $stmt->execute();
     if ($setting['statusnamecustom'] == 'onnamecustom') {
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -693,16 +715,8 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         return;
     }
     #-------------[ status ]----------------#
-    $status = $DataUserOut['status'];
-    $status_var = [
-        'active' => $textbotlang['users']['stateus']['active'],
-        'limited' => $textbotlang['users']['stateus']['limited'],
-        'disabled' => $textbotlang['users']['stateus']['disabled'],
-        'deactivev' => $textbotlang['users']['stateus']['disabled'],
-        'expired' => $textbotlang['users']['stateus']['expired'],
-        'on_hold' => $textbotlang['users']['stateus']['on_hold'],
-        'Unknown' => $textbotlang['users']['stateus']['Unknown']
-    ][$status];
+    $status = $DataUserOut['status'] ?? 'Unknown';
+    $status_var = mirza_user_status_label($textbotlang, $status);
     #--------------[ expire ]---------------#
     $expirationDate = $DataUserOut['expire'] ? jdate('Y/m/d', $DataUserOut['expire']) : $textbotlang['users']['stateus']['Unlimited'];
     #-------------[ data_limit ]----------------#
@@ -897,16 +911,8 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         }
     }
     #-------------status----------------#
-    $status = $DataUserOut['status'];
-    $status_var = [
-        'active' => $textbotlang['users']['stateus']['active'],
-        'limited' => $textbotlang['users']['stateus']['limited'],
-        'disabled' => $textbotlang['users']['stateus']['disabled'],
-        'expired' => $textbotlang['users']['stateus']['expired'],
-        'on_hold' => $textbotlang['users']['stateus']['on_hold'],
-        'Unknown' => $textbotlang['users']['stateus']['Unknown'],
-        'deactivev' => $textbotlang['users']['stateus']['disabled'],
-    ][$status];
+    $status = $DataUserOut['status'] ?? 'Unknown';
+    $status_var = mirza_user_status_label($textbotlang, $status);
     #--------------[ expire ]---------------#
     $expirationDate = $DataUserOut['expire'] ? jdate('Y/m/d', $DataUserOut['expire']) : $textbotlang['users']['stateus']['Unlimited'];
     #-------------[ data_limit ]----------------#
@@ -1517,12 +1523,9 @@ $textconnect
         sendmessage($from_id, "❌ هنوز به سرویس متصل نشده اید برای تمدید سرویس ابتدا به سرویس متصل شوید سپس اقدام به تمدید کنید", null, 'html');
         return;
     }
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-    $mainvolume = $mainvolume[$user['agent']];
-    $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-    $maxvolume = $maxvolume[$user['agent']];
+    $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
     $stmt = $pdo->prepare("SELECT * FROM product WHERE (Location = :service_location OR Location = '/all') AND agent = :agent AND one_buy_status = '0'");
     $stmt->execute([
         ':service_location' => $marzban_list_get['name_panel'],
@@ -1591,14 +1594,10 @@ $textconnect
     $userdate = json_decode($user['Processing_value'], true);
     $nameloc = select("invoice", "*", "id_invoice", $userdate['id_invoice'], "select");
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-    $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-    $mainvolume = $mainvolume[$user['agent']];
-    $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-    $maxvolume = $maxvolume[$user['agent']];
-    $maintime = json_decode($marzban_list_get['maintime'], true);
-    $maintime = $maintime[$user['agent']];
-    $maxtime = json_decode($marzban_list_get['maxtime'], true);
-    $maxtime = $maxtime[$user['agent']];
+    $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+    $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
     if (!ctype_digit($text)) {
         sendmessage($from_id, $textbotlang['Admin']['Product']['Invalidvolume'], $backuser, 'HTML');
         return;
@@ -1608,8 +1607,7 @@ $textconnect
         sendmessage($from_id, $texttime, $backuser, 'HTML');
         return;
     }
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     savedata("save", "volume", $text);
     $textcustom = "⌛️ زمان سرویس خود را انتخاب نمایید 
 📌 تعرفه هر روز  : $customtimevalueprice  تومان
@@ -1664,10 +1662,8 @@ $textconnect
             sendmessage($from_id, $textbotlang['Admin']['Product']['Invalidtime'], $backuser, 'HTML');
             return;
         }
-        $maintime = json_decode($marzban_list_get['maintime'], true);
-        $maintime = $maintime[$user['agent']];
-        $maxtime = json_decode($marzban_list_get['maxtime'], true);
-        $maxtime = $maxtime[$user['agent']];
+        $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         if (intval($text) > intval($maxtime) || intval($text) < intval($maintime)) {
             $texttime = "❌ زمان ارسال شده نامعتبر است . زمان باید بین $maintime روز تا $maxtime روز باشد";
             sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -1698,10 +1694,8 @@ $textconnect
     } else {
         $codeproduct = $dataget[1];
     }
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     if ($user['step'] == "getvolumecustomuserforextend") {
         $product['name_product'] = $nameloc['name_product'];
         $product['code_product'] = "customvolume";
@@ -1808,10 +1802,8 @@ $textconnect
         }
     }
     sendmessage($from_id, "🤩 کد تخفیف شما درست بود و  {$SellDiscountlimit['price']} درصد تخفیف روی فاکتور شما اعمال شد.", $keyboard, 'HTML');
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     if ($nameloc['name_product'] == "🛍 حجم دلخواه" || $nameloc['name_product'] == "⚙️ سرویس دلخواه") {
         $info_product['code_product'] = "pre";
         $info_product['name_product'] = $nameloc['name_product'];
@@ -1868,10 +1860,8 @@ $textconnect
         sendmessage($from_id, "❌ امکان تمدید در این پنل وجود ندارد", null, 'html');
         return;
     }
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     $randomString = bin2hex(random_bytes(2));
     if ($nameloc['name_product'] == "🛍 حجم دلخواه" || $nameloc['name_product'] == "⚙️ سرویس دلخواه") {
         $prodcut['code_product'] = "custom_volume";
@@ -2160,8 +2150,7 @@ $textconnect
         sendmessage($from_id, $textbotlang['users']['stateus']['error'], null, 'html');
         return;
     }
-    $eextraprice = json_decode($marzban_list_get['priceextravolume'], true);
-    $extrapricevalue = $eextraprice[$user['agent']];
+    $extrapricevalue = mirza_json_agent_scalar($marzban_list_get['priceextravolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     update("user", "Processing_value", $nameloc['id_invoice'], "id", $from_id);
     $textextra = " ⭕️ مقدار حجمی که میخواهید خریداری کنید را ارسال کنید.
 ❌ مبلغ را به انگلیسی ارسال نمایید.
@@ -2186,8 +2175,7 @@ $textconnect
     }
     $nameloc = select("invoice", "*", "id_invoice", $user['Processing_value'], "select");
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-    $eextraprice = json_decode($marzban_list_get['priceextravolume'], true);
-    $extrapricevalue = $eextraprice[$user['agent']];
+    $extrapricevalue = mirza_json_agent_scalar($marzban_list_get['priceextravolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     $priceextra = $extrapricevalue * $text;
     $keyboardsetting = json_encode([
         'inline_keyboard' => [
@@ -2215,8 +2203,7 @@ $textconnect
         return;
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-    $eextraprice = json_decode($marzban_list_get['priceextravolume'], true);
-    $extrapricevalue = $eextraprice[$user['agent']];
+    $extrapricevalue = mirza_json_agent_scalar($marzban_list_get['priceextravolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     if ($user['Balance'] < $volume && $user['agent'] != "n2") {
         $marzbandirectpay = select('shopSetting', "*", "Namevalue", "statusdirectpabuy", "select")['value'];
         if ($marzbandirectpay == "offdirectbuy") {
@@ -2667,16 +2654,8 @@ $textconnect
         }
     }
     #-------------status----------------#
-    $status = $DataUserOut['status'];
-    $status_var = [
-        'active' => $textbotlang['users']['stateus']['active'],
-        'limited' => $textbotlang['users']['stateus']['limited'],
-        'disabled' => $textbotlang['users']['stateus']['disabled'],
-        'expired' => $textbotlang['users']['stateus']['expired'],
-        'on_hold' => $textbotlang['users']['stateus']['on_hold'],
-        'Unknown' => $textbotlang['users']['stateus']['Unknown'],
-        'deactivev' => $textbotlang['users']['stateus']['disabled'],
-    ][$status];
+    $status = $DataUserOut['status'] ?? 'Unknown';
+    $status_var = mirza_user_status_label($textbotlang, $status);
     #--------------[ expire ]---------------#
     $expirationDate = $DataUserOut['expire'] ? jdate('Y/m/d', $DataUserOut['expire']) : $textbotlang['users']['stateus']['Unlimited'];
     #-------------[ data_limit ]----------------#
@@ -2753,8 +2732,7 @@ $textconnect
         sendmessage($from_id, "❌ هنوز به سرویس متصل نشده اید برای تمدید سرویس ابتدا به سرویس متصل شوید سپس اقدام به تمدید کنید", null, 'html');
         return;
     }
-    $eextraprice = json_decode($marzban_list_get['priceextratime'], true);
-    $extratimepricevalue = $eextraprice[$user['agent']];
+    $extratimepricevalue = mirza_json_agent_scalar($marzban_list_get['priceextratime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     update("user", "Processing_value", $nameloc['id_invoice'], "id", $from_id);
     $textextra = "📆 تعداد روز اضافه مورد نظر را وارد کنید ( برحسب روز ) :
         
@@ -2775,10 +2753,8 @@ $textconnect
     }
     $nameloc = select("invoice", "*", "id_invoice", $user['Processing_value'], "select");
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-    $eextraprice = json_decode($marzban_list_get['priceextratime'], true);
-    $extratimepricevalue = $eextraprice[$user['agent']];
-    $eextraprice = json_decode($marzban_list_get['priceextravolume'], true);
-    $extrapricevalue = $eextraprice[$user['agent']];
+    $extratimepricevalue = mirza_json_agent_scalar($marzban_list_get['priceextratime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $extrapricevalue = mirza_json_agent_scalar($marzban_list_get['priceextravolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     $priceextratime = $extratimepricevalue * $text;
     $keyboardsetting = json_encode([
         'inline_keyboard' => [
@@ -2807,8 +2783,7 @@ $textconnect
         return;
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-    $eextraprice = json_decode($marzban_list_get['priceextratime'], true);
-    $extratimepricevalue = $eextraprice[$user['agent']];
+    $extratimepricevalue = mirza_json_agent_scalar($marzban_list_get['priceextratime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     if ($user['Balance'] < $tmieextra && $user['agent'] != "n2") {
         $marzbandirectpay = select('shopSetting', "*", "Namevalue", "statusdirectpabuy", "select")['value'];
         if ($marzbandirectpay == "offdirectbuy") {
@@ -3019,17 +2994,8 @@ $textconnect
             $lastonline = "متصل نشده";
         }
     }
-    $status = $DataUserOut['status'];
-    $status_var = [
-        'active' => $textbotlang['users']['stateus']['active'],
-        'limited' => $textbotlang['users']['stateus']['limited'],
-        'disabled' => $textbotlang['users']['stateus']['disabled'],
-        'expired' => $textbotlang['users']['stateus']['expired'],
-        'on_hold' => $textbotlang['users']['stateus']['on_hold'],
-        'Unknown' => $textbotlang['users']['stateus']['Unknown'],
-        'deactivev' => $textbotlang['users']['stateus']['disabled'],
-
-    ][$status];
+    $status = $DataUserOut['status'] ?? 'Unknown';
+    $status_var = mirza_user_status_label($textbotlang, $status);
     #--------------[ expire ]---------------#
     $expirationDate = $DataUserOut['expire'] ? jdate('Y/m/d', $DataUserOut['expire']) : $textbotlang['users']['stateus']['Unlimited'];
     #-------------[ data_limit ]----------------#
@@ -3778,12 +3744,9 @@ $textinvite
         }
         if ($setting['statuscategory'] == "offcategory") {
             $marzban_list_get = $locationproduct;
-            $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-            $custompricevalue = $eextraprice[$user['agent']];
-            $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-            $mainvolume = $mainvolume[$user['agent']];
-            $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-            $maxvolume = $maxvolume[$user['agent']];
+            $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+            $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+            $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
             $nullproduct = select("product", "*", null, null, "count");
             if ($nullproduct == 0) {
                 $textcustom = "📌 حجم درخواستی خود را ارسال کنید.
@@ -3808,7 +3771,7 @@ $textinvite
             } else {
                 $query = "SELECT * FROM product WHERE (Location = '$location' OR Location = '/all')AND agent= '{$user['agent']}'";
                 $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
-                $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
+                $statuscustomvolume = mirza_json_agent_scalar($marzban_list_get['customvolume'] ?? null, (string) ($user['agent'] ?? 'f'), '0');
                 if ($marzban_list_get['MethodUsername'] == $textbotlang['users']['customusername'] || $marzban_list_get['MethodUsername'] == "نام کاربری دلخواه + عدد رندوم") {
                     $datakeyboard = "prodcutservices_";
                 } else {
@@ -3834,7 +3797,7 @@ $textinvite
             }
             $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
             $statuscustom = false;
-            $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
+            $statuscustomvolume = mirza_json_agent_scalar($marzban_list_get['customvolume'] ?? null, (string) ($user['agent'] ?? 'f'), '0');
             if ($statuscustomvolume == "1" && $marzban_list_get['type'] != "Manualsale")
                 $statuscustom = true;
             if ($statusnote) {
@@ -3888,12 +3851,9 @@ $textinvite
     }
     $nullproduct = select("product", "*", null, null, "count");
     if ($nullproduct == 0) {
-        $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-        $custompricevalue = $eextraprice[$user['agent']];
-        $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-        $mainvolume = $mainvolume[$user['agent']];
-        $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-        $maxvolume = $maxvolume[$user['agent']];
+        $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+        $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         $textcustom = "📌 حجم درخواستی خود را ارسال کنید.
 🔔قیمت هر گیگ حجم $custompricevalue تومان می باشد.
 🔔 حداقل حجم $mainvolume گیگابایت و حداکثر $maxvolume گیگابایت می باشد.";
@@ -3907,7 +3867,7 @@ $textinvite
             Editmessagetext($from_id, $message_id, mirza_bot_text($datatextbot, 'text_select_category', $textbotlang['users']['sell']['selectCategory']), KeyboardCategory($location, $user['agent'], "buybacktow"));
         } else {
             $query = "SELECT * FROM product WHERE (Location = '$location' OR Location = '/all')AND agent= '{$user['agent']}'";
-            $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
+            $statuscustomvolume = mirza_json_agent_scalar($marzban_list_get['customvolume'] ?? null, (string) ($user['agent'] ?? 'f'), '0');
             if ($marzban_list_get['MethodUsername'] == $textbotlang['users']['customusername'] || $marzban_list_get['MethodUsername'] == "نام کاربری دلخواه + عدد رندوم") {
                 $datakeyboard = "prodcutservices_";
             } else {
@@ -3932,7 +3892,7 @@ $textinvite
             return;
         }
         $statuscustom = false;
-        $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
+        $statuscustomvolume = mirza_json_agent_scalar($marzban_list_get['customvolume'] ?? null, (string) ($user['agent'] ?? 'f'), '0');
         if ($statuscustomvolume == "1" && $marzban_list_get['type'] != "Manualsale")
             $statuscustom = true;
         $monthkeyboard = keyboardTimeCategory($marzban_list_get['name_panel'], $user['agent'], "productmonth_", "buybacktow", $statuscustom, false);
@@ -3948,7 +3908,7 @@ $textinvite
         $query = "SELECT * FROM product WHERE (Location = '{$userdate['name_panel']}' OR Location = '/all') AND agent= '{$user['agent']}' AND category = '$categorynames'";
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
+    $statuscustomvolume = mirza_json_agent_scalar($marzban_list_get['customvolume'] ?? null, (string) ($user['agent'] ?? 'f'), '0');
     if ($marzban_list_get['MethodUsername'] == $textbotlang['users']['customusername'] || $marzban_list_get['MethodUsername'] == "نام کاربری دلخواه + عدد رندوم") {
         $datakeyboard = "prodcutservices_";
     } else {
@@ -3979,7 +3939,7 @@ $textinvite
     } else {
         $query = "SELECT * FROM product WHERE (Location = '{$userdate['name_panel']}' OR Location = '/all') AND agent= '{$user['agent']}' AND Service_time = '$monthenumber'";
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-        $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
+        $statuscustomvolume = mirza_json_agent_scalar($marzban_list_get['customvolume'] ?? null, (string) ($user['agent'] ?? 'f'), '0');
         if ($marzban_list_get['MethodUsername'] == $textbotlang['users']['customusername'] || $marzban_list_get['MethodUsername'] == "نام کاربری دلخواه + عدد رندوم") {
             $datakeyboard = "prodcutservices_";
         } else {
@@ -3995,12 +3955,9 @@ $textinvite
 } elseif ($datain == "customsellvolume") {
     $userdate = json_decode($user['Processing_value'], true);
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-    $mainvolume = $mainvolume[$user['agent']];
-    $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-    $maxvolume = $maxvolume[$user['agent']];
+    $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
     $textcustom = "📌 حجم درخواستی خود را ارسال کنید.
 🔔قیمت هر گیگ حجم $custompricevalue تومان می باشد.
 🔔 حداقل حجم $mainvolume گیگابایت و حداکثر $maxvolume گیگابایت می باشد.";
@@ -4010,14 +3967,10 @@ $textinvite
 } elseif ($user['step'] == "gettimecustomvol") {
     $userdate = json_decode($user['Processing_value'], true);
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-    $mainvolume = $mainvolume[$user['agent']];
-    $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-    $maxvolume = $maxvolume[$user['agent']];
-    $maintime = json_decode($marzban_list_get['maintime'], true);
-    $maintime = $maintime[$user['agent']];
-    $maxtime = json_decode($marzban_list_get['maxtime'], true);
-    $maxtime = $maxtime[$user['agent']];
+    $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+    $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
     if ($text > intval($maxvolume) || $text < intval($mainvolume)) {
         $texttime = "❌ حجم نامعتبر است.\n🔔 حداقل حجم $mainvolume گیگابایت و حداکثر $maxvolume گیگابایت می باشد";
         sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -4028,8 +3981,7 @@ $textinvite
         return;
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     update("user", "Processing_value_one", $text, "id", $from_id);
     $textcustom = "⌛️ زمان سرویس خود را انتخاب نمایید 
 📌 تعرفه هر روز  : $customtimevalueprice  تومان
@@ -4049,10 +4001,8 @@ $textinvite
             return;
         }
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-        $maintime = json_decode($marzban_list_get['maintime'], true);
-        $maintime = $maintime[$user['agent']];
-        $maxtime = json_decode($marzban_list_get['maxtime'], true);
-        $maxtime = $maxtime[$user['agent']];
+        $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         if (intval($text) > intval($maxtime) || intval($text) < intval($maintime)) {
             $texttime = "❌ زمان ارسال شده نامعتبر است . زمان باید بین $maintime روز تا $maxtime روز باشد";
             sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -4078,10 +4028,8 @@ $textinvite
             return;
         }
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-        $maintime = json_decode($marzban_list_get['maintime'], true);
-        $maintime = $maintime[$user['agent']];
-        $maxtime = json_decode($marzban_list_get['maxtime'], true);
-        $maxtime = $maxtime[$user['agent']];
+        $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         if (intval($text) > intval($maxtime) || intval($text) < intval($maintime)) {
             $texttime = "❌ زمان ارسال شده نامعتبر است . زمان باید بین $maintime روز تا $maxtime روز باشد";
             sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -4109,10 +4057,8 @@ $textinvite
         $loc = $prodcut;
     }
     update("user", "Processing_value_one", $loc, "id", $from_id);
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     $parts = explode("_", $loc);
     if ($parts[0] == "customvolume") {
         $info_product['Volume_constraint'] = $parts[2];
@@ -4182,10 +4128,8 @@ $textinvite
         step("home", $from_id);
         return;
     }
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     if ($parts[0] == "customvolume") {
         $info_product['Volume_constraint'] = $parts[2];
         $info_product['name_product'] = $textbotlang['users']['customsellvolume']['title'];
@@ -4587,10 +4531,8 @@ $textonebuy
     sendmessage($from_id, "🤩 کد تخفیف شما درست بود و  {$SellDiscountlimit['price']} درصد تخفیف روی فاکتور شما اعمال شد.", null, 'HTML');
     step('payment', $from_id);
     $parts = explode("_", $user['Processing_value_one']);
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     if ($parts[0] == "customvolume") {
         $info_product['Volume_constraint'] = $parts[2];
         $info_product['name_product'] = $textbotlang['users']['customsellvolume']['title'];
@@ -4688,7 +4630,7 @@ $textonebuy
         return;
     }
     update("user", "Processing_value", $location, "id", $from_id);
-    $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
+    $statuscustomvolume = mirza_json_agent_scalar($marzban_list_get['customvolume'] ?? null, (string) ($user['agent'] ?? 'f'), '0');
     if ($marzban_list_get['MethodUsername'] == $textbotlang['users']['customusername'] || $marzban_list_get['MethodUsername'] == "نام کاربری دلخواه + عدد رندوم") {
         $datakeyboard = "prodcutservicesom_";
     } else {
@@ -4703,8 +4645,7 @@ $textonebuy
     Editmessagetext($from_id, $message_id, mirza_bot_text($datatextbot, 'text_service_select', $textbotlang['users']['sell']['Service-select']), KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolumeom"));
 } elseif ($datain == "customsellvolumeom") {
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
+    $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     $textcustom = "🔋 لطفا مقدار حجم سرویس مورد نظر را وارد کنید ( برحسب گیگابایت ) :
 📌 تعرفه هر گیگ :  $custompricevalue 
 🔔 حداقل حجم 1 گیگابایت و حداکثر 1000 گیگابایت می باشد.";
@@ -4713,16 +4654,11 @@ $textonebuy
     step('gettimecustomvolom', $from_id);
 } elseif ($user['step'] == "gettimecustomvolom") {
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
-    $mainvolume = json_decode($marzban_list_get['mainvolume'], true);
-    $mainvolume = $mainvolume[$user['agent']];
-    $maxvolume = json_decode($marzban_list_get['maxvolume'], true);
-    $maxvolume = $maxvolume[$user['agent']];
-    $maintime = json_decode($marzban_list_get['maintime'], true);
-    $maintime = $maintime[$user['agent']];
-    $maxtime = json_decode($marzban_list_get['maxtime'], true);
-    $maxtime = $maxtime[$user['agent']];
+    $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+    $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
     if ($text > intval($maxvolume) || $text < intval($mainvolume)) {
         $texttime = "❌ حجم نامعتبر است.\n🔔 حداقل حجم $mainvolume گیگابایت و حداکثر $maxvolume گیگابایت می باشد";
         sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -4751,10 +4687,8 @@ $textonebuy
             return;
         }
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
-        $maintime = json_decode($marzban_list_get['maintime'], true);
-        $maintime = $maintime[$user['agent']];
-        $maxtime = json_decode($marzban_list_get['maxtime'], true);
-        $maxtime = $maxtime[$user['agent']];
+        $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         if (intval($text) > intval($maxtime) || intval($text) < intval($maintime)) {
             $texttime = "❌ زمان ارسال شده نامعتبر است . زمان باید بین $maintime روز تا $maxtime روز باشد";
             sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -4775,10 +4709,8 @@ $textonebuy
             return;
         }
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
-        $maintime = json_decode($marzban_list_get['maintime'], true);
-        $maintime = $maintime[$user['agent']];
-        $maxtime = json_decode($marzban_list_get['maxtime'], true);
-        $maxtime = $maxtime[$user['agent']];
+        $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         if (intval($text) > $maxtime || intval($text) < $maintime) {
             $texttime = "❌ زمان ارسال شده نامعتبر است . زمان باید بین $maintime روز تا $maxtime روز باشد";
             sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -4801,10 +4733,8 @@ $textonebuy
         $loc = $prodcut;
     }
     update("user", "Processing_value_one", $loc, "id", $from_id);
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     $parts = explode("_", $loc);
     if ($parts[0] == "customvolume") {
         $info_product['Volume_constraint'] = $parts[2];
@@ -4841,10 +4771,8 @@ $textonebuy
     step('payments', $from_id);
 } elseif ($user['step'] == "payments" && $datain == "confirmandgetservice") {
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
-    $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-    $custompricevalue = $eextraprice[$user['agent']];
-    $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-    $customtimevalueprice = $eextraprice[$user['agent']];
+    $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+    $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     $parts = explode("_", $user['Processing_value_one']);
     if ($parts[0] == "customvolume") {
         $info_product['Volume_constraint'] = $parts[2];
@@ -6154,10 +6082,8 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         $service_other = json_decode($service_other['value'], true);
         $nameloc = select("invoice", "*", "username", $usernamepanel, "select");
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-        $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-        $custompricevalue = $eextraprice[$user['agent']];
-        $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-        $customtimevalueprice = $eextraprice[$user['agent']];
+        $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+        $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
         $codeproduct = $service_other['code_product'];
         if ($codeproduct == "custom_volume") {
             $prodcut['code_product'] = "custom_volume";
@@ -6350,10 +6276,8 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         $service_other = json_decode($service_other['value'], true);
         $nameloc = select("invoice", "*", "username", $usernamepanel, "select");
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-        $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
-        $custompricevalue = $eextraprice[$user['agent']];
-        $eextraprice = json_decode($marzban_list_get['pricecustomtime'], true);
-        $customtimevalueprice = $eextraprice[$user['agent']];
+        $custompricevalue = mirza_json_agent_scalar($marzban_list_get['pricecustomvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
+        $customtimevalueprice = mirza_json_agent_scalar($marzban_list_get['pricecustomtime'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
         $codeproduct = $service_other['code_product'];
         if ($codeproduct == "custom_volume") {
             $prodcut['code_product'] = "custom_volume";
@@ -6648,8 +6572,7 @@ $text_porsant
     $usernamepanel = $dataget[1];
     $locations = select("marzban_panel", "*", "code_panel", $dataget[2], "select");
     $location = $locations['name_panel'];
-    $eextraprice = json_decode($locations['priceextravolume'], true);
-    $extrapricevalue = $eextraprice[$user['agent']];
+    $extrapricevalue = mirza_json_agent_scalar($locations['priceextravolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     update("user", "Processing_value", $usernamepanel, "id", $from_id);
     update("user", "Processing_value_one", $location, "id", $from_id);
 
@@ -6666,8 +6589,7 @@ $text_porsant
         return;
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value_one'], "select");
-    $eextraprice = json_decode($marzban_list_get['priceextravolume'], true);
-    $extrapricevalue = $eextraprice[$user['agent']];
+    $extrapricevalue = mirza_json_agent_scalar($marzban_list_get['priceextravolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     $priceextra = $extrapricevalue * $text;
     $keyboardsetting = json_encode([
         'inline_keyboard' => [
@@ -6719,8 +6641,7 @@ $text_porsant
         sendmessage($from_id, $textbotlang['users']['stateus']['error'], null, 'html');
         return;
     }
-    $eextraprice = json_decode($marzban_list_get['priceextravolume'], true);
-    $extrapricevalue = $eextraprice[$user['agent']];
+    $extrapricevalue = mirza_json_agent_scalar($marzban_list_get['priceextravolume'] ?? null, (string) ($user['agent'] ?? 'f'), 0);
     deletemessage($from_id, $message_id);
     if (intval($user['pricediscount']) != 0) {
         $result = ($volume * $user['pricediscount']) / 100;
@@ -7176,7 +7097,7 @@ $text_porsant
         $previous_page = $page - 1;
     }
     $start_index = ($previous_page - 1) * $items_per_page;
-    $result = mysqli_query($connect, "SELECT * FROM invoice WHERE id_user = '$from_id' AND (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') ORDER BY time_sell DESC LIMIT $previous_page, $items_per_page");
+    $result = mysqli_query($connect, "SELECT * FROM invoice WHERE id_user = '$from_id' AND (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') ORDER BY time_sell DESC LIMIT $start_index, $items_per_page");
     $keyboardlists = [
         'inline_keyboard' => [],
     ];
@@ -7335,7 +7256,7 @@ if (isset($update['message']['successful_payment'])) {
     update("user", "Processing_value", $location, "id", $from_id);
     $query = "SELECT * FROM product WHERE (Location = '$location' OR Location = '/all') AND agent= '{$user['agent']}'";
     $marzban_list_get = select("marzban_panel", "*", "code_panel", $location, "select");
-    $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
+    $statuscustomvolume = mirza_json_agent_scalar($marzban_list_get['customvolume'] ?? null, (string) ($user['agent'] ?? 'f'), '0');
     if ($marzban_list_get['MethodUsername'] == $textbotlang['users']['customusername'] || $marzban_list_get['MethodUsername'] == "نام کاربری دلخواه + عدد رندوم") {
         $datakeyboard = "prodcutservicesom_";
     } else {

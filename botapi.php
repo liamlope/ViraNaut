@@ -85,18 +85,69 @@ function sendmessage($chat_id, $text, $keyboard, $parse_mode, $bot_token = null,
         $parse_mode = $prepared['parse_mode'];
         $entities = $prepared['entities'];
     }
-    $data = [
-        'chat_id' => $chat_id,
-        'text' => $text,
-        'reply_markup' => $keyboard,
-    ];
-    if ($entities !== null && $entities !== '') {
-        $data['entities'] = is_string($entities) ? $entities : json_encode($entities, JSON_UNESCAPED_UNICODE);
+    if (!is_string($text)) {
+        $text = (string) $text;
     }
-    if ($parse_mode !== null && $parse_mode !== '') {
-        $data['parse_mode'] = $parse_mode;
+    $limit = 4096;
+    if (mb_strlen($text, 'UTF-8') <= $limit) {
+        $data = [
+            'chat_id' => $chat_id,
+            'text' => $text,
+            'reply_markup' => $keyboard,
+        ];
+        if ($entities !== null && $entities !== '') {
+            $data['entities'] = is_string($entities) ? $entities : json_encode($entities, JSON_UNESCAPED_UNICODE);
+        }
+        if ($parse_mode !== null && $parse_mode !== '') {
+            $data['parse_mode'] = $parse_mode;
+        }
+        return telegram('sendmessage', $data, $bot_token);
     }
-    return telegram('sendmessage', $data, $bot_token);
+
+    $chunks = [];
+    $remaining = $text;
+    while (mb_strlen($remaining, 'UTF-8') > $limit) {
+        $slice = mb_substr($remaining, 0, $limit, 'UTF-8');
+        $breakAt = max(
+            (int) mb_strrpos($slice, "\n\n", 0, 'UTF-8'),
+            (int) mb_strrpos($slice, "\n", 0, 'UTF-8'),
+            (int) mb_strrpos($slice, ' ', 0, 'UTF-8')
+        );
+        if ($breakAt > (int) ($limit * 0.5)) {
+            $part = mb_substr($remaining, 0, $breakAt, 'UTF-8');
+            $remaining = mb_substr($remaining, $breakAt, null, 'UTF-8');
+        } else {
+            $part = $slice;
+            $remaining = mb_substr($remaining, $limit, null, 'UTF-8');
+        }
+        $chunks[] = trim($part);
+    }
+    if (trim($remaining) !== '') {
+        $chunks[] = trim($remaining);
+    }
+
+    $lastResponse = ['ok' => false];
+    $chunkCount = count($chunks);
+    foreach ($chunks as $index => $chunk) {
+        $markup = ($index === $chunkCount - 1) ? $keyboard : null;
+        $chunkEntities = ($index === 0) ? $entities : null;
+        $chunkParse = ($chunkEntities !== null || $parse_mode === null || $parse_mode === '') ? $parse_mode : null;
+        $data = [
+            'chat_id' => $chat_id,
+            'text' => $chunk,
+            'reply_markup' => $markup,
+        ];
+        if ($chunkEntities !== null && $chunkEntities !== '') {
+            $data['entities'] = is_string($chunkEntities) ? $chunkEntities : json_encode($chunkEntities, JSON_UNESCAPED_UNICODE);
+        } elseif ($chunkParse !== null && $chunkParse !== '') {
+            $data['parse_mode'] = $chunkParse;
+        }
+        $lastResponse = telegram('sendmessage', $data, $bot_token);
+        if (empty($lastResponse['ok'])) {
+            break;
+        }
+    }
+    return $lastResponse;
 }
 function sendDocument($chat_id, $documentPath, $caption) {
         return telegram('sendDocument',[
@@ -134,6 +185,19 @@ function senddocumentsid($chat_id,$documentid,$caption){
         'caption'=> $caption,
     ]);
 }
+function mirza_answer_callback_query(?string $callback_query_id, string $text = '', bool $showAlert = false): void
+{
+    if ($callback_query_id === null || $callback_query_id === '') {
+        return;
+    }
+    telegram('answerCallbackQuery', [
+        'callback_query_id' => $callback_query_id,
+        'text' => $text,
+        'show_alert' => $showAlert,
+        'cache_time' => 5,
+    ]);
+}
+
 function Editmessagetext($chat_id, $message_id, $text, $keyboard, $parse_mode = 'HTML')
 {
     $entities = null;
@@ -142,6 +206,9 @@ function Editmessagetext($chat_id, $message_id, $text, $keyboard, $parse_mode = 
         $text = $prepared['text'];
         $parse_mode = $prepared['parse_mode'];
         $entities = $prepared['entities'];
+    }
+    if (is_string($text) && mb_strlen($text, 'UTF-8') > 4096) {
+        $text = mb_substr($text, 0, 4090, 'UTF-8') . '…';
     }
     $data = [
         'chat_id' => $chat_id,

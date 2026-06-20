@@ -3769,6 +3769,93 @@ function mirza_resolve_user_lang(string $fallback = 'fa'): string
     return in_array($lang, $allowed, true) ? $lang : 'fa';
 }
 
+/**
+ * Read per-agent value from JSON column (maintime, maxtime, mainvolume, …).
+ */
+function mirza_json_agent_scalar($jsonValue, string $agent, $default = 0)
+{
+    if ($jsonValue === null || $jsonValue === '') {
+        return $default;
+    }
+    if (is_array($jsonValue)) {
+        $decoded = $jsonValue;
+    } else {
+        $decoded = json_decode((string) $jsonValue, true);
+    }
+    if (!is_array($decoded)) {
+        return is_numeric($jsonValue) ? $jsonValue : $default;
+    }
+    if (array_key_exists($agent, $decoded)) {
+        return $decoded[$agent];
+    }
+    if (array_key_exists('f', $decoded)) {
+        return $decoded['f'];
+    }
+    $first = reset($decoded);
+    return $first !== false ? $first : $default;
+}
+
+function mirza_admin_allows_user_lookup(string $step): bool
+{
+    $step = trim($step);
+    return in_array($step, ['', 'home', 'none'], true);
+}
+
+function mirza_admin_user_flow_step(string $step): bool
+{
+    static $steps = [
+        'get_number', 'getusernameinfo', 'createusertest', 'getuseragnetservice',
+        'gettimecustomvolomforextend', 'getvolumecustomuserforextend', 'getcodesellDiscountextend',
+        'getvolumeextra', 'getdesdisorder', 'gettimeextra', 'getdisdeleteconfig', 'getidfortransfer',
+        'gettextticket', 'getextsupport', 'getextuserfors', 'statusnamecustom', 'gettimecustomvol',
+        'getvolumecustomusername', 'endstepuser', 'endstepusers', 'getvolumecustomuser', 'payment',
+        'getcodesellDiscount', 'getcountconfig', 'gettimecustomvolom', 'getvolumecustomusernameom',
+        'endstepuserom', 'endstepusersom', 'getvolumecustomuserom', 'payments', 'getprice',
+        'get_step_payment', 'getresidcurrency', 'cart_to_cart_user', 'get_code_user', 'getvolumeextras',
+        'getmessageAsuser', 'selectusernamecustom', 'confirmchannel',
+    ];
+    return in_array(trim($step), $steps, true);
+}
+
+function mirza_admin_is_panel_command(?string $text, array $textbotlang): bool
+{
+    $text = trim((string) $text);
+    if ($text === '') {
+        return false;
+    }
+    $panelCommands = [
+        'panel', '/panel',
+        (string) ($textbotlang['Admin']['textpaneladmin'] ?? ''),
+        (string) ($textbotlang['Admin']['backadmin'] ?? ''),
+        (string) ($textbotlang['Admin']['backmenu'] ?? ''),
+    ];
+    return in_array($text, array_filter($panelCommands), true);
+}
+
+function mirza_user_status_label(array $textbotlang, $status): string
+{
+    $status = (string) ($status ?? 'Unknown');
+    $labels = [
+        'active' => $textbotlang['users']['stateus']['active'] ?? 'active',
+        'limited' => $textbotlang['users']['stateus']['limited'] ?? 'limited',
+        'disabled' => $textbotlang['users']['stateus']['disabled'] ?? 'disabled',
+        'expired' => $textbotlang['users']['stateus']['expired'] ?? 'expired',
+        'on_hold' => $textbotlang['users']['stateus']['on_hold'] ?? 'on_hold',
+        'Unknown' => $textbotlang['users']['stateus']['Unknown'] ?? 'Unknown',
+        'deactivev' => $textbotlang['users']['stateus']['disabled'] ?? 'disabled',
+    ];
+    return $labels[$status] ?? ($textbotlang['users']['stateus']['Unknown'] ?? $status);
+}
+
+function mirza_admin_run_exclusive(string $step): bool
+{
+    $step = trim($step);
+    if (mirza_admin_allows_user_lookup($step) || mirza_admin_user_flow_step($step)) {
+        return false;
+    }
+    return true;
+}
+
 function mirza_languagechange_from_json(?string $path_dir = null): array
 {
     if ($path_dir === null || $path_dir === '') {
