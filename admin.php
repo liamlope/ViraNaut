@@ -4368,9 +4368,11 @@ $caption";
         $dash = mirza_xui_admin_dashboard_text($marzban_list_get, $x_ui_check_connect);
         $dash .= "\n\n⭕️ از منوی زیر یا دکمه‌های بالا (اینباند / تست اتصال) استفاده کنید.";
         sendmessage($from_id, $dash, mirza_xui_hub_inline_keyboard($marzban_list_get['name_panel']), 'HTML');
+        // همیشه کیبورد اصلی مدیریت پنل را هم نمایش بده تا ادمین در «مرکز پنل» گیر نکند.
+        sendmessage($from_id, $textbotlang['users']['selectoption'] ?? 'یک گزینه را انتخاب نمایید', $optionX_ui_single, 'HTML');
         if (!$x_ui_check_connect['success']) {
             $err = (string) ($x_ui_check_connect['msg'] ?? 'اتصال برقرار نیست');
-            sendmessage($from_id, $err, $optionX_ui_single, 'HTML');
+            sendmessage($from_id, $err, $backadmin, 'HTML');
         }
     } elseif ($marzban_list_get['type'] == "mirza_agent") {
         sendmessage($from_id, $textbotlang['users']['selectoption'] ?? 'یک گزینه را انتخاب کنید', $optionMarzban, 'HTML');
