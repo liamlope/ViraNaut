@@ -4631,7 +4631,11 @@ $textonebuy
         return;
     }
     $agentWeb = 'https://' . ($domainhosts ?? 'localhost') . '/agent-panel/';
-    sendmessage($from_id, "🌐 پنل وب نمایندگی:\n<a href=\"{$agentWeb}\">{$agentWeb}</a>\n\nبرای ورود از آیدی عددی تلگرام استفاده کنید.", null, 'HTML');
+    $agentWebMsg = "🌐 پنل وب نمایندگی:\n<a href=\"{$agentWeb}\">{$agentWeb}</a>\n\n"
+        . "برای ورود از آیدی عددی تلگرام استفاده کنید.\n\n"
+        . "آیدی عددی خود را می‌توانید از ربات زیر دریافت کنید:\n"
+        . '<a href="https://t.me/IDFindeerBot">@IDFindeerBot</a>';
+    sendmessage($from_id, $agentWebMsg, null, 'HTML');
     return;
 } elseif ($text == "🗂 خرید انبوه" || $datain == "kharidanbuh") {
     if ($setting['bulkbuy'] == "offbulk") {

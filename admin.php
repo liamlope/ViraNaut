@@ -11802,6 +11802,34 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
         file_get_contents("https://api.telegram.org/bot{$bot['bot_token']}/setwebhook?url=https://$domainhosts/vpnbot/{$bot['id_user']}{$bot['username']}/index.php");
     }
     sendmessage($from_id, "✅ وبهوک با موفقیت انجام شد.", null, 'HTML');
+} elseif ($text == "🔄 بروزرسانی فایل ربات های نماینده" && ($adminrulecheck['rule'] ?? '') == "administrator") {
+    $bots_agent = select("botsaz", "*", null, null, "fetchAll");
+    if (count($bots_agent) == 0) {
+        sendmessage($from_id, "❌ رباتی وجود ندارد", null, 'HTML');
+        return;
+    }
+    sendmessage($from_id, "📌 در حال بروزرسانی فایل‌ها از vpnbot/update …", null, 'HTML');
+    $destination = getcwd();
+    $src = $destination . '/vpnbot/update';
+    $updated = 0;
+    foreach ($bots_agent as $bot) {
+        $dir = "$destination/vpnbot/{$bot['id_user']}{$bot['username']}";
+        if (!is_dir($dir)) {
+            continue;
+        }
+        if (copyDirectoryContents($src, $dir)) {
+            $cfg = $dir . '/config.php';
+            if (is_readable($cfg)) {
+                $c = file_get_contents($cfg);
+                if (strpos($c, 'BotTokenNew') !== false) {
+                    file_put_contents($cfg, str_replace('BotTokenNew', $bot['bot_token'], $c));
+                }
+            }
+            file_get_contents("https://api.telegram.org/bot{$bot['bot_token']}/setwebhook?url=https://$domainhosts/vpnbot/{$bot['id_user']}{$bot['username']}/index.php");
+            $updated++;
+        }
+    }
+    sendmessage($from_id, "✅ {$updated} ربات فروش بروزرسانی شد.", null, 'HTML');
 } elseif (preg_match('/statuscronuser-(.*)/', $datain, $dataget)) {
     $id_user = $dataget[1];
     $user_status = select("user", "*", "id", $id_user);

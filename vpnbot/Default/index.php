@@ -115,7 +115,14 @@ if ($user['bottype'] != $ApiToken) {
 if ($user['username'] != $username) {
     update("user", "username", $username, "id", $from_id);
 }
-if ($text == "/start") {
+if ($text == '🌐 پنل وب نمایندگی') {
+    if (!in_array($from_id, $admin_ids) && !in_array($from_id, $admin_idsmain)) {
+        return;
+    }
+    $agentWeb = 'https://' . ($domainhosts ?? 'localhost') . '/agent-panel/';
+    sendmessage($from_id, "🌐 پنل وب نمایندگی:\n<a href=\"{$agentWeb}\">{$agentWeb}</a>\n\nآیدی عددی خود را از @IDFindeerBot بگیرید.", null, 'HTML');
+    return;
+} elseif ($text == "/start") {
     $textstart = "✋سلام $first_name عزیز به ربات ما خوش اومدی.
 
 برای ادامه  یک بخش را انتخاب کنید:";

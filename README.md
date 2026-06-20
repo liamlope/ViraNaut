@@ -40,17 +40,19 @@
 
 ---
 
-## agent-panel Pro
+## agent-panel Pro (3.2)
 
 | URL | `https://YOUR_DOMAIN/agent-panel/` |
 | API | `POST /api/agent.php` — `Authorization: Bearer {token}` |
-| Actions | `dashboard`, `services`, `service_detail`, `renew`, `add_volume`, `revoke` |
+| Actions | `dashboard`, `services`, `service_detail`, `buy`, `buy_custom`, `buy_bulk`, `test_account`, `renew`, `add_volume`, `add_time`, `revoke`, `affiliates`, `transactions`, `tariff`, `panels`, `products` |
 
-- داشبورد + نمودار فروش (Chart.js)
-- عملیات سرویس: تمدید، افزایش حجم، لینک جدید
-- تم هم‌راستا با پنل ادمین
-- توکن API از **تنظیمات** یا **login** نماینده
-- دکمه «🌐 پنل وب نمایندگی» در منوی نماینده ربات
+- UI هم‌تراز پنل ادمین: sidebar، toast، modal، bottom-nav موبایل
+- خرید سرویس / دلخواه / انبوه / اکانت تست + پیش‌فاکتور + maxbuyagent → درگاه
+- مدیریت سرویس: جزئیات live، QR، فیلتر، عملیات گروهی، حجم/زمان
+- مالی: تراکنش‌ها، تعرفه، شارژ موجودی
+- زیرمجموعه، گزارش CSV، API تعاملی، 2FA تلگرام، تیکت پشتیبانی
+- **vpnbot:** دکمه «پنل وب نمایندگی» برای ادمین ربات فروش + بروزرسانی دسته‌ای از منوی ادمین اصلی
+- دکمه «🌐 پنل وب نمایندگی» در منوی نماینده ربات اصلی
 
 ---
 

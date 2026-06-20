@@ -2,6 +2,28 @@
 
 All notable changes from Mirza 0.2.2 + Pro 6.7 upgrade path.
 
+## [3.2.0-ViraNaut] — 2026-06-20
+
+### Added
+- **agent-panel Pro (full)** — ۹ فاز: sidebar/toast/modal مثل `panel/`، خرید/سفارشی/انبوه/تست، مدیریت سرویس، مالی، زیرمجموعه، گزارش، API تعاملی، 2FA، تیکت
+- **inc/agent_ops.php** — لایه مشترک business logic (خرید، تمدید، حجم/زمان، maxbuyagent، dashboard)
+- Migration `viranaut_migrate_3_2_0_agent_panel.sql` — multi-token، api_log، login_log، webhooks، notifications، action_log
+- `cronbot/agent_webhooks.php` — اعلان موجودی کم + webhook
+- vpnbot — دکمه «پنل وب نمایندگی» + admin «بروزرسانی فایل ربات های نماینده»
+- agent-panel: remember-me، session TTL، onboarding، export CSV، QR سرویس
+
+### Changed
+- **api/agent.php** — actions گسترده (buy، affiliates، transactions، tariff، panels/products)
+- vpnbot/update → `1.0.9`
+- نسخه سراسری → `3.2.0-ViraNaut`
+
+### Fixed
+- AJAX session → JSON 401 (نه redirect HTML)
+- CSRF در `<head>`؛ کسر balance برای add_volume/add_time
+- renew method یکسان (`resetVolumeTime`)
+
+---
+
 ## [3.1.0-ViraNaut] — 2026-06-20
 
 ### Added

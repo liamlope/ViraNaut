@@ -1,0 +1,5 @@
+# Agent panel — require auth for pages (login/logout exempt via direct access)
+<IfModule mod_headers.c>
+Header set Cache-Control "no-store, no-cache, must-revalidate"
+Header set X-Frame-Options "SAMEORIGIN"
+</IfModule>
