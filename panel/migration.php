@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 dirname(__DIR__) . '/migrations/viranaut_migrate.sql',
                 dirname(__DIR__) . '/migrations/viranaut_migrate_2_1_0.sql',
                 dirname(__DIR__) . '/migrations/viranaut_migrate_3_0_0.sql',
+                dirname(__DIR__) . '/migrations/viranaut_migrate_3_1_0.sql',
             ];
             foreach ($migrationFiles as $sqlPath) {
                 if (!is_readable($sqlPath)) {
@@ -29,14 +30,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     try {
                         $pdo->exec($stmt);
                     } catch (PDOException $e) {
-                        if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        $msg = $e->getMessage();
+                        if (strpos($msg, 'Duplicate') === false && strpos($msg, 'already exists') === false && strpos($msg, '1060') === false) {
                             throw $e;
                         }
                     }
                 }
             }
+            if (function_exists('mirza_ensure_user_lang_column')) {
+                mirza_ensure_user_lang_column();
+            }
             vira_seed_default_wallets($pdo);
-            flash('success', 'مهاجرت داخلی ViraNaut (2.1 + 3.0) با موفقیت اجرا شد.');
+            flash('success', 'مهاجرت داخلی ViraNaut (2.1 + 3.0 + 3.1) با موفقیت اجرا شد.');
         } catch (Throwable $e) {
             flash('error', 'خطا: ' . $e->getMessage());
         }

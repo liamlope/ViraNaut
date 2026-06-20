@@ -5,6 +5,10 @@ require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/brand.php';
 require_once __DIR__ . '/vira_compat.php';
 
+if (function_exists('mirza_ensure_user_lang_column')) {
+    mirza_ensure_user_lang_column();
+}
+
 if (!isset($pdo)) {
     http_response_code(503);
     header('Content-Type: text/plain; charset=utf-8');

@@ -9,6 +9,9 @@ require_once 'config.php';
 require_once 'botapi.php';
 require_once 'jdf.php';
 require_once 'function.php';
+if (function_exists('mirza_ensure_user_lang_column')) {
+    mirza_ensure_user_lang_column();
+}
 require_once 'keyboard.php';
 require_once 'vendor/autoload.php';
 require_once 'panels.php';

@@ -2888,6 +2888,31 @@ function addFieldToTable($tableName, $fieldName, $defaultValue = null, $datatype
     echo "The $fieldName field was added ✅";
 }
 
+/** Auto-migrate user.lang (per-user language — ViraNaut 3.0+). */
+function mirza_ensure_user_lang_column(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    global $pdo;
+    if (!isset($pdo)) {
+        return;
+    }
+    $done = true;
+    try {
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'lang'"
+        );
+        if ($stmt && (int) $stmt->fetchColumn() === 0) {
+            $pdo->exec("ALTER TABLE `user` ADD `lang` VARCHAR(5) NULL DEFAULT 'fa'");
+        }
+    } catch (Throwable $e) {
+        error_log('mirza_ensure_user_lang_column: ' . $e->getMessage());
+    }
+}
+
 /** Auto-migrate marzban_panel columns (silent — safe on every webhook). */
 function mirza_ensure_marzban_panel_columns()
 {

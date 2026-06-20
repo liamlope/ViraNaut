@@ -34,3 +34,7 @@ if (isset($domainhosts) && $domainhosts !== '' && strpos((string) $domainhosts, 
 if (!function_exists('select')) {
     require_once __DIR__ . '/function.php';
 }
+
+if (function_exists('mirza_ensure_user_lang_column')) {
+    mirza_ensure_user_lang_column();
+}
