@@ -4631,7 +4631,8 @@ $textonebuy
         return;
     }
     $agentWeb = 'https://' . ($domainhosts ?? 'localhost') . '/agent-panel/';
-    sendmessage($from_id, "🌐 پنل وب نمایندگی:\n<a href=\"{$agentWeb}\">{$agentWeb}</a>\n\nبرای ورود از آیدی عددی تلگرام و PIN (در صورت تنظیم) استفاده کنید.", null, 'HTML');
+    sendmessage($from_id, "🌐 پنل وب نمایندگی:\n<a href=\"{$agentWeb}\">{$agentWeb}</a>\n\nبرای ورود از آیدی عددی تلگرام استفاده کنید.", null, 'HTML');
+    return;
 } elseif ($text == "🗂 خرید انبوه" || $datain == "kharidanbuh") {
     if ($setting['bulkbuy'] == "offbulk") {
         sendmessage($from_id, "❌ این بخش در حال غیرفعال می باشد", null, 'HTML');
@@ -6806,12 +6807,17 @@ $text_porsant
         }
     }
     step('home', $from_id);
-} elseif ((mirza_textbot_matches($text, $datatextbot['textpanelagent'] ?? '') || $datain == "agentpanel") && $user['agent'] != "f") {
-    if ($setting['inlinebtnmain'] == "oninline") {
+} elseif (mirza_textbot_matches($text, $datatextbot['textpanelagent'] ?? '') || $datain == "agentpanel") {
+    if (($user['agent'] ?? 'f') === 'f') {
+        sendmessage($from_id, '❌ این بخش فقط برای نمایندگان (n / n2) فعال است.', $keyboard, 'HTML');
+        return;
+    }
+    if ($setting['inlinebtnmain'] == "oninline" && $datain === "agentpanel") {
         Editmessagetext($from_id, $message_id, $textbotlang['Admin']['agent']['agentWelcome'], $keyboardagent, 'HTML');
     } else {
         sendmessage($from_id, $textbotlang['Admin']['agent']['agentWelcome'], $keyboardagent, 'HTML');
     }
+    return;
 } elseif ($text == $textbotlang['users']['agent']['customnameusername'] || $datain == "selectname") {
     sendmessage($from_id, $textbotlang['users']['selectusername'], $backuser, 'html');
     step('selectusernamecustom', $from_id);
@@ -7504,6 +7510,9 @@ if (isset($update['message']['successful_payment'])) {
     ]);
     Editmessagetext($from_id, $message_id, $textbotlang['language']['setSuccess'] ?? '✅ زبان تنظیم شد.', $keyboard_back);
 } elseif (!empty($text) && empty($datain) && ($user['step'] ?? '') === 'home' && !in_array($from_id, $admin_ids)) {
+    if (function_exists('mirza_user_menu_text_is_known') && mirza_user_menu_text_is_known($text, $datatextbot, $textbotlang, $user)) {
+        return;
+    }
     if (($setting['unknowncommand_reply'] ?? '1') === '1') {
         $unknownMsg = trim($datatextbot['text_unknown_command'] ?? '');
         if ($unknownMsg === '') {

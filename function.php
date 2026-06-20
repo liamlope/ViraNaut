@@ -166,6 +166,45 @@ if (!function_exists('mirza_pay_agent_value')) {
     }
 }
 
+if (!function_exists('mirza_user_menu_text_is_known')) {
+    /** آیا متن، برچسب یکی از دکمه‌های منوی اصلی / نمایندگی است؟ */
+    function mirza_user_menu_text_is_known(?string $text, array $datatextbot, array $textbotlang, array $user = []): bool
+    {
+        if ($text === null || trim($text) === '') {
+            return false;
+        }
+        if (function_exists('mirza_textbot_matches')) {
+            foreach (array_keys(mirza_datatextbot_lang_map()) as $key) {
+                if (mirza_textbot_matches($text, $datatextbot[$key] ?? '')) {
+                    return true;
+                }
+            }
+        }
+        $extras = [
+            $textbotlang['users']['backbtn'] ?? '',
+            $textbotlang['users']['agent']['customnameusername'] ?? '',
+            $textbotlang['Admin']['textpaneladmin'] ?? '',
+            $textbotlang['textbot']['purchasedServices'] ?? '',
+            $textbotlang['textbot']['accountWallet'] ?? '',
+            '🌐 پنل وب نمایندگی',
+            '🗂 خرید انبوه',
+            '👤 انتخاب نام دلخواه',
+        ];
+        foreach ($extras as $label) {
+            if ($label === '') {
+                continue;
+            }
+            if ($text === $label) {
+                return true;
+            }
+            if (function_exists('mirza_textbot_matches') && mirza_textbot_matches($text, $label)) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
 if (!function_exists('mirza_product_name_taken')) {
     /** نام تکراری فقط در همان دسته ممنوع — دسته‌های مختلف می‌توانند نام یکسان داشته باشند. */
     function mirza_product_name_taken(PDO $pdo, string $name, ?string $category = null, ?int $excludeId = null): bool
