@@ -6,9 +6,10 @@ function agent_complete_login(PDO $pdo, array $user, bool $remember): void
 {
     $_SESSION['agent_user_id'] = $user['id'];
     $_SESSION['agent_login_at'] = time();
+    // اول ردیف توکن/سشن را تضمین کن، بعد session_version را بخوان.
+    agent_panel_ensure_token($pdo, (string) $user['id']);
     $sv = db_fetch($pdo, 'SELECT session_version FROM agent_panel_tokens WHERE id_user = ? LIMIT 1', [(string) $user['id']]);
     $_SESSION['agent_session_version'] = (int) ($sv['session_version'] ?? 0);
-    agent_panel_ensure_token($pdo, (string) $user['id']);
     agent_log_login($pdo, (string) $user['id']);
     if ($remember) {
         agent_set_remember_cookie((string) $user['id']);

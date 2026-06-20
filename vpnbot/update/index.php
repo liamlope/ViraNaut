@@ -618,8 +618,11 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
         $stmt = $pdo->prepare("SELECT * FROM invoice WHERE status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold'");
         $stmt->execute();
         $countinovoice = $stmt->rowCount();
-        if ($locationproduct['limit_panel'] != "unlimited") {
-            if ($countinovoice >= $locationproduct['limit_panel']) {
+        $panelLimitRaw = trim((string) ($locationproduct['limit_panel'] ?? ''));
+        $panelLimitInt = (int) $panelLimitRaw;
+        $panelHasLimit = !in_array(mb_strtolower($panelLimitRaw), ['unlimited', 'unlimted', '0', ''], true) && $panelLimitInt > 0;
+        if ($panelHasLimit) {
+            if ($countinovoice >= $panelLimitInt) {
                 sendmessage($from_id, $textbotlang['Admin']['managepanel']['limitedpanelfirst'], null, 'HTML');
                 return;
             }
@@ -701,8 +704,11 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
     $stmt = $pdo->prepare("SELECT * FROM invoice WHERE (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND  Service_location = '{$locationproduct['name_panel']}'");
     $stmt->execute();
     $countinovoice = $stmt->rowCount();
-    if ($locationproduct['limit_panel'] != "unlimited") {
-        if ($countinovoice >= $locationproduct['limit_panel']) {
+    $panelLimitRaw = trim((string) ($locationproduct['limit_panel'] ?? ''));
+    $panelLimitInt = (int) $panelLimitRaw;
+    $panelHasLimit = !in_array(mb_strtolower($panelLimitRaw), ['unlimited', 'unlimted', '0', ''], true) && $panelLimitInt > 0;
+    if ($panelHasLimit) {
+        if ($countinovoice >= $panelLimitInt) {
             sendmessage($from_id, $textbotlang['Admin']['managepanel']['limitedpanel'], null, 'HTML');
             return;
         }

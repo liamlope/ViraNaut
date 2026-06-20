@@ -116,8 +116,11 @@ function agent_try_remember_login(PDO $pdo): void
     }
     $user = select('user', '*', 'id', $uid, 'select');
     if ($user && ($user['agent'] ?? 'f') !== 'f') {
+        agent_panel_ensure_token($pdo, (string) $uid);
         $_SESSION['agent_user_id'] = $uid;
         $_SESSION['agent_login_at'] = time();
+        $sv = db_fetch($pdo, 'SELECT session_version FROM agent_panel_tokens WHERE id_user = ? LIMIT 1', [(string) $uid]);
+        $_SESSION['agent_session_version'] = (int) ($sv['session_version'] ?? 0);
     }
 }
 

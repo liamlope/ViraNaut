@@ -129,3 +129,22 @@
     font-weight: 600;
     font-size: 0.82rem;
 }
+
+.input-with-toggle {
+    position: relative;
+}
+
+.input-with-toggle .input {
+    padding-left: 44px;
+}
+
+.input-eye-toggle {
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    min-width: 30px;
+    height: 30px;
+    padding: 0 6px;
+    line-height: 1;
+}

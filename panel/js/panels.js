@@ -181,6 +181,15 @@
             '</select>';
     }
 
+    function sensitiveInputHtml(name, value, dir, req, placeholder) {
+        var ph = placeholder ? (' placeholder="' + String(placeholder).replace(/"/g, '&quot;') + '"') : '';
+        return '<div class="input-with-toggle">' +
+            '<input type="password" name="' + name + '" class="input sensitive-input"' + dir + req + ph +
+            ' value="' + String(value || '').replace(/"/g, '&quot;') + '">' +
+            '<button type="button" class="btn btn-ghost btn-sm input-eye-toggle" data-eye-target="' + name + '" aria-label="نمایش/مخفی‌سازی">👁</button>' +
+            '</div>';
+    }
+
     function buildDynamicFields(typeDef, panel, idPrefix) {
         var prefix = idPrefix || 'add_dyn';
         var html = '<input type="hidden" name="panel_type" value="' + (typeDef.type || '') + '">';
@@ -206,11 +215,33 @@
             if (f.type === 'url') inputType = 'url';
             html += '<div class="field' + (f.key === 'name_panel' || f.key === 'url_panel' || f.key === 'linksubx' || f.key === 'xui_api_token' || f.key === 'secret_code' ? ' full' : '') + '">';
             html += '<label>' + f.label + (f.required ? ' *' : '') + '</label>';
-            html += '<input type="' + inputType + '" name="' + f.key + '" class="input"' + dir + req + ' value="' + String(val).replace(/"/g, '&quot;') + '"'
-                + (f.key === 'limit_panel' ? ' placeholder="0 یا unlimited = نامحدود" inputmode="numeric"' : '') + '>';
+            if (f.key === 'xui_api_token') {
+                html += sensitiveInputHtml(f.key, val, dir, req, 'توکن API');
+            } else if (f.type === 'password') {
+                html += sensitiveInputHtml(f.key, val, dir, req, 'رمز پنل');
+            } else {
+                html += '<input type="' + inputType + '" name="' + f.key + '" class="input"' + dir + req + ' value="' + String(val).replace(/"/g, '&quot;') + '"'
+                    + (f.key === 'limit_panel' ? ' placeholder="0 یا unlimited = نامحدود" inputmode="numeric"' : '') + '>';
+            }
             html += '</div>';
         });
         return html;
+    }
+
+    function bindSensitiveToggles(scopeEl) {
+        var root = scopeEl || document;
+        root.querySelectorAll('.input-eye-toggle').forEach(function (btn) {
+            if (btn.dataset.bound === '1') return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', function () {
+                var wrap = btn.closest('.input-with-toggle');
+                var input = wrap && wrap.querySelector('.sensitive-input');
+                if (!input) return;
+                var show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                btn.textContent = show ? '🙈' : '👁';
+            });
+        });
     }
 
     window.openAddPanelWizard = function () {
@@ -234,6 +265,7 @@
             var def = types.find(function (t) { return t.type === type; });
             if (!def) return;
             wrap.innerHTML = buildDynamicFields(def, null, 'add_dyn');
+            bindSensitiveToggles(wrap);
             if (P && document.getElementById('add_dyn_inbound_picker')) {
                 var nameInput = wrap.querySelector('[name="name_panel"]');
                 var reload = function () {
@@ -291,6 +323,7 @@
             var clone = JSON.parse(JSON.stringify(def));
             clone.fields = (clone.fields || []).filter(function (f) { return f.key !== 'name_panel'; });
             wrap.innerHTML = buildDynamicFields(clone, p, 'edit_dyn');
+            bindSensitiveToggles(wrap);
             if (P) {
                 var ib = p.inbounds || '';
                 if (ib === '' || ib === 'null') ib = p.inboundid ? String(p.inboundid) : '';

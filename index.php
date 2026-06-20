@@ -3760,8 +3760,11 @@ $textinvite
         $stmt = $pdo->prepare("SELECT * FROM invoice WHERE status = 'active' AND (status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold')");
         $stmt->execute();
         $countinovoice = $stmt->rowCount();
-        if ($locationproduct['limit_panel'] != "unlimited") {
-            if ($countinovoice >= $locationproduct['limit_panel']) {
+        $panelLimitRaw = trim((string) ($locationproduct['limit_panel'] ?? ''));
+        $panelLimitInt = (int) $panelLimitRaw;
+        $panelHasLimit = !in_array(mb_strtolower($panelLimitRaw), ['unlimited', 'unlimted', '0', ''], true) && $panelLimitInt > 0;
+        if ($panelHasLimit) {
+            if ($countinovoice >= $panelLimitInt) {
                 sendmessage($from_id, $textbotlang['Admin']['managepanel']['limitedpanelfirst'], null, 'HTML');
                 return;
             }
@@ -3869,8 +3872,11 @@ $textinvite
     $stmt = $pdo->prepare("SELECT * FROM invoice WHERE (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold') AND  Service_location = '{$marzban_list_get['name_panel']}'");
     $stmt->execute();
     $countinovoice = $stmt->rowCount();
-    if ($marzban_list_get['limit_panel'] != "unlimited") {
-        if ($countinovoice >= $marzban_list_get['limit_panel']) {
+    $panelLimitRaw = trim((string) ($marzban_list_get['limit_panel'] ?? ''));
+    $panelLimitInt = (int) $panelLimitRaw;
+    $panelHasLimit = !in_array(mb_strtolower($panelLimitRaw), ['unlimited', 'unlimted', '0', ''], true) && $panelLimitInt > 0;
+    if ($panelHasLimit) {
+        if ($countinovoice >= $panelLimitInt) {
             sendmessage($from_id, $textbotlang['Admin']['managepanel']['limitedpanel'], null, 'HTML');
             return;
         }
