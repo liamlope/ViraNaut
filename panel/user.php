@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/inc/config.php';
 require_once __DIR__ . '/inc/icons.php';
+require_once __DIR__ . '/inc/user_manage_ops.php';
 require_auth();
 
 $id = (int) ($_GET['id'] ?? 0);
@@ -18,36 +19,9 @@ if (!$user) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
-    $action = $_POST['action'] ?? '';
-
-    if ($action === 'add_balance') {
-        $amount = (int) ($_POST['amount'] ?? 0);
-        if ($amount >= 1000) {
-            db_query($pdo, "UPDATE user SET Balance = Balance + ? WHERE id = ?", [$amount, $id]);
-            flash('success', number_format($amount) . ' تومان به موجودی افزوده شد.');
-        } else {
-            flash('error', 'حداقل مبلغ ۱٬۰۰۰ تومان است.');
-        }
-    } elseif ($action === 'deduct_balance') {
-        $amount = (int) ($_POST['amount'] ?? 0);
-        if ($amount >= 1000) {
-            db_query($pdo, "UPDATE user SET Balance = GREATEST(0, Balance - ?) WHERE id = ?", [$amount, $id]);
-            flash('success', number_format($amount) . ' تومان از موجودی کسر شد.');
-        } else {
-            flash('error', 'حداقل مبلغ ۱٬۰۰۰ تومان است.');
-        }
-    } elseif ($action === 'set_balance') {
-        $amount = max(0, (int) ($_POST['amount'] ?? 0));
-        db_query($pdo, "UPDATE user SET Balance = ? WHERE id = ?", [$amount, $id]);
-        flash('success', 'موجودی به ' . number_format($amount) . ' تومان تنظیم شد.');
-    } elseif ($action === 'set_role') {
-        $newRole = $_POST['new_role'] ?? 'f';
-        if (in_array($newRole, ['f', 'n', 'n2', 'all'], true)) {
-            db_query($pdo, "UPDATE user SET agent = ? WHERE id = ?", [$newRole, $id]);
-            flash('success', 'گروه کاربری به «' . user_role_label($newRole) . '» تغییر کرد.');
-        }
-    }
-
+    $adminUser = (string) ($_SESSION['admin_user'] ?? 'panel');
+    $result = um_handle_post($pdo, $id, $_POST, $adminUser);
+    flash($result['ok'] ? 'success' : 'error', $result['msg']);
     header("Location: user.php?id=$id");
     exit;
 }
@@ -88,11 +62,29 @@ if ($username === 'none')
     $username = '';
 $initials = mb_strtoupper(mb_substr($fullName ?: ($username ?: 'U'), 0, 1, 'UTF-8'), 'UTF-8');
 
+$isVerified = ((string) ($user['verify'] ?? '0') === '1');
+$cardShown = ((string) ($user['cardpayment'] ?? '0') === '1');
+$channelOk = (($user['joinchannel'] ?? '') === 'active');
+$pricediscount = (int) ($user['pricediscount'] ?? 0);
+$limitUsertest = (string) ($user['limit_usertest'] ?? '—');
+$rollStatus = (string) ($user['roll_Status'] ?? '');
+$rollLabels = ['1' => 'تأیید شده', '0' => 'رد شده'];
+$rollLabel = $rollLabels[$rollStatus] ?? '—';
+
+$isAgent = in_array($agent, ['n', 'n2'], true);
+
+$csrf = csrf_token();
+$actionBase = 'user_action.php?_csrf=' . urlencode($csrf) . '&id=' . $id . '&back=user.php';
+
 $pageTitle = $fullName ?: ($username ? '@' . $username : 'کاربر #' . $id);
 $activeNav = 'users';
 $showPageHead = false;
+$extraCss = ['css/user-manage.css'];
+$extraJs = ['js/user-manage.js'];
 include __DIR__ . '/inc/layout_head.php';
 ?>
+
+<div id="um-user-meta" data-user-balance="<?= (int) $balance ?>" hidden></div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px"
     class="fade-up">
@@ -226,47 +218,172 @@ include __DIR__ . '/inc/layout_head.php';
                         <span class="kv-val cn"><?= number_format((int) $user['message_count']) ?></span>
                     </div>
                 <?php endif; ?>
+                <div class="kv">
+                    <span class="kv-key">احراز هویت</span>
+                    <span class="kv-val"><span class="tag <?= $isVerified ? 'tag-ok' : 'tag-plain' ?>"><?= $isVerified ? 'احراز شده' : 'احراز نشده' ?></span></span>
+                </div>
+                <div class="kv">
+                    <span class="kv-key">درصد تخفیف</span>
+                    <span class="kv-val cn"><?= $pricediscount ?>٪</span>
+                </div>
+                <div class="kv">
+                    <span class="kv-key">محدودیت تست</span>
+                    <span class="kv-val cn"><?= htmlspecialchars($limitUsertest) ?></span>
+                </div>
+                <div class="kv">
+                    <span class="kv-key">نمایش کارت</span>
+                    <span class="kv-val"><span class="tag <?= $cardShown ? 'tag-ok' : 'tag-plain' ?>"><?= $cardShown ? 'فعال' : 'غیرفعال' ?></span></span>
+                </div>
+                <div class="kv">
+                    <span class="kv-key">عضویت کانال</span>
+                    <span class="kv-val"><span class="tag <?= $channelOk ? 'tag-ok' : 'tag-warn' ?>"><?= $channelOk ? 'تأیید شده' : 'تأیید نشده' ?></span></span>
+                </div>
+                <?php if ($rollLabel !== '—'): ?>
+                    <div class="kv">
+                        <span class="kv-key">تأیید قوانین</span>
+                        <span class="kv-val"><?= htmlspecialchars($rollLabel) ?></span>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
         <div class="card fade-up d1">
             <div class="card-head">
-                <div class="card-title">عملیات</div>
+                <div class="card-title">دسترسی سریع</div>
             </div>
             <div style="padding:12px;display:flex;flex-direction:column;gap:6px">
-                <button class="btn btn-primary btn-sm" style="justify-content:center" onclick="openModal('addModal')">
-                    <?= icon('plus', 13) ?> افزایش موجودی
-                </button>
-                <button class="btn btn-ghost btn-sm" style="justify-content:center" onclick="openModal('deductModal')">
-                    <?= icon('trash', 13) ?> کسر موجودی
-                </button>
-                <button class="btn btn-ghost btn-sm" style="justify-content:center" onclick="openModal('setBalModal')">
-                    تنظیم موجودی
+                <button class="btn btn-primary btn-sm" style="justify-content:center" onclick="umOpenWallet('add')">
+                    <?= icon('plus', 13) ?> مدیریت موجودی
                 </button>
                 <a href="service.php?q=<?= urlencode((string) $id) ?>" class="btn btn-ghost btn-sm" style="justify-content:center">
                     <?= icon('server', 13) ?> سرویس‌ها
                 </a>
-                <button class="btn btn-ghost btn-sm" style="justify-content:center" onclick="openModal('roleModal')">
-                    <?= icon('users', 13) ?> تغییر گروه کاربری
-                </button>
-                <div style="height:1px;background:var(--bd);margin:2px 0"></div>
-                <?php if ($isBlocked): ?>
-                    <a href="user_action.php?action=unblock&id=<?= $id ?>&_csrf=<?= csrf_token() ?>&back=user.php"
-                        class="btn btn-ok btn-sm" style="justify-content:center" data-confirm="رفع مسدودیت این کاربر؟">
-                        <?= icon('check', 13) ?> رفع مسدودیت
-                    </a>
-                <?php else: ?>
-                    <a href="user_action.php?action=block&id=<?= $id ?>&_csrf=<?= csrf_token() ?>&back=user.php"
-                        class="btn btn-no btn-sm" style="justify-content:center" data-confirm="مسدود کردن کاربر؟">
-                        <?= icon('block', 13) ?> مسدود کردن
-                    </a>
-                <?php endif; ?>
+                <a href="invoice.php?q=<?= urlencode((string) $id) ?>" class="btn btn-ghost btn-sm" style="justify-content:center">
+                    <?= icon('invoice', 13) ?> همه سفارشات
+                </a>
             </div>
         </div>
 
     </div>
 
     <div class="u-main-col" style="display:flex;flex-direction:column;gap:16px">
+
+        <div class="card fade-up um-manage-card">
+            <div class="card-head">
+                <div class="card-title">مرکز مدیریت کاربر</div>
+                <button type="button" class="btn btn-primary btn-sm" onclick="umOpenWallet('add')">
+                    <?= icon('plus', 13) ?> موجودی
+                </button>
+            </div>
+            <div class="um-cat-bar">
+                <button type="button" class="um-cat-btn is-active" data-cat="fin" onclick="umSwitchCategory('fin')">💰 مالی</button>
+                <button type="button" class="um-cat-btn" data-cat="st" onclick="umSwitchCategory('st')">👤 وضعیت</button>
+                <button type="button" class="um-cat-btn" data-cat="ord" onclick="umSwitchCategory('ord')">🛒 سفارش</button>
+                <button type="button" class="um-cat-btn" data-cat="card" onclick="umSwitchCategory('card')">💳 کارت</button>
+                <button type="button" class="um-cat-btn" data-cat="ag" onclick="umSwitchCategory('ag')">👥 نمایندگی</button>
+                <button type="button" class="um-cat-btn" data-cat="msg" onclick="umSwitchCategory('msg')">✉️ پیام</button>
+            </div>
+
+            <div class="um-actions um-cat-pane" data-cat="fin">
+                <button type="button" class="um-action" onclick="umOpenWallet('add')">
+                    <strong>مدیریت موجودی</strong>
+                    <span>افزایش، کسر، تنظیم یا صفر</span>
+                </button>
+                <button type="button" class="um-action" onclick="openModal('discountModal')">
+                    <strong>درصد تخفیف</strong>
+                    <span>فعلی: <?= $pricediscount ?>٪</span>
+                </button>
+                <button type="button" class="um-action" onclick="switchTab('pay')">
+                    <strong>تراکنش‌ها</strong>
+                    <span><?= count($payments) ?> رکورد</span>
+                </button>
+            </div>
+
+            <div class="um-actions um-cat-pane" data-cat="st" style="display:none">
+                <?php if ($isBlocked): ?>
+                    <a href="<?= $actionBase ?>&action=unblock" class="um-action um-action-ok" data-confirm="رفع مسدودیت این کاربر؟">
+                        <strong>رفع مسدودیت</strong><span>فعال‌سازی مجدد</span>
+                    </a>
+                <?php else: ?>
+                    <a href="<?= $actionBase ?>&action=block" class="um-action um-action-danger" data-confirm="مسدود کردن کاربر؟">
+                        <strong>مسدود کردن</strong><span>قطع دسترسی به ربات</span>
+                    </a>
+                <?php endif; ?>
+                <?php if (!$isVerified): ?>
+                    <a href="<?= $actionBase ?>&action=verify" class="um-action um-action-ok" data-confirm="احراز هویت کاربر؟">
+                        <strong>احراز هویت</strong><span>تأیید دستی حساب</span>
+                    </a>
+                <?php else: ?>
+                    <a href="<?= $actionBase ?>&action=unverify" class="um-action" data-confirm="لغو احراز کاربر؟">
+                        <strong>لغو احراز</strong><span>برگشت به حالت عادی</span>
+                    </a>
+                <?php endif; ?>
+                <a href="<?= $actionBase ?>&action=confirm_number" class="um-action" data-confirm="تأیید شماره موبایل؟">
+                    <strong>تأیید شماره</strong><span>بدون OTP</span>
+                </a>
+                <?php if (!$channelOk): ?>
+                    <a href="<?= $actionBase ?>&action=confirm_channel" class="um-action" data-confirm="تأیید عضویت کانال؟">
+                        <strong>تأیید کانال</strong><span>معاف از جوین اجباری</span>
+                    </a>
+                <?php endif; ?>
+            </div>
+
+            <div class="um-actions um-cat-pane" data-cat="ord" style="display:none">
+                <a href="service.php?q=<?= urlencode((string) $id) ?>" class="um-action">
+                    <strong>سرویس‌ها</strong><span><?= $activeServices ?> فعال</span>
+                </a>
+                <a href="invoice.php?q=<?= urlencode((string) $id) ?>" class="um-action">
+                    <strong>همه سفارشات</strong><span><?= count($invoices) ?> مورد</span>
+                </a>
+                <button type="button" class="um-action" onclick="openModal('testLimitModal')">
+                    <strong>محدودیت تست</strong><span>فعلی: <?= htmlspecialchars($limitUsertest) ?></span>
+                </button>
+            </div>
+
+            <div class="um-actions um-cat-pane" data-cat="card" style="display:none">
+                <?php if (!$cardShown): ?>
+                    <a href="<?= $actionBase ?>&action=show_card" class="um-action um-action-ok" data-confirm="فعال‌سازی پرداخت کارت؟">
+                        <strong>فعال‌سازی کارت</strong><span>نمایش شماره کارت</span>
+                    </a>
+                <?php else: ?>
+                    <a href="<?= $actionBase ?>&action=hide_card" class="um-action" data-confirm="غیرفعال کردن کارت؟">
+                        <strong>غیرفعال‌سازی کارت</strong><span>مخفی کردن شماره کارت</span>
+                    </a>
+                <?php endif; ?>
+            </div>
+
+            <div class="um-actions um-cat-pane" data-cat="ag" style="display:none">
+                <button type="button" class="um-action" onclick="openModal('roleModal')">
+                    <strong>گروه کاربری</strong><span><?= user_role_label($agent) ?></span>
+                </button>
+                <?php if (!$isAgent): ?>
+                    <button type="button" class="um-action" onclick="openModal('agentModal')">
+                        <strong>افزودن نماینده</strong><span>نوع n یا n2</span>
+                    </button>
+                <?php else: ?>
+                    <a href="<?= $actionBase ?>&action=remove_agent" class="um-action um-action-danger" data-confirm="حذف نمایندگی کاربر؟">
+                        <strong>حذف نماینده</strong><span>بازگشت به کاربر عادی</span>
+                    </a>
+                    <?php if ($agent === 'n2'): ?>
+                        <button type="button" class="um-action" onclick="openModal('maxbuyModal')">
+                            <strong>سقف خرید نماینده</strong><span>فعلی: <?= htmlspecialchars((string) ($user['maxbuyagent'] ?? '0')) ?></span>
+                        </button>
+                    <?php endif; ?>
+                <?php endif; ?>
+                <a href="<?= $actionBase ?>&action=remove_affiliate" class="um-action" data-confirm="خارج کردن از زیرمجموعه؟">
+                    <strong>خروج از زیرمجموعه</strong><span>حذف معرف</span>
+                </a>
+                <a href="<?= $actionBase ?>&action=remove_affiliates" class="um-action um-action-danger" data-confirm="حذف همه زیرمجموعه‌های این کاربر؟">
+                    <strong>حذف زیرمجموعه‌ها</strong><span><?= number_format((int) ($user['affiliatescount'] ?? 0)) ?> نفر</span>
+                </a>
+            </div>
+
+            <div class="um-actions um-cat-pane" data-cat="msg" style="display:none">
+                <button type="button" class="um-action" onclick="openModal('messageModal')">
+                    <strong>ارسال پیام</strong><span>از طرف ادمین در تلگرام</span>
+                </button>
+            </div>
+        </div>
 
         <div class="card fade-up">
             <div class="card-head">
@@ -471,72 +588,159 @@ include __DIR__ . '/inc/layout_head.php';
     </div>
 </div>
 
-<div class="modal-veil" id="addModal">
+<div class="modal-veil" id="walletModal">
     <div class="modal">
         <div class="modal-head">
-            <h3>افزایش موجودی</h3>
-            <button class="modal-x" onclick="closeModal('addModal')"><?= icon('close', 14) ?></button>
+            <h3>مدیریت موجودی</h3>
+            <button class="modal-x" onclick="closeModal('walletModal')"><?= icon('close', 14) ?></button>
         </div>
-        <form method="POST">
+        <form method="POST" id="walletForm">
             <div class="modal-body">
                 <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
-                <input type="hidden" name="action" value="add_balance">
-                <div class="field">
-                    <label>مبلغ (تومان)</label>
-                    <input type="number" name="amount" class="input" placeholder="مثلاً ۵۰۰۰۰" min="1000" required>
-                    <span class="field-hint">موجودی فعلی: <strong><?= number_format($balance) ?> تومان</strong></span>
+                <input type="hidden" name="action" value="wallet">
+                <input type="hidden" name="wallet_mode" value="add">
+                <div class="um-wallet-tabs">
+                    <button type="button" class="um-wallet-tab is-active" data-mode="add" onclick="umSetWalletMode('add')">افزایش</button>
+                    <button type="button" class="um-wallet-tab" data-mode="deduct" onclick="umSetWalletMode('deduct')">کسر</button>
+                    <button type="button" class="um-wallet-tab" data-mode="set" onclick="umSetWalletMode('set')">تنظیم</button>
+                    <button type="button" class="um-wallet-tab" data-mode="zero" onclick="umSetWalletMode('zero')">صفر</button>
                 </div>
+                <div id="walletAmountWrap" class="field">
+                    <label>مبلغ (تومان)</label>
+                    <input type="number" name="amount" class="input" placeholder="مثلاً ۵۰٬۰۰۰" min="1000" required>
+                    <span class="field-hint">حداقل ۱٬۰۰۰ — حداکثر ۱۰۰٬۰۰۰٬۰۰۰ تومان</span>
+                </div>
+                <div id="walletZeroNote" class="field-hint" style="display:none;color:var(--warn)">
+                    موجودی فعلی <?= number_format($balance) ?> تومان به صفر تنظیم می‌شود (بدون ثبت تراکنش).
+                </div>
+                <div class="um-wallet-preview" id="walletPreview"></div>
             </div>
             <div class="modal-foot">
-                <button type="submit" class="btn btn-primary"><?= icon('plus', 13) ?> افزودن</button>
-                <button type="button" class="btn btn-ghost" onclick="closeModal('addModal')">انصراف</button>
+                <button type="submit" class="btn btn-primary" id="walletSubmitBtn">افزودن به موجودی</button>
+                <button type="button" class="btn btn-ghost" onclick="closeModal('walletModal')">انصراف</button>
             </div>
         </form>
     </div>
 </div>
 
-<div class="modal-veil" id="deductModal">
+<div class="modal-veil" id="discountModal">
     <div class="modal">
         <div class="modal-head">
-            <h3>کسر موجودی</h3>
-            <button class="modal-x" onclick="closeModal('deductModal')"><?= icon('close', 14) ?></button>
+            <h3>درصد تخفیف</h3>
+            <button class="modal-x" onclick="closeModal('discountModal')"><?= icon('close', 14) ?></button>
         </div>
         <form method="POST">
             <div class="modal-body">
                 <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
-                <input type="hidden" name="action" value="deduct_balance">
+                <input type="hidden" name="action" value="set_discount">
                 <div class="field">
-                    <label>مبلغ (تومان)</label>
-                    <input type="number" name="amount" class="input" min="1000" required>
-                    <span class="field-hint">موجودی فعلی: <?= number_format($balance) ?> تومان</span>
-                </div>
-            </div>
-            <div class="modal-foot">
-                <button type="submit" class="btn btn-no">کسر</button>
-                <button type="button" class="btn btn-ghost" onclick="closeModal('deductModal')">انصراف</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal-veil" id="setBalModal">
-    <div class="modal">
-        <div class="modal-head">
-            <h3>تنظیم موجودی</h3>
-            <button class="modal-x" onclick="closeModal('setBalModal')"><?= icon('close', 14) ?></button>
-        </div>
-        <form method="POST">
-            <div class="modal-body">
-                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
-                <input type="hidden" name="action" value="set_balance">
-                <div class="field">
-                    <label>موجودی جدید (تومان)</label>
-                    <input type="number" name="amount" class="input" value="<?= $balance ?>" min="0" required>
+                    <label>درصد (۰ تا ۱۰۰)</label>
+                    <input type="number" name="discount" class="input" value="<?= $pricediscount ?>" min="0" max="100" required>
                 </div>
             </div>
             <div class="modal-foot">
                 <button type="submit" class="btn btn-primary">ذخیره</button>
-                <button type="button" class="btn btn-ghost" onclick="closeModal('setBalModal')">انصراف</button>
+                <button type="button" class="btn btn-ghost" onclick="closeModal('discountModal')">انصراف</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-veil" id="testLimitModal">
+    <div class="modal">
+        <div class="modal-head">
+            <h3>محدودیت اکانت تست</h3>
+            <button class="modal-x" onclick="closeModal('testLimitModal')"><?= icon('close', 14) ?></button>
+        </div>
+        <form method="POST">
+            <div class="modal-body">
+                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                <input type="hidden" name="action" value="set_test_limit">
+                <div class="field">
+                    <label>تعداد مجاز</label>
+                    <input type="number" name="test_limit" class="input" value="<?= htmlspecialchars($limitUsertest !== '—' ? $limitUsertest : '1') ?>" min="0" required>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="submit" class="btn btn-primary">ذخیره</button>
+                <button type="button" class="btn btn-ghost" onclick="closeModal('testLimitModal')">انصراف</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-veil" id="agentModal">
+    <div class="modal">
+        <div class="modal-head">
+            <h3>افزودن نماینده</h3>
+            <button class="modal-x" onclick="closeModal('agentModal')"><?= icon('close', 14) ?></button>
+        </div>
+        <form method="POST">
+            <div class="modal-body">
+                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                <input type="hidden" name="action" value="add_agent">
+                <div class="field">
+                    <label>نوع نمایندگی</label>
+                    <select name="agent_type" class="select" required>
+                        <option value="n">نماینده (n)</option>
+                        <option value="n2">نماینده پیشرفته (n2)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="submit" class="btn btn-primary">تأیید</button>
+                <button type="button" class="btn btn-ghost" onclick="closeModal('agentModal')">انصراف</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-veil" id="maxbuyModal">
+    <div class="modal">
+        <div class="modal-head">
+            <h3>سقف خرید نماینده</h3>
+            <button class="modal-x" onclick="closeModal('maxbuyModal')"><?= icon('close', 14) ?></button>
+        </div>
+        <form method="POST">
+            <div class="modal-body">
+                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                <input type="hidden" name="action" value="set_maxbuyagent">
+                <div class="field">
+                    <label>حداکثر بدهی مجاز (تومان)</label>
+                    <input type="number" name="maxbuyagent" class="input" value="<?= htmlspecialchars((string) ($user['maxbuyagent'] ?? '0')) ?>" min="0" required>
+                    <span class="field-hint">۰ = نامحدود</span>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="submit" class="btn btn-primary">ذخیره</button>
+                <button type="button" class="btn btn-ghost" onclick="closeModal('maxbuyModal')">انصراف</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-veil" id="messageModal">
+    <div class="modal">
+        <div class="modal-head">
+            <h3>ارسال پیام به کاربر</h3>
+            <button class="modal-x" onclick="closeModal('messageModal')"><?= icon('close', 14) ?></button>
+        </div>
+        <form method="POST">
+            <div class="modal-body">
+                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                <input type="hidden" name="action" value="send_message">
+                <div class="field">
+                    <label>متن پیام</label>
+                    <textarea name="message" class="input" rows="5" required placeholder="متن پیام برای ارسال در تلگرام…"></textarea>
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;margin-top:8px">
+                    <input type="checkbox" name="allow_reply" value="1">
+                    کاربر بتواند پاسخ دهد
+                </label>
+            </div>
+            <div class="modal-foot">
+                <button type="submit" class="btn btn-primary">ارسال</button>
+                <button type="button" class="btn btn-ghost" onclick="closeModal('messageModal')">انصراف</button>
             </div>
         </form>
     </div>

@@ -1,0 +1,134 @@
+.um-manage-card .card-head {
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.um-cat-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 12px 12px;
+}
+
+.um-cat-btn {
+    border: 1px solid var(--bd);
+    background: var(--sf2);
+    color: var(--mute);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: .72rem;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+}
+
+.um-cat-btn:hover {
+    color: var(--tx);
+    border-color: var(--ac);
+}
+
+.um-cat-btn.is-active {
+    background: var(--acs);
+    color: var(--ac);
+    border-color: var(--ac);
+    font-weight: 600;
+}
+
+.um-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 8px;
+    padding: 0 12px 14px;
+}
+
+.um-action {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    text-align: right;
+    padding: 10px 12px;
+    border: 1px solid var(--bd);
+    border-radius: 8px;
+    background: var(--sf);
+    color: var(--tx);
+    font-size: .78rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color .15s, background .15s;
+}
+
+.um-action:hover {
+    border-color: var(--ac);
+    background: var(--sf2);
+}
+
+.um-action strong {
+    font-size: .82rem;
+    font-weight: 600;
+}
+
+.um-action span {
+    color: var(--mute);
+    font-size: .68rem;
+    line-height: 1.35;
+}
+
+.um-action-danger:hover {
+    border-color: var(--no);
+}
+
+.um-action-ok:hover {
+    border-color: var(--ok);
+}
+
+.um-wallet-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--sf2);
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 14px;
+}
+
+.um-wallet-tab {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--mute);
+    border-radius: 6px;
+    padding: 8px 6px;
+    font-size: .75rem;
+    cursor: pointer;
+}
+
+.um-wallet-tab.is-active {
+    background: var(--ac);
+    color: var(--btn-ac-text, #fff);
+    font-weight: 600;
+}
+
+.um-wallet-preview {
+    background: var(--sf2);
+    border: 1px solid var(--bd);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 10px;
+    font-size: .78rem;
+}
+
+.um-wallet-preview b {
+    color: var(--ac);
+}
+
+.um-profile-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 14px 12px;
+}
+
+@media (max-width: 640px) {
+    .um-actions {
+        grid-template-columns: 1fr 1fr;
+    }
+}
