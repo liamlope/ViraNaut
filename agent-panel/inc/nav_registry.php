@@ -51,7 +51,6 @@ function agent_nav_sections(): array
             'heading' => 'ابزار',
             'items' => [
                 ['href' => 'api.php', 'icon' => 'bot', 'label' => 'API', 'nav' => 'api'],
-                ['href' => 'support.php', 'icon' => 'edit', 'label' => 'پشتیبانی', 'nav' => 'support'],
                 ['href' => 'settings.php', 'icon' => 'settings', 'label' => 'تنظیمات', 'nav' => 'settings'],
                 ['href' => 'logout.php', 'icon' => 'logout', 'label' => 'خروج', 'nav' => 'logout'],
             ],

@@ -56,7 +56,11 @@
       initChart(parseInt(btn.dataset.days, 10));
     });
   });
-  if (document.getElementById('agent-chart')) initChart(30);
+  if (document.getElementById('agent-chart')) {
+    var chartEl = document.getElementById('agent-chart');
+    var chartDays = chartEl && chartEl.dataset.days ? parseInt(chartEl.dataset.days, 10) : 30;
+    initChart(chartDays);
+  }
 
   document.querySelectorAll('[data-agent-action]').forEach(function (btn) {
     btn.addEventListener('click', function () {

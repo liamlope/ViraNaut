@@ -31,7 +31,7 @@ require __DIR__ . '/inc/layout_head.php';
     <p>کد دعوت: <code id="ref-code"><?= htmlspecialchars((string) $user['codeInvitation']) ?></code>
     <button class="btn btn-sm btn-ghost" type="button" onclick="navigator.clipboard.writeText(document.getElementById('ref-code').textContent);toast('کپی شد','ok')">کپی</button></p>
     <?php if ($refLink): ?>
-    <p>لینk: <a href="<?= htmlspecialchars($refLink) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($refLink) ?></a>
+    <p>لینک: <a href="<?= htmlspecialchars($refLink) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($refLink) ?></a>
     <button class="btn btn-sm btn-ghost" type="button" onclick="navigator.clipboard.writeText('<?= htmlspecialchars($refLink, ENT_QUOTES) ?>');toast('کپی شد','ok')">کپی</button></p>
     <?php endif; ?>
     <p>زیرمجموعه: <?= (int) ($user['affiliatescount'] ?? 0) ?></p>

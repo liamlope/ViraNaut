@@ -53,7 +53,7 @@ require __DIR__ . '/inc/layout_head.php';
 <td class="agent-action-grid" style="grid-template-columns:repeat(3,auto);gap:4px">
 <button class="btn btn-sm btn-ghost" data-agent-action="renew" data-username="<?= htmlspecialchars($r['username']) ?>">تمدید</button>
 <button class="btn btn-sm btn-ghost" data-agent-action="add_volume" data-username="<?= htmlspecialchars($r['username']) ?>" data-gb="10">+۱۰GB</button>
-<button class="btn btn-sm btn-ghost" data-agent-action="revoke" data-username="<?= htmlspecialchars($r['username']) ?>">لینk</button>
+<button class="btn btn-sm btn-ghost" data-agent-action="revoke" data-username="<?= htmlspecialchars($r['username']) ?>">لینک جدید</button>
 </td>
 </tr>
 <?php endforeach; ?>

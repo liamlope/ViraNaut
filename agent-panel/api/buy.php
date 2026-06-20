@@ -58,11 +58,10 @@ if ($action === 'buy_test') {
     exit;
 }
 if ($action === 'gateway_intent') {
-    $amount = max(1000, (int) ($_POST['amount'] ?? 0));
-    $ctx = $_POST['context'] ?? 'agent_topup';
-    agent_store_gateway_intent($pdo, (string) $user['id'], $amount, $ctx);
-    $gates = agent_payment_gateways();
-    echo json_encode(['ok' => true, 'gateways' => $gates, 'amount' => $amount], JSON_UNESCAPED_UNICODE);
+    $amount = max(5000, (int) ($_POST['amount'] ?? 0));
+    $gateway = trim($_POST['gateway'] ?? 'zarinpal');
+    $result = agent_create_topup_payment($pdo, $user, $amount, $gateway);
+    echo json_encode($result, JSON_UNESCAPED_UNICODE);
     exit;
 }
 

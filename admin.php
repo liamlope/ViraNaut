@@ -4883,7 +4883,7 @@ $caption";
             ]
         ]
     ]);
-    $text_list_users = "📌 از لیست زیر یک گزینه را انتخاب نمایید\n\n💡 جستجوی سریع: <code>/آیدی</code> یا <code>/username</code> یا لینk t.me";
+    $text_list_users = "📌 از لیست زیر یک گزینه را انتخاب نمایید\n\n💡 جستجوی سریع:\n<code>/12345678</code>\n<code>/username</code>\n<code>/t.me/username</code>\n<code>/\@username</code>";
     if ($datain == "backlistuser") {
         Editmessagetext($from_id, $message_id, $text_list_users, $keyboardtypelistuser);
     } else {

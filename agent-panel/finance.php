@@ -16,22 +16,25 @@ require __DIR__ . '/inc/layout_head.php';
 <div class="stat ok"><span>جمع فروش</span><strong><?= number_format($metrics['sales_sum']) ?></strong></div>
 </div>
 <div class="card" style="margin-top:16px"><div class="card-head"><h3>افزایش موجودی</h3></div><div class="card-body">
+<?php if (!$gates): ?>
+<p class="notice notice-warn">درگاه پرداخت فعالی یافت نشد. از پنل ادمین درگاه را فعال کنید.</p>
+<?php else: ?>
 <form id="topup-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
-<input type="number" name="amount" class="input" min="10000" step="1000" placeholder="مبلغ (تومان)" required style="max-width:200px">
+<input type="number" name="amount" class="input" min="5000" step="1000" placeholder="مبلغ (تومان)" required style="max-width:200px" value="10000">
 <select name="gateway" class="input">
-<?php foreach ($gates as $g): ?><option value="<?= htmlspecialchars($g['url']) ?>"><?= htmlspecialchars($g['label']) ?></option><?php endforeach; ?>
-<?php if (!$gates): ?><option disabled>درگاه فعالی نیست</option><?php endif; ?>
+<?php foreach ($gates as $g): ?><option value="<?= htmlspecialchars($g['id']) ?>"><?= htmlspecialchars($g['label']) ?></option><?php endforeach; ?>
 </select>
 <button class="btn btn-primary" type="submit">پرداخت</button>
 </form>
+<?php endif; ?>
 </div></div>
 <script>
-document.getElementById('topup-form').addEventListener('submit', function(e){
+document.getElementById('topup-form')?.addEventListener('submit', function(e){
   e.preventDefault();
   var f=new FormData(e.target);
-  var amount=f.get('amount');
-  agentFetch('api/buy.php',{method:'POST',body:new URLSearchParams({action:'gateway_intent',amount:amount,csrf:document.querySelector('meta[name=csrf]').content})}).then(function(j){
-    if(j.ok && j.gateways && j.gateways[0]) window.open(j.gateways[0].url+'?from_id=<?= urlencode((string)$user['id']) ?>&amount='+amount,'_blank');
+  agentFetch('api/topup.php',{method:'POST',body:new URLSearchParams({amount:f.get('amount'),gateway:f.get('gateway'),csrf:document.querySelector('meta[name=csrf]').content})}).then(function(j){
+    if(j.ok && j.url){ window.location.href=j.url; return; }
+    toast(j.msg || 'خطا در پرداخت','no');
   });
 });
 </script>

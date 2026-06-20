@@ -31,7 +31,7 @@ require __DIR__ . '/inc/layout_head.php';
 <p>حجم: <?= htmlspecialchars((string) ($pu['used_traffic'] ?? $pu['used'] ?? '?')) ?> / <?= htmlspecialchars((string) ($pu['data_limit'] ?? $pu['total'] ?? '?')) ?></p>
 <p>انقضا: <?= htmlspecialchars((string) ($pu['expire'] ?? $pu['expiry'] ?? '—')) ?></p>
 <?php if ($sub): ?>
-<p>لینk: <code id="sub-link"><?= htmlspecialchars($sub) ?></code>
+<p>لینک: <code id="sub-link"><?= htmlspecialchars($sub) ?></code>
 <button class="btn btn-sm btn-ghost" type="button" onclick="navigator.clipboard.writeText(document.getElementById('sub-link').textContent);toast('کپی شد','ok')">کپی</button></p>
 <img class="agent-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=<?= urlencode($sub) ?>" alt="QR">
 <?php endif; ?>
@@ -42,7 +42,7 @@ require __DIR__ . '/inc/layout_head.php';
 <button class="um-action btn btn-primary" data-agent-action="renew" data-username="<?= htmlspecialchars($username) ?>">تمدید</button>
 <button class="um-action btn btn-ghost" data-agent-action="add_volume" data-username="<?= htmlspecialchars($username) ?>" data-gb="5">+۵GB</button>
 <button class="um-action btn btn-ghost" data-agent-action="add_time" data-username="<?= htmlspecialchars($username) ?>" data-days="30">+۳۰روز</button>
-<button class="um-action btn btn-ghost" data-agent-action="revoke" data-username="<?= htmlspecialchars($username) ?>">لینk جدید</button>
+<button class="um-action btn btn-ghost" data-agent-action="revoke" data-username="<?= htmlspecialchars($username) ?>">لینک جدید</button>
 <button class="um-action btn btn-ghost" data-agent-action="send_telegram" data-username="<?= htmlspecialchars($username) ?>">ارسال به تلگرام</button>
 </div>
 

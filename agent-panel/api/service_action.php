@@ -33,7 +33,7 @@ if ($action === 'revoke') {
     $detail = agent_service_detail($pdo, $user, $username);
     $sub = $detail['panel_user']['subscription_url'] ?? $detail['panel_user']['link'] ?? '';
     if ($sub) {
-        sendmessage((string) $user['id'], "🔗 لینk سرویس <code>{$username}</code>:\n{$sub}", null, 'HTML');
+        sendmessage((string) $user['id'], "🔗 لینک سرویس <code>{$username}</code>:\n{$sub}", null, 'HTML');
         $result = ['ok' => true, 'msg' => 'sent'];
     } else {
         $result = ['ok' => false, 'msg' => 'no link'];

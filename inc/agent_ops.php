@@ -86,6 +86,26 @@ function agent_ops_ensure_schema(PDO $pdo): void
     $done = true;
 }
 
+function agent_invoice_panel(array $inv): string
+{
+    return (string) ($inv['Service_location'] ?? $inv['Location'] ?? '');
+}
+
+function agent_pay_setting(string $name): string
+{
+    $r = select('PaySetting', 'ValuePay', 'NamePay', $name, 'select');
+    return (string) ($r['ValuePay'] ?? '');
+}
+
+function agent_action_log_list(PDO $pdo, string $agentId, int $limit = 50): array
+{
+    try {
+        return db_fetchAll($pdo, 'SELECT * FROM agent_action_log WHERE id_user = ? ORDER BY created_at DESC LIMIT ' . (int) $limit, [$agentId]);
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
 function agent_user_context(PDO $pdo, string $agentId): ?array
 {
     $user = select('user', '*', 'id', $agentId, 'select');
@@ -329,12 +349,12 @@ function agent_create_invoice(string $agentId, string $username, array $panel, a
     $user = select('user', '*', 'id', $agentId, 'select');
     $notifctions = json_encode(['volume' => false, 'time' => false]);
     $stmt = $connect->prepare(
-        'INSERT IGNORE INTO invoice (id_user, id_invoice, username, time_sell, Service_location, name_product, price_product, Volume, Service_time, Status, note, refral, notifctions, Location)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+        'INSERT IGNORE INTO invoice (id_user, id_invoice, username, time_sell, Service_location, name_product, price_product, Volume, Service_time, Status, note, refral, notifctions)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
     );
     $status = 'unpaid';
     $stmt->bind_param(
-        'ssssssssssssss',
+        'ssssssssssss',
         $agentId,
         $randomString,
         $username,
@@ -347,8 +367,7 @@ function agent_create_invoice(string $agentId, string $username, array $panel, a
         $status,
         $note,
         $user['affiliates'] ?? '0',
-        $notifctions,
-        $panel['name_panel']
+        $notifctions
     );
     $stmt->execute();
     $stmt->close();
@@ -520,7 +539,7 @@ function agent_extend_service(PDO $pdo, array $user, string $username, ?array $p
         (int) $product['Service_time'],
         $username,
         $product['code_product'],
-        $inv['Location']
+        agent_invoice_panel($inv)
     );
     if (empty($ext['status'])) {
         return ['ok' => false, 'msg' => $ext['msg'] ?? 'extend failed'];
@@ -538,13 +557,14 @@ function agent_add_volume(PDO $pdo, array $user, string $username, int $gb): arr
     if (!$inv) {
         return ['ok' => false, 'msg' => 'not found'];
     }
+    $panelName = agent_invoice_panel($inv);
     $price = agent_extra_volume_price($user['agent'] ?? 'f') * $gb;
     $preflight = agent_wallet_preflight($user, $price);
     if (!$preflight['ok']) {
         return ['ok' => false, 'msg' => $preflight['msg'], 'needs_gateway' => true, 'gateway_amount' => $preflight['gateway_amount']];
     }
     $mp = new ManagePanel();
-    $ext = $mp->extra_volume($username, $inv['Location'], $gb);
+    $ext = $mp->extra_volume($username, $panelName, $gb);
     if (empty($ext['status'])) {
         return ['ok' => false, 'msg' => $ext['msg'] ?? 'failed'];
     }
@@ -566,7 +586,7 @@ function agent_add_time(PDO $pdo, array $user, string $username, int $days): arr
         return ['ok' => false, 'msg' => $preflight['msg'], 'needs_gateway' => true, 'gateway_amount' => $preflight['gateway_amount']];
     }
     $mp = new ManagePanel();
-    $ext = $mp->extra_time($username, $inv['Location'], $days);
+    $ext = $mp->extra_time($username, agent_invoice_panel($inv), $days);
     if (empty($ext['status'])) {
         return ['ok' => false, 'msg' => $ext['msg'] ?? 'failed'];
     }
@@ -583,7 +603,7 @@ function agent_revoke_service(PDO $pdo, array $user, string $username): array
         return ['ok' => false, 'msg' => 'not found'];
     }
     $mp = new ManagePanel();
-    $r = $mp->Revoke_sub($inv['Location'], $username);
+    $r = $mp->Revoke_sub(agent_invoice_panel($inv), $username);
     $ok = ($r['status'] ?? '') === 'successful';
     if ($ok) {
         agent_log_action($pdo, $agentId, 'revoke', $username);
@@ -598,7 +618,7 @@ function agent_service_detail(PDO $pdo, array $user, string $username): array
     if (!$inv) {
         return ['ok' => false, 'msg' => 'not found'];
     }
-    $panel = select('marzban_panel', '*', 'name_panel', $inv['Location'], 'select');
+    $panel = select('marzban_panel', '*', 'name_panel', agent_invoice_panel($inv), 'select');
     $mp = new ManagePanel();
     $du = $panel ? $mp->DataUser($panel['name_panel'], $username) : [];
     return ['ok' => true, 'invoice' => $inv, 'panel_user' => $du, 'panel' => $panel];
@@ -670,20 +690,82 @@ function agent_tariff_table(PDO $pdo, array $user): array
 
 function agent_payment_gateways(): array
 {
-    $setting = select('setting', '*', null, null, 'select');
-    global $domainhosts;
-    $base = 'https://' . ($domainhosts ?? 'localhost');
     $gates = [];
-    if (($setting['zarinpal'] ?? '') === 'onzarinpal') {
-        $gates[] = ['id' => 'zarinpal', 'label' => 'زرین‌پال', 'url' => $base . '/payment/zarinpal.php'];
+    if (agent_pay_setting('zarinpalstatus') === 'onzarinpal') {
+        $gates[] = ['id' => 'zarinpal', 'label' => 'زرین‌پال'];
     }
-    if (($setting['aqayepardakht'] ?? '') === 'onaqayepardakht') {
-        $gates[] = ['id' => 'aqayepardakht', 'label' => 'آقای پرداخت', 'url' => $base . '/payment/aqayepardakht.php'];
+    if (agent_pay_setting('statusaqayepardakht') === 'onaqayepardakht') {
+        $gates[] = ['id' => 'aqayepardakht', 'label' => 'آقای پرداخت'];
     }
-    if (($setting['nowpayment'] ?? '') === 'onnowpayment') {
-        $gates[] = ['id' => 'nowpayment', 'label' => 'NowPayments', 'url' => $base . '/payment/nowpayment.php'];
+    if (agent_pay_setting('Cartstatus') === 'oncard') {
+        $gates[] = ['id' => 'cart', 'label' => 'کارت به کارت'];
     }
     return $gates;
+}
+
+function agent_create_topup_payment(PDO $pdo, array $user, int $amount, string $gatewayId): array
+{
+    global $connect;
+    $agentId = (string) $user['id'];
+    if ($amount < 5000) {
+        return ['ok' => false, 'msg' => 'حداقل مبلغ ۵۰۰۰ تومان'];
+    }
+    update('user', 'Processing_value', $amount, 'id', $agentId);
+    update('user', 'Processing_value_tow', '0', 'id', $agentId);
+    update('user', 'Processing_value_one', '0', 'id', $agentId);
+    $randomString = bin2hex(random_bytes(5));
+    $dateacc = date('Y/m/d H:i:s');
+    $invoiceMeta = '0|0';
+
+    if ($gatewayId === 'zarinpal') {
+        $min = (int) agent_pay_setting('minbalancezarinpal');
+        $max = (int) agent_pay_setting('maxbalancezarinpal');
+        if ($min > 0 && ($amount < $min || $amount > $max)) {
+            return ['ok' => false, 'msg' => "مبلغ باید بین {$min} و {$max} تومان باشد"];
+        }
+        $pay = createPayZarinpal($amount, $randomString);
+        if (($pay['data']['code'] ?? 0) != 100) {
+            return ['ok' => false, 'msg' => 'خطا در ساخت لینک زرین‌پال'];
+        }
+        $authority = $pay['data']['authority'];
+        $stmt = $connect->prepare('INSERT INTO Payment_report (id_user,id_order,time,price,payment_Status,Payment_Method,id_invoice,dec_not_confirmed) VALUES (?,?,?,?,?,?,?,?)');
+        $status = 'Unpaid';
+        $method = 'zarinpal';
+        $stmt->bind_param('ssssssss', $agentId, $randomString, $dateacc, $amount, $status, $method, $invoiceMeta, $authority);
+        $stmt->execute();
+        $stmt->close();
+        return ['ok' => true, 'url' => 'https://www.zarinpal.com/pg/StartPay/' . $authority, 'order_id' => $randomString];
+    }
+
+    if ($gatewayId === 'aqayepardakht') {
+        $min = (int) agent_pay_setting('minbalanceaqayepardakht');
+        $max = (int) agent_pay_setting('maxbalanceaqayepardakht');
+        if ($min > 0 && ($amount < $min || $amount > $max)) {
+            return ['ok' => false, 'msg' => "مبلغ باید بین {$min} و {$max} تومان باشد"];
+        }
+        $pay = createPayaqayepardakht($amount, $randomString);
+        if (($pay['status'] ?? '') !== 'success') {
+            return ['ok' => false, 'msg' => 'خطا در ساخت لینک آقای پرداخت'];
+        }
+        $stmt = $connect->prepare('INSERT INTO Payment_report (id_user,id_order,time,price,payment_Status,Payment_Method,id_invoice) VALUES (?,?,?,?,?,?,?)');
+        $status = 'Unpaid';
+        $method = 'aqayepardakht';
+        $stmt->bind_param('sssssss', $agentId, $randomString, $dateacc, $amount, $status, $method, $invoiceMeta);
+        $stmt->execute();
+        $stmt->close();
+        return ['ok' => true, 'url' => 'https://panel.aqayepardakht.ir/startpay/' . ($pay['transid'] ?? ''), 'order_id' => $randomString];
+    }
+
+    if ($gatewayId === 'cart') {
+        $min = (int) agent_pay_setting('minbalancecart');
+        $max = (int) agent_pay_setting('maxbalancecart');
+        if ($min > 0 && ($amount < $min || $amount > $max)) {
+            return ['ok' => false, 'msg' => "مبلغ باید بین {$min} و {$max} تومان باشد"];
+        }
+        return ['ok' => false, 'msg' => 'کارت به کارت فقط از ربات تلگرام پشتیبانی می‌شود'];
+    }
+
+    return ['ok' => false, 'msg' => 'درگاه نامعتبر یا غیرفعال'];
 }
 
 function agent_services_query(PDO $pdo, string $agentId, array $filters = [], int $limit = 50, int $offset = 0): array
@@ -695,7 +777,7 @@ function agent_services_query(PDO $pdo, string $agentId, array $filters = [], in
         $params[] = $filters['status'];
     }
     if (!empty($filters['location'])) {
-        $where[] = 'Location = ?';
+        $where[] = 'Service_location = ?';
         $params[] = $filters['location'];
     }
     if (!empty($filters['q'])) {
@@ -710,7 +792,7 @@ function agent_services_query(PDO $pdo, string $agentId, array $filters = [], in
         $where[] = 'time_sell <= ?';
         $params[] = $filters['date_to'] . ' 23:59:59';
     }
-    $sql = 'SELECT username, name_product, price_product, Status, time_sell, Location FROM invoice WHERE ' . implode(' AND ', $where) . ' ORDER BY time_sell DESC LIMIT ' . (int) $limit . ' OFFSET ' . (int) $offset;
+    $sql = 'SELECT username, name_product, price_product, Status, time_sell, Service_location AS Location FROM invoice WHERE ' . implode(' AND ', $where) . ' ORDER BY time_sell DESC LIMIT ' . (int) $limit . ' OFFSET ' . (int) $offset;
     return db_fetchAll($pdo, $sql, $params);
 }
 
@@ -742,7 +824,7 @@ function agent_top_panels(PDO $pdo, string $agentId, int $limit = 10): array
 {
     return db_fetchAll(
         $pdo,
-        'SELECT Location, COUNT(*) AS cnt, SUM(price_product) AS total FROM invoice WHERE id_user = ? GROUP BY Location ORDER BY cnt DESC LIMIT ' . (int) $limit,
+        'SELECT Service_location AS Location, COUNT(*) AS cnt, SUM(price_product) AS total FROM invoice WHERE id_user = ? GROUP BY Service_location ORDER BY cnt DESC LIMIT ' . (int) $limit,
         [$agentId]
     );
 }
