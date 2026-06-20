@@ -2934,6 +2934,8 @@ function outtypepanel($typepanel, $message)
         sendmessage($from_id, $message, $optionibsng, 'HTML');
     } elseif ($typepanel == "mikrotik") {
         sendmessage($from_id, $message, $option_mikrotik, 'HTML');
+    } elseif (in_array($typepanel, ['mirza_agent', 'ilan', 'pasarguard'], true)) {
+        sendmessage($from_id, $message, $optionMarzban, 'HTML');
     }
 }
 
@@ -3149,7 +3151,7 @@ function activecron()
     $cronCommands = [
         "*/15 * * * * curl https://$domainhosts/cronbot/statusday.php",
         "*/1 * * * * curl https://$domainhosts/cronbot/NoticationsService.php",
-        "*/1 * * * * curl https://$domainhosts/cronbot/card_receipt_prompt.php",
+        "*/1 * * * * curl https://$domainhosts/cronbot/croncard.php",
         "*/5 * * * * curl https://$domainhosts/cronbot/payment_expire.php",
         "*/1 * * * * curl https://$domainhosts/cronbot/sendmessage.php",
         "*/3 * * * * curl https://$domainhosts/cronbot/plisio.php",
@@ -3680,19 +3682,43 @@ function mirza_apply_textbotlang_compat(array &$lang)
     }
 }
 
-function languagechange($path_dir = null)
+function mirza_language_path_is_textjson(?string $path_dir): bool
+{
+    if ($path_dir === null || $path_dir === '') {
+        return false;
+    }
+    $norm = str_replace('\\', '/', (string) $path_dir);
+    return str_ends_with($norm, 'text.json') || str_ends_with($norm, '/text.json');
+}
+
+function mirza_resolve_user_lang(string $fallback = 'fa'): string
+{
+    global $from_id;
+    $allowed = ['fa', 'en', 'ar', 'ru', 'zh'];
+    $lang = $fallback;
+    if (!empty($from_id)) {
+        $row = select('user', 'lang', 'id', $from_id, 'select');
+        if (is_array($row) && !empty($row['lang']) && in_array($row['lang'], $allowed, true)) {
+            $lang = $row['lang'];
+        }
+    }
+    return in_array($lang, $allowed, true) ? $lang : 'fa';
+}
+
+function mirza_languagechange_from_json(?string $path_dir = null): array
 {
     if ($path_dir === null || $path_dir === '') {
         $path_dir = __DIR__ . '/text.json';
+    } elseif (!str_contains(str_replace('\\', '/', $path_dir), '/')) {
+        $path_dir = __DIR__ . '/' . ltrim($path_dir, '/');
     }
-    $setting = select("setting", "*");
+    $setting = select('setting', '*');
     $raw = @file_get_contents($path_dir);
     $all = is_string($raw) ? json_decode($raw, true) : null;
     if (!is_array($all)) {
         error_log('languagechange: invalid or missing text file: ' . (string) $path_dir);
         $all = ['fa' => []];
     }
-
     if (intval($setting['languageen'] ?? 0) == 1) {
         $lang = $all['en'] ?? $all['fa'] ?? [];
     } elseif (intval($setting['languageru'] ?? 0) == 1) {
@@ -3705,6 +3731,104 @@ function languagechange($path_dir = null)
     }
     mirza_apply_textbotlang_compat($lang);
     return $lang;
+}
+
+function languagechange($path_dir = null, string $lang_override = '')
+{
+    if (mirza_language_path_is_textjson($path_dir)) {
+        return mirza_languagechange_from_json($path_dir);
+    }
+    $allowed = ['fa', 'en', 'ar', 'ru', 'zh'];
+    $langCode = $lang_override !== '' ? $lang_override : mirza_resolve_user_lang('fa');
+    if (!in_array($langCode, $allowed, true)) {
+        $langCode = 'fa';
+    }
+    $langFile = __DIR__ . '/lang/' . $langCode . '.php';
+    if (is_file($langFile)) {
+        $lang = require $langFile;
+        if (is_array($lang)) {
+            mirza_apply_textbotlang_compat($lang);
+            return $lang;
+        }
+    }
+    return mirza_languagechange_from_json(__DIR__ . '/text.json');
+}
+
+function mirza_card_autoconfirm_mode(): string
+{
+    $mode = getPaySettingValue('card_autoconfirm_mode', 'both');
+    return in_array($mode, ['receipt_only', 'auto_only', 'both'], true) ? $mode : 'both';
+}
+
+/**
+ * TRON/TRC20 offline payment receipt (Mirza Pro 6.7 format).
+ */
+function mirza_tron_offline_receipt_message(string $orderId, string $wallet, $trxAmount, string $tomanFormatted): string
+{
+    $network = getPaySettingValue('offlinearze_tron_network', 'TRC20');
+    $coin = getPaySettingValue('offlinearze_tron_coin', 'TRON');
+    $template = getPaySettingValue('offlinearze_tron_receipt_template', '');
+    if ($template !== '' && $template !== '2') {
+        return str_replace(
+            ['{order}', '{wallet}', '{amount}', '{toman}', '{network}', '{coin}'],
+            [$orderId, $wallet, (string) $trxAmount, $tomanFormatted, $network, $coin],
+            $template
+        );
+    }
+    return "✅ تراکنش شما ایجاد شد
+
+🛒 کد پیگیری: <code>{$orderId}</code>
+🌐 شبکه: {$network}
+💎 ارز: {$coin}
+💳 آدرس ولت: <code>{$wallet}</code>
+💲 مبلغ تراکنش: {$trxAmount} {$coin}
+
+📌 مبلغ {$tomanFormatted} تومان را واریز کنید؛ پس از واریز دکمه زیر را بزنید و رسید را ارسال نمایید.
+
+💢 لطفاً به این نکات قبل از پرداخت توجه کنید 👇
+
+🔸 در صورت اشتباه وارد کردن آدرس کیف پول، تراکنش تأیید نمی‌شود و بازگشت وجه امکان‌پذیر نیست
+🔹 مبلغ ارسالی نباید کمتر یا بیشتر از مبلغ اعلام‌شده باشد
+🔹 هر تراکنش یک ساعت معتبر است؛ پس از انقضا به هیچ عنوان واریز نکنید
+
+✅ در صورت مشکل با پشتیبانی در ارتباط باشید";
+}
+
+function mirza_site_admin_log_request(string $userId, string $message, ?string $photoFileId = null): void
+{
+    global $pdo;
+    if (!isset($pdo)) {
+        return;
+    }
+    try {
+        $stmt = $pdo->prepare('INSERT INTO site_admin_requests (id_user, message, photo_file_id, status) VALUES (?, ?, ?, ?)');
+        $stmt->execute([$userId, $message, $photoFileId, 'pending']);
+    } catch (Throwable $e) {
+        error_log('mirza_site_admin_log_request: ' . $e->getMessage());
+    }
+}
+
+/**
+ * When agent hits maxbuy cap, redirect to payment instead of hard stop (Mirza 6.7).
+ */
+function mirza_maxbuyagent_payment_redirect($from_id, array $user, $price_deduct, $step_payment, string $processing_tow = 'maxbuy_topup'): bool
+{
+    global $textbotlang;
+    if (intval($user['maxbuyagent']) == 0 || ($user['agent'] ?? '') !== 'n2') {
+        return false;
+    }
+    $after = intval($user['Balance']) - intval($price_deduct);
+    if ($after >= intval('-' . $user['maxbuyagent'])) {
+        return false;
+    }
+    $need = abs($after + intval($user['maxbuyagent']));
+    update('user', 'Processing_value', $need, 'id', $from_id);
+    update('user', 'Processing_value_tow', $processing_tow, 'id', $from_id);
+    $msg = ($textbotlang['users']['Balance']['maxpurchasereached'] ?? '❌ به سقف خرید رسیدید.')
+        . "\n\n" . ($textbotlang['users']['sell']['None-credit'] ?? '💰 برای ادامه موجودی خود را افزایش دهید.');
+    sendmessage($from_id, $msg, $step_payment, 'HTML');
+    step('get_step_payment', $from_id);
+    return true;
 }
 function generateAuthStr($length = 10)
 {

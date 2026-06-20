@@ -205,6 +205,7 @@ try {
         $stmt->execute();
     } else {
         addFieldToTable("setting", "cron_status", $status_cron, "TEXT");
+        addFieldToTable("setting", "unknowncommand_reply", "1", "varchar(5)");
         addFieldToTable("setting", "status_keyboard_config", "1", "varchar(20)");
         addFieldToTable("setting", "statusnoteforf", "1", "varchar(20)");
         addFieldToTable("setting", "timeauto_not_verify", "4", "varchar(20)");
@@ -897,6 +898,10 @@ try {
         ['statuscardautoconfirm', 'offautoconfirm'],
         ['cardreceiptdelaymin', '10'],
         ['cardpendingexpirehours', '48'],
+        ['card_autoconfirm_mode', 'both'],
+        ['offlinearze_tron_network', 'TRC20'],
+        ['offlinearze_tron_coin', 'TRON'],
+        ['offlinearze_tron_receipt_template', '2'],
         ['card_sms_telegram_group_id', ''],
         ['urlpaymenttron', 'https://tronseller.storeddownloader.fun/api/GetOrderToken'],
         ['statustarnado', 'offternado'],

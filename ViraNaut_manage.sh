@@ -13,7 +13,7 @@ LEGACY_PROJECT_DIR="/var/www/mirza_pro"
 ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
 MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
-VIRANAUT_MANAGE_VERSION="2.3.0-ViraNaut"
+VIRANAUT_MANAGE_VERSION="3.0.0-ViraNaut"
 MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
 VIRANAUT_GITHUB_REPO="${VIRANAUT_GITHUB_REPO:-https://github.com/liamlope/ViraNaut.git}"
 VIRANAUT_GITHUB_BRANCH="${VIRANAUT_GITHUB_BRANCH:-main}"
@@ -959,6 +959,7 @@ viranaut_finish_bot_update() {
   viranaut_ensure_panel_integrity "$BOT_DIR" 2>/dev/null || true
   mirza_ensure_bot_permissions "$BOT_DIR"
   viranaut_sync_manage_script_from_bot "$BOT_DIR"
+  setup_cron_jobs 2>/dev/null || true
   systemctl reload apache2 2>/dev/null || true
 
   msg "Panel check ..."
@@ -1282,6 +1283,8 @@ do_github_update() {
       || warn "Panel not HTTP 200 — run: /root/ViraNaut_manage.sh panel-fix"
   fi
   echo -e "  ${CYAN}Restore if needed:${NC} ${BACKUP_DIR}/${VIRANAUT_PREUPDATE_PREFIX}_*.zip"
+  echo -e "  ${CYAN}Tip:${NC} Panel → Migration if DB was on older ViraNaut/Mirza"
+  echo -e "  ${CYAN}New:${NC} agent-panel https://${_upd_domain:-YOUR_DOMAIN}/agent-panel/ · card cron = croncard.php (SMS + auto-confirm)"
   viranaut_list_preupdate_backups 2>/dev/null || true
   echo ""
 }
@@ -1754,10 +1757,11 @@ viranaut_db_migrate() {
   msg "ViraNaut database merge (migration + rebrand) ..."
 
   local migrate_sql="$BOT_DIR/migrations/viranaut_migrate.sql"
-  if [ -f "$migrate_sql" ]; then
+  for migrate_sql in "$BOT_DIR/migrations"/viranaut_migrate*.sql; do
+    [ -f "$migrate_sql" ] || continue
     mysql -u "$dbuser" -p"$dbpass" "$dbname" <"$migrate_sql" 2>/dev/null \
-      || warn "Some migration SQL lines skipped (often OK on re-run)."
-  fi
+      || warn "Some lines skipped in $(basename "$migrate_sql") (often OK on re-run)."
+  done
 
   mysql -u "$dbuser" -p"$dbpass" "$dbname" >/dev/null 2>&1 <<EOSQL || true
 SET @col := (SELECT COUNT(*) FROM information_schema.COLUMNS
@@ -1788,8 +1792,8 @@ WHERE ValuePay LIKE '%میرزا%' OR ValuePay LIKE '%Mirza%';
 UPDATE shopSetting SET value = REPLACE(REPLACE(REPLACE(value,
   'تیم میرزا', 'تیم ویرانات'), 'میرزا', 'ویرانات'), 'Mirza', 'ViraNaut')
 WHERE value LIKE '%میرزا%' OR value LIKE '%Mirza%';
-INSERT INTO shopSetting (Namevalue, value) VALUES ('viranaut_version', '1.9-ViraNaut')
-ON DUPLICATE KEY UPDATE value='1.9-ViraNaut';
+INSERT INTO shopSetting (Namevalue, value) VALUES ('viranaut_version', '3.0.0-ViraNaut')
+ON DUPLICATE KEY UPDATE value='3.0.0-ViraNaut';
 EOSQL
 
   echo -e "  ${GREEN}✓${NC} ViraNaut database merge completed"
@@ -2047,7 +2051,7 @@ mirza_write_meta_cron_jobs() {
   mkdir -p "$(dirname "$out")"
   cat >"$out" <<CRON
 */15 * * * * curl -fsS https://${domain}/cronbot/statusday.php
-*/1 * * * * curl -fsS https://${domain}/cronbot/card_receipt_prompt.php
+*/1 * * * * curl -fsS https://${domain}/cronbot/croncard.php
 */1 * * * * curl -fsS https://${domain}/cronbot/NoticationsService.php
 */5 * * * * curl -fsS https://${domain}/cronbot/payment_expire.php
 */1 * * * * curl -fsS https://${domain}/cronbot/sendmessage.php
@@ -3548,6 +3552,11 @@ do_diagnose_bot() {
   echo -e "    index.php:   $([ -f "$PROJECT_DIR/index.php" ] && echo OK || echo MISSING)"
   echo -e "    panel:       $([ -f "$PROJECT_DIR/panel/login.php" ] && echo OK || echo MISSING)"
   echo -e "    vendor:      $([ -f "$PROJECT_DIR/vendor/autoload.php" ] && echo OK || echo MISSING)"
+  echo -e "    lang/fa:     $([ -f "$PROJECT_DIR/lang/fa.php" ] && echo OK || echo MISSING)"
+  echo -e "    mirza_agent: $([ -f "$PROJECT_DIR/mirza_agent.php" ] && echo OK || echo MISSING)"
+  echo -e "    ilan.php:    $([ -f "$PROJECT_DIR/ilan.php" ] && echo OK || echo MISSING)"
+  echo -e "    croncard:    $(crontab -l 2>/dev/null | grep -F 'cronbot/croncard.php' >/dev/null && echo OK || echo 'MISSING — run menu 5 Restart or fix')"
+  echo -e "    site-admin:  $([ -f "$PROJECT_DIR/site-admin/index.php" ] && echo OK || echo MISSING)"
   echo ""
 
   domain=$(read_php_var "domainhosts")
@@ -3902,7 +3911,7 @@ do_logs() {
 setup_cron_jobs() {
   MIRZA_CRON_LINES=(
     "* * * * * php $PROJECT_DIR/cronbot/NoticationsService.php >/dev/null 2>&1"
-    "*/1 * * * * php $PROJECT_DIR/cronbot/card_receipt_prompt.php >/dev/null 2>&1"
+    "*/1 * * * * php $PROJECT_DIR/cronbot/croncard.php >/dev/null 2>&1"
     "*/5 * * * * php $PROJECT_DIR/cronbot/uptime_panel.php >/dev/null 2>&1"
     "*/5 * * * * php $PROJECT_DIR/cronbot/uptime_node.php >/dev/null 2>&1"
     "*/10 * * * * php $PROJECT_DIR/cronbot/expireagent.php >/dev/null 2>&1"

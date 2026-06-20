@@ -10,6 +10,8 @@ require_once __DIR__ . '/WGDashboard.php';
 require_once __DIR__ . '/s_ui.php';
 require_once __DIR__ . '/ibsng.php';
 require_once __DIR__ . '/mikrotik.php';
+require_once __DIR__ . '/mirza_agent.php';
+require_once __DIR__ . '/ilan.php';
 
 class ManagePanel
 {
@@ -372,6 +374,58 @@ class ManagePanel
                 $Output['status'] = 'successful';
                 $Output['username'] = $usernameC;
                 $Output['subscription_url'] = $password;
+                $Output['configs'] = [];
+            }
+        } elseif ($Get_Data_Panel['type'] == "mirza_agent") {
+            $ConnectToPanel = create_user_mirza($Get_Data_Panel, $data_limit / pow(1024, 3), ($expire - time()) / 86400, $usernameC);
+            if (!empty($ConnectToPanel['status']) && $ConnectToPanel['status'] != 200) {
+                return array(
+                    'status' => 'Unsuccessful',
+                    'msg' => $ConnectToPanel['status']
+                );
+            }
+            if (!empty($ConnectToPanel['error'])) {
+                return array(
+                    'status' => 'Unsuccessful',
+                    'msg' => $ConnectToPanel['error']
+                );
+            }
+            $data_Output = json_decode($ConnectToPanel['body'], true);
+            if (!$data_Output['status']) {
+                $Output['status'] = 'Unsuccessful';
+                $Output['msg'] = $data_Output['msg'] ?? '';
+            } else {
+                if ($invoice != false) {
+                    $data_Output['subscription_url'] = "https://$domainhosts/sub/" . $invoice['id_invoice'];
+                }
+                $data_Output = $data_Output['obj'];
+                $Output['status'] = 'successful';
+                $Output['username'] = $data_Output['username'];
+                $Output['subscription_url'] = $data_Output['subscription_url'];
+                $Output['configs'] = $data_Output['links'];
+            }
+        } elseif ($Get_Data_Panel['type'] == "ilan") {
+            $days = $expire != 0 ? max(1, (int) ceil(($expire - time()) / 86400)) : 36500;
+            $gb = max(1, (int) round($data_limit / pow(1024, 3)));
+            $ConnectToPanel = ilan_create_user($Get_Data_Panel, $usernameC, $gb, $days);
+            if (!empty($ConnectToPanel['error'])) {
+                return ['status' => 'Unsuccessful', 'msg' => $ConnectToPanel['error']];
+            }
+            if (!empty($ConnectToPanel['status']) && (int) $ConnectToPanel['status'] >= 400) {
+                return ['status' => 'Unsuccessful', 'msg' => $ConnectToPanel['body'] ?? $ConnectToPanel['status']];
+            }
+            $data_Output = json_decode($ConnectToPanel['body'] ?? '', true);
+            if (!is_array($data_Output) || !empty($data_Output['detail'])) {
+                $Output['status'] = 'Unsuccessful';
+                $Output['msg'] = is_array($data_Output) ? ($data_Output['detail'] ?? 'Ilan API error') : 'Ilan API error';
+            } else {
+                $sub = $data_Output['subscription_url'] ?? ($Get_Data_Panel['url_panel'] . '/sub/' . ($data_Output['username'] ?? $usernameC));
+                if ($inoice != false) {
+                    $sub = "https://$domainhosts/sub/" . $inoice['id_invoice'];
+                }
+                $Output['status'] = 'successful';
+                $Output['username'] = $data_Output['username'] ?? $usernameC;
+                $Output['subscription_url'] = $sub;
                 $Output['configs'] = [];
             }
         } elseif ($Get_Data_Panel['type'] == "mikrotik") {
@@ -882,6 +936,45 @@ class ManagePanel
                     'sub_last_user_agent' => null,
                 );
             }
+        } elseif ($Get_Data_Panel['type'] == "mirza_agent") {
+            $UsernameData = get_user_data_mirza($Get_Data_Panel, $username);
+            if (!empty($UsernameData['error'])) {
+                $Output = array(
+                    'status' => 'Unsuccessful',
+                    'msg' => $UsernameData['error']
+                );
+            } elseif (!empty($UsernameData['status']) && $UsernameData['status'] != 200) {
+                $Output = array(
+                    'status' => 'Unsuccessful',
+                    'msg' => $UsernameData['status']
+                );
+            } else {
+                $UsernameData = json_decode($UsernameData['body'], true);
+                if (!$UsernameData['status']) {
+                    return array(
+                        'status' => 'Unsuccessful',
+                        'msg' => $UsernameData['msg']
+                    );
+                }
+                $UsernameData = $UsernameData['obj']['user'];
+                if ($inoice != false) {
+                    $UsernameData['subscription_url'] = "https://$domainhosts/sub/" . $inoice['id_invoice'];
+                }
+                $Output = array(
+                    'status' => $UsernameData['status'],
+                    'username' => $UsernameData['username'],
+                    'data_limit' => $UsernameData['data_limit'],
+                    'expire' => $UsernameData['expire'] ? $UsernameData['expire'] : 0,
+                    'online_at' => $UsernameData['online_at'],
+                    'used_traffic' => $UsernameData['used_traffic'],
+                    'links' => $UsernameData['links'],
+                    'subscription_url' => $UsernameData['subscription_url'],
+                    'sub_updated_at' => $UsernameData['sub_updated_at'],
+                    'sub_last_user_agent' => $UsernameData['sub_last_user_agent'],
+                    'uuid' => $UsernameData['uuid'] ?? null,
+                    'data_limit_reset' => $UsernameData['data_limit_reset'] ?? null
+                );
+            }
         } elseif ($Get_Data_Panel['type'] == "mikrotik") {
             $UsernameData = GetUsermikrotik($Get_Data_Panel['name_panel'], $username)[0];
             if (isset($UsernameData['error'])) {
@@ -1110,6 +1203,26 @@ class ManagePanel
                     'subscription_url' => $url_sub,
                 );
             }
+        } elseif ($Get_Data_Panel['type'] == "mirza_agent") {
+            $revoke_sub = revoke_service_mirza($Get_Data_Panel, $username);
+            if (!empty($revoke_sub['error'])) {
+                $Output = array(
+                    'status' => 'Unsuccessful',
+                    'msg' => $revoke_sub['error']
+                );
+            } elseif (!empty($revoke_sub['status']) && $revoke_sub['status'] != 200) {
+                $Output = array(
+                    'status' => 'Unsuccessful',
+                    'msg' => $revoke_sub['status']
+                );
+            } else {
+                $Data_User = $this->DataUser($name_panel, $username);
+                $Output = array(
+                    'status' => 'successful',
+                    'configs' => $Data_User['links'],
+                    'subscription_url' => $Data_User['subscription_url']
+                );
+            }
         } else {
             $Output = array(
                 'status' => 'Unsuccessful',
@@ -1245,6 +1358,31 @@ class ManagePanel
                     'msg' => $UsernameData['msg']
                 );
             } else {
+                $Output = array(
+                    'status' => 'successful',
+                    'username' => $username,
+                );
+            }
+        } elseif ($Get_Data_Panel['type'] == "mirza_agent") {
+            $UsernameData = remove_service_mirza($Get_Data_Panel, $username);
+            if (isset($UsernameData['error'])) {
+                $Output = array(
+                    'status' => 'Unsuccessful',
+                    'msg' => $UsernameData['msg'] ?? $UsernameData['error']
+                );
+            } elseif ($UsernameData['status'] != 200) {
+                $Output = array(
+                    'status' => 'Unsuccessful',
+                    'msg' => $UsernameData['status']
+                );
+            } else {
+                $UsernameData = json_decode($UsernameData['body'], true);
+                if (!$UsernameData['status']) {
+                    return array(
+                        'status' => 'Unsuccessful',
+                        'msg' => $UsernameData['msg']
+                    );
+                }
                 $Output = array(
                     'status' => 'successful',
                     'username' => $username,
@@ -1767,6 +1905,11 @@ class ManagePanel
             return array(
                 'status' => true
             );
+        } elseif ($panel['type'] == "mirza_agent") {
+            return array(
+                'status' => true,
+                'msg' => 'successful'
+            );
         }
     }
     function extend($Method_extend, $new_limit, $time_day, $username, $code_product, $name_panel)
@@ -1959,6 +2102,30 @@ class ManagePanel
                 "volume" => $data_limit_new,
                 "expiry" => $time_new
             );
+        } elseif ($panel['type'] == "mirza_agent") {
+            $extend = extend_service_mirza($panel, $new_limit, $time_day, $username);
+            if (!in_array($extend['status'], [200, 400])) {
+                return array(
+                    'status' => false,
+                    'msg' => $extend['msg'] ?? $extend['status']
+                );
+            } elseif (!empty($extend['error'])) {
+                return array(
+                    'status' => false,
+                    'msg' => $extend['error']
+                );
+            }
+            $extend = json_decode($extend['body'], true);
+            if (!$extend['status']) {
+                return array(
+                    'status' => false,
+                    'msg' => $extend['msg']
+                );
+            }
+            return array(
+                'status' => true,
+                'msg' => 'successful'
+            );
         }
         $extend = $this->Modifyuser($username, $panel['name_panel'], $data);
         if ($extend['status'] == false) {
@@ -2071,6 +2238,30 @@ class ManagePanel
         } elseif ($panel['type'] == "s_ui") {
             $data = array(
                 "volume" => $new_limit,
+            );
+        } elseif ($panel['type'] == "mirza_agent") {
+            $volume_add = add_volume_service_mirza($panel, $limit_volume_new, $username_account);
+            if (!in_array($volume_add['status'], [200, 400])) {
+                return array(
+                    'status' => false,
+                    'msg' => $volume_add['msg'] ?? $volume_add['status']
+                );
+            } elseif (!empty($volume_add['error'])) {
+                return array(
+                    'status' => false,
+                    'msg' => $volume_add['error']
+                );
+            }
+            $volume_add = json_decode($volume_add['body'], true);
+            if (!$volume_add['status']) {
+                return array(
+                    'status' => false,
+                    'msg' => $volume_add['msg']
+                );
+            }
+            return array(
+                'status' => true,
+                'msg' => 'successful'
             );
         }
         $extra_volume = $this->Modifyuser($username_account, $panel['name_panel'], $data);
@@ -2189,6 +2380,31 @@ class ManagePanel
         } elseif ($panel['type'] == "s_ui") {
             $data = array(
                 "expiry" => $new_limit,
+            );
+        } elseif ($panel['type'] == "mirza_agent") {
+            $new_limit = $limit_time_new;
+            $time_add = add_time_service_mirza($panel, $new_limit, $username_account);
+            if (!in_array($time_add['status'], [200, 400])) {
+                return array(
+                    'status' => false,
+                    'msg' => $time_add['msg'] ?? $time_add['status']
+                );
+            } elseif (!empty($time_add['error'])) {
+                return array(
+                    'status' => false,
+                    'msg' => $time_add['error']
+                );
+            }
+            $time_add = json_decode($time_add['body'], true);
+            if (!$time_add['status']) {
+                return array(
+                    'status' => false,
+                    'msg' => $time_add['msg']
+                );
+            }
+            return array(
+                'status' => true,
+                'msg' => 'successful'
             );
         }
         $extra_time = $this->Modifyuser($username_account, $panel['name_panel'], $data);

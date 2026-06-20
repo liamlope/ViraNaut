@@ -96,6 +96,9 @@ try {
 
 $typeLabels = [
     'marzban' => 'Marzban',
+    'pasarguard' => 'Pasarguard',
+    'mirza_agent' => 'Mirza Agent',
+    'ilan' => 'Ilan',
     'x-ui_single' => '3x-ui',
     'x-ui' => '3x-ui',
     's_ui' => 'S-UI',

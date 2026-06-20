@@ -1,7 +1,7 @@
 <?php
 require_once 'config.php';
 $setting = select("setting", "*", null, null, "select");
-$textbotlang = languagechange(__DIR__ . '/text.json');
+$textbotlang = languagechange();
 if (!function_exists('getPaySettingValue')) {
     function getPaySettingValue($name)
     {
@@ -179,6 +179,9 @@ $keyboardPanel = json_encode([
         [
             ['text' => $datatextbot['text_Discount'], 'callback_data' => "Discount"],
             ['text' => $datatextbot['text_Add_Balance'], 'callback_data' => "Add_Balance"]
+        ],
+        [
+            ['text' => $textbotlang['language']['changeBtn'] ?? '🌐 تغییر زبان', 'callback_data' => 'change_language']
         ],
         [['text' => (function_exists('mirza_lang_str') ? mirza_lang_str($textbotlang, 'users.backbtn', '🏠 بازگشت به منوی اصلی') : ($textbotlang['users']['backbtn'] ?? '🏠 بازگشت به منوی اصلی')), 'callback_data' => "backuser"]],
     ],
@@ -1269,27 +1272,34 @@ $keyboardtimereset = json_encode([
 $keyboardtypepanel = json_encode([
     'inline_keyboard' => [
         [
-            ['text' => "مرزبان", 'callback_data' => "typepanel#marzban"],
-            ['text' => "مرزنشین", 'callback_data' => "typepanel#marzneshin"]
+            ['text' => $textbotlang['keyboard']['marzban'] ?? 'مرزبان', 'callback_data' => "typepanel#marzban"],
+            ['text' => $textbotlang['keyboard']['marzneshin'] ?? 'مرزنشین', 'callback_data' => "typepanel#marzneshin"]
         ],
         [
-            ['text' => 'ثنایی تک پورت', 'callback_data' => 'typepanel#x-ui_single'],
-            ['text' => 'علیرضا تک پورت', 'callback_data' => 'typepanel#alireza_single']
+            ['text' => $textbotlang['keyboard']['passargadPanel'] ?? 'پاسارگارد', 'callback_data' => "typepanel#pasarguard"],
+            ['text' => $textbotlang['extracted']['keyboard_php']['mirzaAgentPanel'] ?? 'پنل نمایندگی میرزا', 'callback_data' => "typepanel#mirza_agent"]
         ],
         [
-            ['text' => "فروش دستی", 'callback_data' => 'typepanel#Manualsale'],
-            ['text' => "هیدیفای", 'callback_data' => 'typepanel#hiddify'],
+            ['text' => 'Ilan', 'callback_data' => 'typepanel#ilan'],
+            ['text' => $textbotlang['extracted']['keyboard_php']['panelTypeSanaei'] ?? 'ثنایی تک پورت', 'callback_data' => 'typepanel#x-ui_single'],
         ],
         [
+            ['text' => $textbotlang['extracted']['keyboard_php']['panelTypeAlireza'] ?? 'علیرضا تک پورت', 'callback_data' => 'typepanel#alireza_single'],
+            ['text' => $textbotlang['keyboard']['manualSale'] ?? 'فروش دستی', 'callback_data' => 'typepanel#Manualsale'],
+        ],
+        [
+            ['text' => $textbotlang['keyboard']['hiddify'] ?? 'هیدیفای', 'callback_data' => 'typepanel#hiddify'],
             ['text' => "WGDashboard", 'callback_data' => 'typepanel#WGDashboard'],
-            ['text' => "s_ui", 'callback_data' => 'typepanel#s_ui']
         ],
         [
+            ['text' => "s_ui", 'callback_data' => 'typepanel#s_ui'],
             ['text' => "ibsng", 'callback_data' => 'typepanel#ibsng'],
-            ['text' => "میکروتیک", 'callback_data' => 'typepanel#mikrotik']
         ],
         [
-            ['text' => $textbotlang['Admin']['backadmin'], 'callback_data' => 'admin']
+            ['text' => $textbotlang['keyboard']['mikrotik'] ?? 'میکروتیک', 'callback_data' => 'typepanel#mikrotik']
+        ],
+        [
+            ['text' => $textbotlang['Admin']['backadmin'] ?? 'بازگشت', 'callback_data' => 'admin']
         ]
     ],
 ]);

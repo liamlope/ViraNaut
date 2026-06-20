@@ -981,7 +981,7 @@ $paycount
         savedata("save", "username", "null");
         savedata("save", "password", "null");
         return;
-    } elseif ($userdata['type'] == "s_ui" || $userdata['type'] == "WGDashboard") {
+    } elseif ($userdata['type'] == "s_ui" || $userdata['type'] == "WGDashboard" || $userdata['type'] == "mirza_agent" || $userdata['type'] == "ilan") {
         sendmessage($from_id, "📌 توکن را ارسال نمایید", $backadmin, 'HTML');
         step('add_password_panel', $from_id);
         savedata("save", "username", "null");
@@ -1091,7 +1091,11 @@ $paycount
     $xui_api_token_insert = isset($userdata['xui_api_token']) && $userdata['xui_api_token'] !== null && $userdata['xui_api_token'] !== ''
         ? $userdata['xui_api_token']
         : null;
-    $stmt = $pdo->prepare("INSERT INTO marzban_panel (code_panel,name_panel,sublink,config,MethodUsername,TestAccount,status,limit_panel,namecustom,Methodextend,type,conecton,inboundid,agent,inbound_deactive,inboundstatus,url_panel,username_panel,password_panel,time_usertest,val_usertest,linksubx,priceextravolume,priceextratime,pricecustomvolume,pricecustomtime,mainvolume,maxvolume,maintime,maxtime,status_extend,subvip,changeloc,customvolume,on_hold_test,version_panel,xui_api_token) VALUES (:code_panel,:name_panel,:sublink,:config,:MethodUsername,:TestAccount,:status,:limit_panel,:namecustom,:Methodextend,:type,:conecton,:inboundid,:agent,:inbound_deactive,:inboundstatus,:url_panel,:username_panel,:password_panel,:val_usertest,:time_usertest,:linksubx,:priceextravolume,:priceextratime,:pricecustomvolume,:pricecustomtime,:mainvolume,:maxvolume,:maintime,:maxtime,:status_extend,:subvip,:changeloc,:customvolume,:on_hold_test,'0',:xui_api_token)");
+    $version_panel = ($userdata['type'] ?? '') === 'pasarguard' ? '1' : '0';
+    if (($userdata['type'] ?? '') === 'pasarguard') {
+        $userdata['type'] = 'marzban';
+    }
+    $stmt = $pdo->prepare("INSERT INTO marzban_panel (code_panel,name_panel,sublink,config,MethodUsername,TestAccount,status,limit_panel,namecustom,Methodextend,type,conecton,inboundid,agent,inbound_deactive,inboundstatus,url_panel,username_panel,password_panel,time_usertest,val_usertest,linksubx,priceextravolume,priceextratime,pricecustomvolume,pricecustomtime,mainvolume,maxvolume,maintime,maxtime,status_extend,subvip,changeloc,customvolume,on_hold_test,version_panel,xui_api_token) VALUES (:code_panel,:name_panel,:sublink,:config,:MethodUsername,:TestAccount,:status,:limit_panel,:namecustom,:Methodextend,:type,:conecton,:inboundid,:agent,:inbound_deactive,:inboundstatus,:url_panel,:username_panel,:password_panel,:val_usertest,:time_usertest,:linksubx,:priceextravolume,:priceextratime,:pricecustomvolume,:pricecustomtime,:mainvolume,:maxvolume,:maintime,:maxtime,:status_extend,:subvip,:changeloc,:customvolume,:on_hold_test,:version_panel,:xui_api_token)");
     $stmt->bindParam(':code_panel', $randomString);
     $stmt->bindParam(':name_panel', $userdata['namepanel'], PDO::PARAM_STR);
     $stmt->bindParam(':sublink', $sublink);
@@ -1127,6 +1131,7 @@ $paycount
     $stmt->bindParam(':changeloc', $changeloc);
     $stmt->bindParam(':customvolume', $VALUE);
     $stmt->bindParam(':on_hold_test', $stauts_on_holed);
+    $stmt->bindParam(':version_panel', $version_panel);
     if ($xui_api_token_insert === null) {
         $stmt->bindValue(':xui_api_token', null, PDO::PARAM_NULL);
     } else {
@@ -4488,6 +4493,9 @@ $text_expie_agent
 گروه کاربری :{$marzban_list_get['agent']}
         
 ⭕️ برای مدیریت پنل یکی از گزینه های زیر را انتخاب کنید";
+            if ($marzban_list_get['version_panel'] == "1") {
+                $text_marzban = str_replace('مرزبان', $textbotlang['keyboard']['passargadPanel'] ?? 'پاسارگارد', $text_marzban);
+            }
             sendmessage($from_id, $text_marzban, $optionMarzban, 'HTML');
         } elseif (isset($Check_token['detail']) && $Check_token['detail'] == "Incorrect username or password") {
             $text_marzban = "❌ نام کاربری یا رمز عبور پنل اشتباه است";
@@ -4508,6 +4516,8 @@ $text_expie_agent
             $err = (string) ($x_ui_check_connect['msg'] ?? 'اتصال برقرار نیست');
             sendmessage($from_id, $err, $optionX_ui_single, 'HTML');
         }
+    } elseif ($marzban_list_get['type'] == "mirza_agent") {
+        sendmessage($from_id, $textbotlang['users']['selectoption'] ?? 'یک گزینه را انتخاب کنید', $optionMarzban, 'HTML');
     } elseif ($marzban_list_get['type'] == "alireza_single") {
         $x_ui_check_connect = login($marzban_list_get['code_panel'], true, true);
         if ($x_ui_check_connect['success']) {

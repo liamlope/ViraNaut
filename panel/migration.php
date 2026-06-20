@@ -12,24 +12,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'run_builtin') {
         try {
-            if (!is_readable($sqlPath)) {
-                throw new RuntimeException('فایل مهاجرت یافت نشد.');
-            }
-            $sql = file_get_contents($sqlPath);
-            foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
-                if ($stmt === '' || stripos($stmt, '--') === 0) {
+            $migrationFiles = [
+                dirname(__DIR__) . '/migrations/viranaut_migrate.sql',
+                dirname(__DIR__) . '/migrations/viranaut_migrate_2_1_0.sql',
+                dirname(__DIR__) . '/migrations/viranaut_migrate_3_0_0.sql',
+            ];
+            foreach ($migrationFiles as $sqlPath) {
+                if (!is_readable($sqlPath)) {
                     continue;
                 }
-                try {
-                    $pdo->exec($stmt);
-                } catch (PDOException $e) {
-                    if (strpos($e->getMessage(), 'Duplicate') === false) {
-                        throw $e;
+                $sql = file_get_contents($sqlPath);
+                foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
+                    if ($stmt === '' || stripos($stmt, '--') === 0) {
+                        continue;
+                    }
+                    try {
+                        $pdo->exec($stmt);
+                    } catch (PDOException $e) {
+                        if (strpos($e->getMessage(), 'Duplicate') === false) {
+                            throw $e;
+                        }
                     }
                 }
             }
             vira_seed_default_wallets($pdo);
-            flash('success', 'مهاجرت داخلی ViraNaut با موفقیت اجرا شد.');
+            flash('success', 'مهاجرت داخلی ViraNaut (2.1 + 3.0) با موفقیت اجرا شد.');
         } catch (Throwable $e) {
             flash('error', 'خطا: ' . $e->getMessage());
         }

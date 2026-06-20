@@ -1,8 +1,31 @@
 # ViraNaut · ویرانات
 
-ربات تلگرام فروش VPN با پنل وب، مینی‌اپ، تأیید خودکار کارت‌به‌کارت از SMS بانک، و مهاجرت از Mirza.
+**نسخه فعلی:** `3.0.0-ViraNaut`
+
+ربات تلگرام فروش VPN با پنل وب پیشرفته، مینی‌اپ، تأیید خودکار کارت‌به‌کارت از SMS بانک، و مهاجرت یک‌کلیکی از Mirza.
 
 **GitHub:** [github.com/liamlope/ViraNaut](https://github.com/liamlope/ViraNaut)
+
+---
+
+## رابطه با Mirza Bot (مهم)
+
+**ViraNaut یک fork پیشرفته از [Mirza Bot رایگان (Free)](https://github.com/mahdiMGF2/mirzabot) است** — نه جایگزین ساده و نه کپی کور.
+
+| | Mirza Free 0.2.2 | ViraNaut 3.0 |
+|---|------------------|--------------|
+| پایه کد | Mirza upstream | ViraNaut (حفظ پنل وب ۳۱ صفحه، SMS، x-ui گسترده) |
+| زبان per-user (`lang/`) | ✅ | ✅ پورت + `text.json` |
+| Pasarguard · mirza_agent | ✅ | ✅ پورت |
+| cron کارت auto-confirm | ✅ | ✅ + SMS receipt Vira (dual-mode) |
+| پنل وب ادمین | ~۱۲ صفحه | **۳۱+ صفحه** (مالی، bot-texts، …) |
+| پنل وب نمایندگی | ❌ (Pro) | ✅ MVP (`/agent-panel/`) |
+| تأیید SMS بانک | ❌ | ✅ |
+| x-ui_single کامل | stub | ✅ ۱۵۰۰+ خط |
+
+اگر از Mirza رایگان استفاده می‌کردید، ViraNaut **همان قابلیت‌ها + موارد بالا** را دارد. جزئیات: [CHANGELOG.md](CHANGELOG.md) · [docs/UPGRADE_MATRIX.md](docs/UPGRADE_MATRIX.md)
+
+> **Mirza Pro / اشتراکی** سورس عمومی ندارد؛ برخی فیچرهای Pro (مثل agent-panel کامل، Ilan، site-admin) به‌صورت MVP یا از changelog پیاده شده‌اند.
 
 ---
 
@@ -14,11 +37,11 @@
 curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_manage.sh -o /root/ViraNaut_manage.sh && chmod +x /root/ViraNaut_manage.sh && /root/ViraNaut_manage.sh
 ```
 
-- **اولین بار:** منو باز می‌شود → گزینه **1) Install**
-- **قبلاً نصب کرده‌اید:** همان دستور → منوی اصلی (آپدیت، ری‌استارت، …)
-- **Mirza روی سرور دارید:** گزینه **1) Install** → مهاجرت خودکار به ViraNaut
+- **اولین بار:** منو → **1) Install**
+- **قبلاً نصب کرده‌اید:** همان دستور → منو (آپدیت، ری‌استارت، …)
+- **Mirza روی سرور دارید:** **1) Install** → مهاجرت خودکار به ViraNaut
 
-بعد از نصب همیشه می‌توانید بنویسید:
+بعد از نصب:
 
 ```bash
 viranaut
@@ -28,17 +51,22 @@ viranaut
 
 ## آپدیت (یک خط)
 
-روی سرور **root** (اسکریپت + کد از GitHub، بکاپ خودکار قبل از آپدیت):
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_manage.sh -o /root/ViraNaut_manage.sh && chmod +x /root/ViraNaut_manage.sh && /root/ViraNaut_manage.sh update
 ```
 
-اگر قبلاً `ViraNaut_manage.sh` را دارید:
+یا اگر اسکریپت را دارید:
 
 ```bash
 /root/ViraNaut_manage.sh update
 ```
+
+- قبل از آپدیت **بکاپ ZIP** خودکار (`/root/viranaut_backups/`)
+- `config.php` و دیتابیس **حفظ** می‌شوند
+- migrationهای `viranaut_migrate*.sql` + `table.php` اجرا می‌شوند
+- cron کارت → `cronbot/croncard.php` (SMS + auto-confirm)
+
+بعد از آپدیت از Mirza/Vira قدیمی: پنل → **Migration** را یک‌بار بزنید.
 
 ---
 
@@ -47,30 +75,30 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 | # | کار |
 |---|-----|
 | **1** | Install (GitHub — Mirza را هم تشخیص می‌دهد) |
-| **2** | Update از GitHub (بکاپ خودکار قبل از آپدیت) |
+| **2** | Update از GitHub (بکاپ خودکار) |
 | **3** | Stop Apache |
 | **4** | Start Apache |
-| **5** | Restart کامل (MySQL + Apache + webhook) |
+| **5** | Restart کامل (MySQL + Apache + webhook + cron) |
 | **6** | Logs |
-| **7** | Diagnose |
+| **7** | Diagnose (lang، mirza_agent، agent-panel، croncard) |
 | **8** | Auto-fix (DB + vhost + SSL + webhook) |
 | **9** | حذف کامل ربات |
 | **0** | خروج |
 
 ---
 
-## دستورات سریع (بدون منو)
+## دستورات سریع
 
 ```bash
 /root/ViraNaut_manage.sh update      # آپدیت از GitHub
 /root/ViraNaut_manage.sh restart     # ری‌استارت کامل
 /root/ViraNaut_manage.sh fix         # Auto-fix
 /root/ViraNaut_manage.sh diagnose    # عیب‌یابی
-/root/ViraNaut_manage.sh logs        # لاگ‌ها
+/root/ViraNaut_manage.sh logs       # لاگ‌ها
 /root/ViraNaut_manage.sh remove      # حذف کامل
 ```
 
-نصب بدون سؤال (سرور تازه):
+نصب بدون سؤال:
 
 ```bash
 /root/ViraNaut_manage.sh install -y \
@@ -88,49 +116,52 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 |------|--------|
 | OS | Ubuntu 20.04+ (توصیه: 22.04) |
 | دسترسی | root |
-| دامنه | یک subdomain (مثلاً `bot.example.com`) |
-
-اسکریپت Apache، PHP 8.2، MySQL، git و SSL را خودش نصب می‌کند.
+| دامنه | subdomain (مثلاً `bot.example.com`) |
 
 **مسیر نصب:** `/var/www/html/viranaut`  
-**پنل:** `https://YOUR_DOMAIN/panel/`
+**پنل ادمین:** `https://YOUR_DOMAIN/panel/`  
+**پنل نماینده:** `https://YOUR_DOMAIN/agent-panel/`  
+**سایت ادمین:** `https://YOUR_DOMAIN/site-admin/`
 
 ---
 
 ## مهاجرت از Mirza
-
-اگر [Mirza Bot](https://github.com/mahdiMGF2/mirzabot) روی سرور دارید:
 
 ```bash
 viranaut
 # 1) Install → Migrate Mirza → ViraNaut? y
 ```
 
-- دیتابیس و توکن **حفظ** می‌شود  
-- فایل‌ها از GitHub در `/var/www/html/viranaut`  
-- vhost، SSL و webhook خودکار تنظیم می‌شود  
+- DB و توکن **حفظ** می‌شود  
+- فایل‌ها از GitHub  
+- vhost، SSL، webhook خودکار  
 
-مسیرهای شناخته‌شده Mirza: `/var/www/html/mirzabotconfig` · `/var/www/html/mirzaprobotconfig` · `/var/www/mirza_pro`
+مسیرهای Mirza: `/var/www/html/mirzabotconfig` · `/var/www/html/mirzaprobotconfig` · `/var/www/mirza_pro`
 
 ---
 
-## تأیید خودکار کارت (SMS)
+## تأیید کارت (SMS + auto-confirm)
 
-1. پنل → **مرکز مالی** → **تأیید خودکار SMS** = روشن  
-2. **کانال خصوصی** بسازید (مثلاً `SMS Bank`)  
-3. **ربات فروش** + **SMS Forwarder** را **ادمین کانال** کنید  
-4. در SMS Forwarder مقصد = **همین کانال** (نه گروه)  
-5. آیدی کانال (`-100...`) را در پنل → **آیدی کانال SMS** ذخیره کنید (از @IDFindeerBot)  
-6. کاربر **دقیقاً مبلغ ریالی** فاکتور را واریز کند  
+### حالت dual-mode (`card_autoconfirm_mode`)
 
-> ربات تلگرام پیام ربات‌های دیگر را در **گروه** نمی‌بیند — فقط **کانال** کار می‌کند.
+| مقدار | رفتار |
+|--------|--------|
+| `both` | SMS/دکمه رسید Vira + تأیید خودکار Mirza (پیش‌فرض) |
+| `receipt_only` | فقط SMS و دکمه «ارسال رسید» |
+| `auto_only` | فقط تأیید خودکار cron |
 
-**HTTP (اختیاری):** `https://YOUR_DOMAIN/payment/card.php`
+تنظیم: پنل → **مرکز مالی** → **حالت cron کارت**
 
-Cron (معمولاً هنگام نصب تنظیم می‌شود):
+### SMS (ViraNaut)
+
+1. **تأیید خودکار SMS** = روشن  
+2. کانال خصوصی + ربات فروش + SMS Forwarder ادمین  
+3. آیدی کانال در پنل → **آیدی کانال SMS**  
+
+Cron (نصب/آپدیت خودکار):
 
 ```bash
-*/1 * * * * curl -s https://YOUR_DOMAIN/cronbot/card_receipt_prompt.php >/dev/null 2>&1
+*/1 * * * * php /var/www/html/viranaut/cronbot/croncard.php
 ```
 
 ---
@@ -139,23 +170,23 @@ Cron (معمولاً هنگام نصب تنظیم می‌شود):
 
 | مشکل | راه‌حل |
 |------|--------|
-| ربات جواب نمی‌دهد | `viranaut` → **7) Diagnose** سپس **8) Auto-fix** |
-| بعد از آپدیت مشکل دارید | بکاپ: `/root/viranaut_backups/viranaut_preupdate_*.zip` |
-| Apache خاموش است | `viranaut` → **4) Start** یا **5) Restart** |
+| ربات جواب نمی‌دهد | `viranaut` → **7) Diagnose** → **8) Auto-fix** |
+| بعد از آپدیت | بکاپ: `/root/viranaut_backups/viranaut_preupdate_*.zip` |
+| migration | `https://YOUR_DOMAIN/panel/migration.php` |
 
 ---
 
 ## English
 
-**One-line setup (Ubuntu, root):**
+**ViraNaut** is an **advanced open-source fork** of the free [Mirza Bot](https://github.com/mahdiMGF2/mirzabot), with a richer web panel, SMS card auto-verify, Mirza 0.2.2 feature parity (lang, Pasarguard, mirza_agent), and selected Pro-style modules (agent web panel MVP).
+
+**One-line install (Ubuntu, root):**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_manage.sh -o /root/ViraNaut_manage.sh && chmod +x /root/ViraNaut_manage.sh && /root/ViraNaut_manage.sh
 ```
 
-Then pick **1) Install** (fresh) or use **2) Update** / **5) Restart** if already installed.
-
-**One-line update (Ubuntu, root):**
+**One-line update:**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_manage.sh -o /root/ViraNaut_manage.sh && chmod +x /root/ViraNaut_manage.sh && /root/ViraNaut_manage.sh update
@@ -163,13 +194,9 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 
 **CLI:** `update` · `restart` · `fix` · `diagnose` · `logs` · `remove`
 
-**Donate (crypto):** see [حمایت مالی](#حمایت-مالی-donate) — USDT (BSC/Polygon), TRX/TRC20, BTC, SOL.
-
 ---
 
 ## حمایت مالی (Donate)
-
-اگر ViraNaut برایتان مفید بوده، می‌توانید از توسعه پروژه حمایت کنید 💎
 
 | شبکه | ارز | آدرس |
 |------|-----|------|
@@ -178,8 +205,6 @@ curl -fsSL https://raw.githubusercontent.com/liamlope/ViraNaut/main/ViraNaut_man
 | **Tron** | TRX / USDT (TRC20) | `TQEW4TP8eGzmJNyzu6kdi4GJdZdNqmTFRL` |
 | **Bitcoin** | BTC | `bc1q5xw4nyqc5s993eukq9udrcpfh8ky6pc0mzlfsn` |
 | **Solana** | SOL | `GfKRLRTrKx7SYJHd76Rc7tVE6WwJKTNoZutSQitfppR6` |
-
-> قبل از واریز، شبکه را دقیق انتخاب کنید — واریز روی شبکه اشتباه قابل بازیابی نیست.
 
 ---
 

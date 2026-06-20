@@ -14,7 +14,7 @@ require_once 'vendor/autoload.php';
 require_once 'panels.php';
 require_once 'viranaut_handlers.php';
 $ManagePanel = new ManagePanel();
-$textbotlang = languagechange('text.json');
+$textbotlang = languagechange();
 if (!isset($update['update_id'])) {
     http_response_code(200);
     exit;
@@ -185,6 +185,14 @@ if ($setting['statusnoteforf'] == "0" && $user['agent'] == "f")
     $statusnote = false;
 $time_Start = jdate('Y/m/d');
 $date_start = jdate('H:i:s', time());
+$lang_array = ['fa', 'en', 'ru', 'zh'];
+if (!empty($user['id']) && !in_array($user['lang'] ?? '', $lang_array, true)) {
+    update('user', 'lang', 'fa', 'id', $from_id);
+    $user['lang'] = 'fa';
+}
+if (!empty($user['id']) && ($user['username'] ?? '') != $username) {
+    update('user', 'username', $username, 'id', $from_id);
+}
 $time_string = "📆 $date_start → ⏰ $time_Start";
 $varable_start = [
     '{username}' => $username,
@@ -1957,11 +1965,8 @@ $textconnect
             }
         }
     }
-    if (intval($user['maxbuyagent']) != 0 and $user['agent'] == "n2") {
-        if (($user['Balance'] - $pricelastextend) < intval("-" . $user['maxbuyagent'])) {
-            sendmessage($from_id, $textbotlang['users']['Balance']['maxpurchasereached'], null, 'HTML');
-            return;
-        }
+    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $pricelastextend, $step_payment, 'getextenduser')) {
+        return;
     }
     if ($nameloc['name_product'] == "سرویس تست") {
         update("invoice", "name_product", $prodcut['name_product'], "id_invoice", $nameloc['id_invoice']);
@@ -2247,11 +2252,8 @@ $textconnect
         $volumepricelast = $volume - $result;
         sendmessage($from_id, sprintf($textbotlang['users']['Discount']['discountapplied'], $user['pricediscount']), null, 'HTML');
     }
-    if (intval($user['maxbuyagent']) != 0 and $user['agent'] == "n2") {
-        if (($user['Balance'] - $volumepricelast) < intval("-" . $user['maxbuyagent'])) {
-            sendmessage($from_id, $textbotlang['users']['Balance']['maxpurchasereached'], null, 'HTML');
-            return;
-        }
+    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $volumepricelast, $step_payment, 'getvolumeuser')) {
+        return;
     }
     $Balance_Low_user = $user['Balance'] - $volumepricelast;
     update("user", "Balance", $Balance_Low_user, "id", $from_id);
@@ -2465,11 +2467,8 @@ $textconnect
         $Pricechange = $Pricechange - $result;
         sendmessage($from_id, sprintf($textbotlang['users']['Discount']['discountapplied'], $user['pricediscount']), null, 'HTML');
     }
-    if (intval($user['maxbuyagent']) != 0 and $user['agent'] == "n2") {
-        if (($user['Balance'] - $Pricechange) < intval("-" . $user['maxbuyagent'])) {
-            sendmessage($from_id, $textbotlang['users']['Balance']['maxpurchasereached'], null, 'HTML');
-            return;
-        }
+    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $Pricechange, $step_payment, 'changelocpay')) {
+        return;
     }
     $keyboardextend = json_encode([
         'inline_keyboard' => [
@@ -2847,11 +2846,8 @@ $textconnect
         sendmessage($from_id, sprintf($textbotlang['users']['Discount']['discountapplied'], $user['pricediscount']), null, 'HTML');
     }
     $Balance_Low_user = $user['Balance'] - $pricelasttime;
-    if (intval($user['maxbuyagent']) != 0 and $user['agent'] == "n2") {
-        if ($Balance_Low_user < intval("-" . $user['maxbuyagent'])) {
-            sendmessage($from_id, $textbotlang['users']['Balance']['maxpurchasereached'], null, 'HTML');
-            return;
-        }
+    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $pricelasttime, $step_payment, 'gettimeuser')) {
+        return;
     }
     update("invoice", "Status", "active", "id_invoice", $nameloc['id_invoice']);
     $extratimeday = $tmieextra / $extratimepricevalue;
@@ -3685,7 +3681,7 @@ https://t.me/$usernamebot?start={$user['codeInvitation']}";
 🗂 اطلاعات حساب کاربری شما :
 
 
-🪪 شناسه کاربری: <code>$from_id</code>
+🪪 آیدی عددی: <code>$from_id</code>
 👤 نام: <code>$first_name</code>
 👨‍👩‍👦 کد معرف شما : <code>{$user['codeInvitation']}</code>
 📱 شماره تماس :$numberphone
@@ -4271,11 +4267,8 @@ $textinvite
         }
         return;
     }
-    if (intval($user['maxbuyagent']) != 0 and $user['agent'] == "n2") {
-        if (intval($user['Balance'] - $priceproduct) < intval("-" . $user['maxbuyagent'])) {
-            sendmessage($from_id, $textbotlang['users']['Balance']['maxpurchasereached'], null, 'HTML');
-            return;
-        }
+    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $priceproduct, $step_payment, 'getconfigafterpay')) {
+        return;
     }
     Editmessagetext($from_id, $message_id, "♻️ در حال ساختن سرویس شما...", null);
     $createStartedAt = microtime(true);
@@ -4876,11 +4869,8 @@ $textonebuy
             return;
         }
     }
-    if (intval($user['maxbuyagent']) != 0 and $user['agent'] == "n2") {
-        if (($user['Balance'] - $priceproduct) < intval("-" . $user['maxbuyagent'])) {
-            sendmessage($from_id, $textbotlang['users']['Balance']['maxpurchasereached'], null, 'HTML');
-            return;
-        }
+    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $priceproduct, $step_payment, 'bulkbuy')) {
+        return;
     }
     $datep = strtotime("+" . $info_product['Service_time'] . "days");
     if ($marzban_list_get['MethodUsername'] == "متن دلخواه + عدد ترتیبی" || $marzban_list_get['MethodUsername'] == "نام کاربری + عدد به ترتیب" || $marzban_list_get['MethodUsername'] == "آیدی عددی+عدد ترتیبی" || $marzban_list_get['MethodUsername'] == "متن دلخواه نماینده + عدد ترتیبی") {
@@ -5823,23 +5813,7 @@ $textonebuy
             ]
         ]);
         $formatprice = number_format($user['Processing_value'], 0);
-        $textnowpayments = "✅ تراکنش شما ایجاد شد
-
-🛒 کد پیگیری: <code>$randomString</code>
-🌐 شبکه: TRX
-💳 آدرس ولت: <code>$affilnecurrency</code>
-💲 مبلغ تراکنش: $trxprice TRX
-
-📌 مبلغ $formatprice تومان را واریز پس از واریز دکمه زیر را  کلیک و رسید را ارسال نمایید
-
-💢 لطفا به این نکات قبل از پرداخت توجه کنید 👇
-
-🔸 در صورت اشتباه وارد کردن آدرس کیف پول، تراکنش تایید نمیشود و بازگشت وجه امکان پذیر نیست
-🔹 مبلغ ارسالی نباید کمتر و یا بیشتر از مبلغ اعلام شده باشد
-🔹 در صورت واریز بیش از مقدار گفته شده، امکان اضافه کردن تفاوت وجه وجود ندارد
-🔹 هر تراکنش یک ساعت معتبر است و بعد از دریافت پیام منقضی شدن تراکنش به هیچ عنوان مبلغی به کیف پول ارسال نکنید
-
-✅ در صورت مشکل میتوانید با پشتیبانی در ارتباط باشید";
+        $textnowpayments = mirza_tron_offline_receipt_message($randomString, $affilnecurrency, $trxprice, $formatprice);
         $gethelp = getPaySettingValue('helpofflinearze');
         if ($gethelp !== null && $gethelp != 2) {
             $data = json_decode($gethelp, true);
@@ -6713,11 +6687,8 @@ $text_porsant
             return;
         }
     }
-    if (intval($user['maxbuyagent']) != 0 and $user['agent'] == "n2") {
-        if (($user['Balance'] - $volume) < intval("-" . $user['maxbuyagent'])) {
-            sendmessage($from_id, $textbotlang['users']['Balance']['maxpurchasereached'], null, 'HTML');
-            return;
-        }
+    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $volume, $step_payment, 'customvolume')) {
+        return;
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value_one'], "select");
     if ($marzban_list_get == false) {
@@ -7419,11 +7390,8 @@ if (isset($update['message']['successful_payment'])) {
             return;
         }
     }
-    if (intval($user['maxbuyagent']) != 0 and $user['agent'] == "n2") {
-        if (($user['Balance'] - $prodcut['price_product']) < intval("-" . $user['maxbuyagent'])) {
-            sendmessage($from_id, $textbotlang['users']['Balance']['maxpurchasereached'], null, 'HTML');
-            return;
-        }
+    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $prodcut['price_product'], $step_payment, 'extendagent')) {
+        return;
     }
     if (intval($user['pricediscount']) != 0) {
         $result = ($prodcut['price_product'] * $user['pricediscount']) / 100;
@@ -7488,8 +7456,50 @@ if (isset($update['message']['successful_payment'])) {
             'parse_mode' => "HTML"
         ]);
     }
+} elseif ($datain == "change_language") {
+    $keyboard_language = json_encode([
+        'inline_keyboard' => [
+            [
+                ['text' => $textbotlang['extracted']['index_php']['langBtnFa'] ?? '🇮🇷 فارسی', 'callback_data' => 'setlang:fa'],
+                ['text' => $textbotlang['extracted']['index_php']['langBtnEn'] ?? '🇬🇧 English', 'callback_data' => 'setlang:en'],
+            ],
+            [
+                ['text' => $textbotlang['extracted']['index_php']['langBtnZh'] ?? '🇨🇳 中文', 'callback_data' => 'setlang:zh'],
+                ['text' => $textbotlang['extracted']['index_php']['langBtnRu'] ?? '🇷🇺 Русский', 'callback_data' => 'setlang:ru'],
+            ],
+            [
+                ['text' => $textbotlang['users']['backbtn'] ?? '🏠 بازگشت', 'callback_data' => 'account']
+            ],
+        ]
+    ]);
+    $text_change_lang = $textbotlang['language']['selectPrompt'] ?? '🌐 زبان خود را انتخاب کنید:';
+    Editmessagetext($from_id, $message_id, $text_change_lang, $keyboard_language);
+} elseif (preg_match('/^setlang:(.*)/', $datain, $dataget)) {
+    $lang = $dataget[1];
+    if (in_array($lang, ['fa', 'en', 'ru', 'zh'], true)) {
+        update('user', 'lang', $lang, 'id', $from_id);
+        $textbotlang = languagechange();
+        mirza_datatextbot_apply_db($datatextbot, $pdo);
+        mirza_datatextbot_ensure_defaults($datatextbot, $textbotlang);
+    }
+    $keyboard_back = json_encode([
+        'inline_keyboard' => [
+            [
+                ['text' => $textbotlang['users']['backbtn'] ?? '🏠 بازگشت', 'callback_data' => 'account']
+            ],
+        ]
+    ]);
+    Editmessagetext($from_id, $message_id, $textbotlang['language']['setSuccess'] ?? '✅ زبان تنظیم شد.', $keyboard_back);
+} elseif (!empty($text) && empty($datain) && ($user['step'] ?? '') === 'home' && !in_array($from_id, $admin_ids)) {
+    if (($setting['unknowncommand_reply'] ?? '1') === '1') {
+        $unknownMsg = trim($datatextbot['text_unknown_command'] ?? '');
+        if ($unknownMsg === '') {
+            $unknownMsg = $textbotlang['users']['unknowncommand'] ?? '❌ این دستور شناخته نشده است. از منوی زیر استفاده کنید.';
+        }
+        sendmessage($from_id, $unknownMsg, $keyboard, 'HTML');
+    }
 }
-if (in_array($from_id, $admin_ids))
+if (in_array($from_id, $admin_ids)) {
     if (!defined('VIRA_BOT_BOOTSTRAP')) {
         define('VIRA_BOT_BOOTSTRAP', true);
         if (!defined('MIRZA_BOT_BOOTSTRAP')) {
@@ -7497,6 +7507,7 @@ if (in_array($from_id, $admin_ids))
         }
     }
     require_once 'admin.php';
+}
 
 $pdo = null;
 if (isset($connect) && $connect instanceof mysqli) {
