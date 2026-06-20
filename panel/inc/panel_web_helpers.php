@@ -12,6 +12,19 @@ function panel_web_default_json_prices(): array
     ];
 }
 
+/** limit_panel: 0 یعنی نامحدود. */
+function panel_web_normalize_limit_value($raw): int
+{
+    $v = trim((string) $raw);
+    if ($v === '' || $v === '-' || mb_strtolower($v) === 'unlimited' || $v === 'نامحدود' || $v === '∞') {
+        return 0;
+    }
+    if (!preg_match('/^\d+$/', $v)) {
+        return 0;
+    }
+    return max(0, (int) $v);
+}
+
 /** اینباند ذخیره‌شده در DB (ستون inbounds یا inboundid) */
 function panel_web_stored_inbounds_raw(array $row): string
 {
@@ -105,7 +118,7 @@ function panel_web_insert_panel(PDO $pdo, string $type, array $data): array
     $codePanel = bin2hex(random_bytes(2));
     $dbType = (string) ($def['db_type'] ?? $type);
     $versionPanel = (string) ($def['version_panel'] ?? '0');
-    $limit = trim((string) ($data['limit_panel'] ?? '0'));
+    $limit = panel_web_normalize_limit_value($data['limit_panel'] ?? '0');
     $agent = trim((string) ($data['agent'] ?? 'all'));
     $user = trim((string) ($data['username_panel'] ?? ''));
     $pass = (string) ($data['password_panel'] ?? '');
@@ -210,7 +223,7 @@ function panel_web_update_panel(PDO $pdo, string $name, array $data): array
     if ($linksubx === '') {
         $linksubx = $url;
     }
-    $limit = trim((string) ($data['limit_panel'] ?? $row['limit_panel'] ?? '0'));
+    $limit = panel_web_normalize_limit_value($data['limit_panel'] ?? ($row['limit_panel'] ?? '0'));
     $agent = trim((string) ($data['agent'] ?? $row['agent'] ?? 'all'));
     $statusRaw = trim((string) ($data['status'] ?? $row['status'] ?? 'active'));
     $statusDb = function_exists('mirza_panel_is_active_status') && mirza_panel_is_active_status($statusRaw) ? 'active' : 'deactive';

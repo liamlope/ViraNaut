@@ -200,10 +200,14 @@
             var val = panel ? (panel[f.key] || '') : (f.default || '');
             if (f.type === 'password' && panel) val = '';
             var inputType = f.type === 'password' ? 'password' : (f.type === 'number' ? 'number' : 'text');
+            if (f.key === 'limit_panel') {
+                inputType = 'text';
+            }
             if (f.type === 'url') inputType = 'url';
             html += '<div class="field' + (f.key === 'name_panel' || f.key === 'url_panel' || f.key === 'linksubx' || f.key === 'xui_api_token' || f.key === 'secret_code' ? ' full' : '') + '">';
             html += '<label>' + f.label + (f.required ? ' *' : '') + '</label>';
-            html += '<input type="' + inputType + '" name="' + f.key + '" class="input"' + dir + req + ' value="' + String(val).replace(/"/g, '&quot;') + '">';
+            html += '<input type="' + inputType + '" name="' + f.key + '" class="input"' + dir + req + ' value="' + String(val).replace(/"/g, '&quot;') + '"'
+                + (f.key === 'limit_panel' ? ' placeholder="0 یا unlimited = نامحدود" inputmode="numeric"' : '') + '>';
             html += '</div>';
         });
         return html;
@@ -291,6 +295,19 @@
                 var ib = p.inbounds || '';
                 if (ib === '' || ib === 'null') ib = p.inboundid ? String(p.inboundid) : '';
                 P.loadPicker('edit_dyn_inbound_picker', null, 'edit_dyn_inbounds', ib, p.name_panel);
+                var editUrlInput = wrap.querySelector('[name="url_panel"]');
+                var editTokenInput = wrap.querySelector('[name="xui_api_token"]');
+                var reloadProbe = function () {
+                    var u = editUrlInput && editUrlInput.value ? editUrlInput.value.trim() : '';
+                    var t = editTokenInput && editTokenInput.value ? editTokenInput.value.trim() : '';
+                    if (!u || !t) return;
+                    P.loadPicker('edit_dyn_inbound_picker', null, 'edit_dyn_inbounds', (document.getElementById('edit_dyn_inbounds') || {}).value || '', p.name_panel, {
+                        required: true,
+                        probe: { url_panel: u, xui_api_token: t }
+                    });
+                };
+                if (editUrlInput) editUrlInput.addEventListener('blur', reloadProbe);
+                if (editTokenInput) editTokenInput.addEventListener('blur', reloadProbe);
             }
         });
         testPanelConnection(p.name_panel, 'edit_conn_status');

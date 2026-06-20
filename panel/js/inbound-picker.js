@@ -118,6 +118,16 @@
         }
         picker.innerHTML = '<span class="cf">در حال بارگذاری…</span>';
         var apiUrl = panelApiBase() + 'api/inbounds_options.php?panel=' + encodeURIComponent(panel);
+        if (opts.probe && typeof opts.probe === 'object') {
+            var probeUrl = (opts.probe.url_panel || '').trim();
+            var probeToken = (opts.probe.xui_api_token || '').trim();
+            if (probeUrl !== '') {
+                apiUrl += '&probe_url=' + encodeURIComponent(probeUrl);
+            }
+            if (probeToken !== '') {
+                apiUrl += '&probe_token=' + encodeURIComponent(probeToken);
+            }
+        }
         fetch(apiUrl, { credentials: 'same-origin' })
             .then(function (r) {
                 if (!r.ok) {
