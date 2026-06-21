@@ -207,7 +207,7 @@ if ($adminrulecheck['rule'] == "Seller") {
     $keyboardadmin = json_encode([
         'keyboard' => [
             [['text' => $textbotlang['Admin']['Status']['btn']]],
-            [['text' => $textbotlang['Admin']['btnkeyboardadmin']['managruser'] ?? '👤 مدیریت کاربر']],
+            [['text' => "👤 مدیریت کاربر"]],
             [['text' => $textbotlang['users']['backbtn']]]
         ],
         'resize_keyboard' => true
@@ -576,14 +576,6 @@ if ($table_exists) {
         ['text' => $textbotlang['Admin']['backmenu']]
     ];
     $list_card_remove = json_encode($list_card_remove);
-}
-if (!isset($list_card_remove)) {
-    $list_card_remove = json_encode([
-        'keyboard' => [
-            [['text' => $textbotlang['Admin']['backadmin']], ['text' => $textbotlang['Admin']['backmenu']]]
-        ],
-        'resize_keyboard' => true,
-    ]);
 }
 //------------------  [ help list ]----------------//
 $stmt = $pdo->prepare("SHOW TABLES LIKE 'help'");

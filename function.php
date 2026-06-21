@@ -3817,36 +3817,6 @@ function mirza_admin_user_flow_step(string $step): bool
     return in_array(trim($step), $steps, true);
 }
 
-function mirza_admin_is_panel_command(?string $text, array $textbotlang): bool
-{
-    $text = trim((string) $text);
-    if ($text === '') {
-        return false;
-    }
-    $panelCommands = [
-        'panel', '/panel',
-        (string) ($textbotlang['Admin']['textpaneladmin'] ?? ''),
-        (string) ($textbotlang['Admin']['backadmin'] ?? ''),
-        (string) ($textbotlang['Admin']['backmenu'] ?? ''),
-    ];
-    return in_array($text, array_filter($panelCommands), true);
-}
-
-function mirza_user_status_label(array $textbotlang, $status): string
-{
-    $status = (string) ($status ?? 'Unknown');
-    $labels = [
-        'active' => $textbotlang['users']['stateus']['active'] ?? 'active',
-        'limited' => $textbotlang['users']['stateus']['limited'] ?? 'limited',
-        'disabled' => $textbotlang['users']['stateus']['disabled'] ?? 'disabled',
-        'expired' => $textbotlang['users']['stateus']['expired'] ?? 'expired',
-        'on_hold' => $textbotlang['users']['stateus']['on_hold'] ?? 'on_hold',
-        'Unknown' => $textbotlang['users']['stateus']['Unknown'] ?? 'Unknown',
-        'deactivev' => $textbotlang['users']['stateus']['disabled'] ?? 'disabled',
-    ];
-    return $labels[$status] ?? ($textbotlang['users']['stateus']['Unknown'] ?? $status);
-}
-
 function mirza_admin_run_exclusive(string $step): bool
 {
     $step = trim($step);

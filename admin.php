@@ -57,7 +57,6 @@ if (in_array($text, $textadmin) || $datain == "admin") {
         ]);
         sendmessage($from_id, $miniAppInstructionText, $miniAppInstructionKeyboard, 'HTML');
     }
-    return;
 } elseif ($text == $textbotlang['Admin']['backadmin']) {
     if ($buyreport == "0" || $otherservice == "0" || $otherreport == "0" || $paymentreports == "0" || $reporttest == "0" || $errorreport == "0") {
         sendmessage($from_id, $textbotlang['Admin']['activebottext'], $active_panell, 'HTML');
@@ -316,28 +315,14 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     sendmessage($from_id, $textbotlang['Admin']['manageadmin']['addadminset'], $keyboardadmin, 'HTML');
     sendmessage($user['Processing_value'], $textbotlang['Admin']['manageadmin']['adminedsenduser'], null, 'HTML');
     step('home', $from_id);
-    $newAdminId = (string) $user['Processing_value'];
-    $existingAdmin = select("admin", "*", "id_admin", $newAdminId, "select");
-    if (is_array($existingAdmin) && !empty($existingAdmin['id_admin'])) {
-        update("admin", "rule", $text, "id_admin", $newAdminId);
-    } else {
-        $usernamepanel = "root";
-        $randomString = bin2hex(random_bytes(5));
-        $stmt = $pdo->prepare("INSERT INTO admin (id_admin, username, password, rule) VALUES (:id_admin, :username, :password, :rule)");
-        $stmt->bindParam(':id_admin', $newAdminId, PDO::PARAM_STR);
-        $stmt->bindParam(':username', $usernamepanel, PDO::PARAM_STR);
-        $stmt->bindParam(':password', $randomString, PDO::PARAM_STR);
-        $stmt->bindParam(':rule', $text, PDO::PARAM_STR);
-        try {
-            $stmt->execute();
-        } catch (PDOException $e) {
-            if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
-                update("admin", "rule", $text, "id_admin", $newAdminId);
-            } else {
-                throw $e;
-            }
-        }
-    }
+    $usernamepanel = "root";
+    $randomString = bin2hex(random_bytes(5));
+    $stmt = $pdo->prepare("INSERT INTO admin (id_admin, username, password, rule) VALUES (:id_admin, :username, :password, :rule)");
+    $stmt->bindParam(':id_admin', $user['Processing_value'], PDO::PARAM_STR);
+    $stmt->bindParam(':username', $usernamepanel, PDO::PARAM_STR);
+    $stmt->bindParam(':password', $randomString, PDO::PARAM_STR);
+    $stmt->bindParam(':rule', $text, PDO::PARAM_STR);
+    $stmt->execute();
     $text_report = sprintf($textbotlang['Admin']['reportgroup']['adminadded'], $username, $from_id, $text, $user['Processing_value']);
     if (strlen($setting['Channel_Report']) > 0) {
         telegram('sendmessage', [
@@ -514,8 +499,8 @@ $paycount
     $stmt = $pdo->prepare($sql);
     $stmt->execute();
     $change_location_stat = $stmt->fetch(PDO::FETCH_ASSOC);
-    $count_change_location = $change_location_stat['count'];
-    $sum_change_location = number_format($change_location_stat['sum'], 0);
+    $count_change_location = $extra_time_stat['count'];
+    $sum_change_location = number_format($extra_time_stat['sum'], 0);
     $stmt = $pdo->prepare("SELECT * FROM user WHERE  (register BETWEEN :requestedDate AND :requestedDateend)  AND register != 'none'");
     $stmt->bindParam(':requestedDate', $desired_date_time_start);
     $stmt->bindParam(':requestedDateend', $time_current);
@@ -2087,6 +2072,16 @@ username : نام کاربری کانفیگ
     sendmessage($from_id, $textbotlang['Admin']['ManageUser']['SaveText'], $textbot, 'HTML');
     update("textbot", "text", $text, "id_text", "crontest");
     step('home', $from_id);
+} elseif ($text == "متن بعد گرفتن اکانت دستی" && $adminrulecheck['rule'] == "administrator") {
+    sendmessage($from_id, $textbotlang['Admin']['ManageUser']['ChangeTextGet'] . "<code>{$datatextbot['textmanual']}</code>", $backadmin, 'HTML');
+    sendmessage($from_id, "نام های فارسی متغییر : 
+username : نام کاربری کانفیگ 
+name_service : نام محصول
+location : موقعیت سرویس
+config : اطلاعات سرویس
+
+⚠️ حتما این نام ها باید داخل آکلاد باشند ", null, 'HTML');
+    step('text_textmanual', $from_id);
 } elseif ($user['step'] == "text_textmanual") {
     if (!$text) {
         sendmessage($from_id, $textbotlang['Admin']['ManageUser']['ErrorText'], $textbot, 'HTML');
@@ -3279,34 +3274,21 @@ $caption";
     sendmessage($from_id, $textreports, $backadmin, 'HTML');
     step('addchannelid', $from_id);
 } elseif ($user['step'] == "addchannelid") {
-    $groupChatId = trim((string) $text);
-    if (!preg_match('/^-100\d{5,20}$/', $groupChatId)) {
-        sendmessage($from_id, "❌ آیدی گروه نامعتبر است. باید با -100 شروع شود (مثال: -1001234567890).", $backadmin, 'HTML');
-        return;
-    }
-    $testMessage = trim((string) ($textbotlang['Admin']['Channel']['testChannel'] ?? $textbotlang['Admin']['Channel']['TestChannel'] ?? 'تست اتصال گروه'));
-    if ($testMessage === '') {
-        $testMessage = 'تست اتصال گروه';
-    }
-    $outputcheck = sendmessage($groupChatId, $testMessage, null, 'HTML');
-    if (empty($outputcheck['ok'])) {
-        $apiError = function_exists('mirza_telegram_error_description')
-            ? mirza_telegram_error_description($outputcheck)
-            : (string) ($outputcheck['description'] ?? 'Unknown error');
+    $outputcheck = sendmessage($text, $textbotlang['Admin']['Channel']['TestChannel'], null, 'HTML');
+    if (!$outputcheck['ok']) {
         $texterror = "❌ اتصال به گروه با موفقیت انجام نشد  
 
-خطای دریافتی: {$apiError}";
-        sendmessage($from_id, $texterror, $backadmin, 'HTML');
+خطای دریافتی :  {$outputcheck['description']}";
+        sendmessage($from_id, $texterror, null, 'HTML');
         return;
     }
-    $isForum = (bool) ($outputcheck['result']['chat']['is_forum'] ?? false);
-    if (!$isForum) {
+    if ($outputcheck['result']['chat']['is_forum'] == false) {
         $texterror = "❌ گروه انتخاب شده درحالت انجمن نیست ابتدا قابلیت تاپیک گروه را روشن کرده سپس آیدی عددی گروه را مجددا تنظیم نمایید";
         sendmessage($from_id, $texterror, null, 'HTML');
         return;
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $groupChatId,
+        'chat_id' => $text,
         'name' => "🛍 گزارش های خرید"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3318,7 +3300,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "buyreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $groupChatId,
+        'chat_id' => $text,
         'name' => "📌 گزارش خرید خدمات"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3330,7 +3312,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "otherservice");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $groupChatId,
+        'chat_id' => $text,
         'name' => "🔑 گزارش اکانت تست"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3342,7 +3324,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "reporttest");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $groupChatId,
+        'chat_id' => $text,
         'name' => "⚙️ سایر گزارشات"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3354,7 +3336,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "otherreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $groupChatId,
+        'chat_id' => $text,
         'name' => "❌ گزارش خطا ها"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3366,7 +3348,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "errorreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $groupChatId,
+        'chat_id' => $text,
         'name' => "💰 گزارش مالی"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3379,7 +3361,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "paymentreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $groupChatId,
+        'chat_id' => $text,
         'name' => $textbotlang['Admin']['affiliates']['titletopic']
     ]);
     if (!$createForumTopic['ok']) {
@@ -3392,7 +3374,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "porsantreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $groupChatId,
+        'chat_id' => $text,
         'name' => $textbotlang['Admin']['report']['reportnight']
     ]);
     if (!$createForumTopic['ok']) {
@@ -3405,7 +3387,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "reportnight");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $groupChatId,
+        'chat_id' => $text,
         'name' => $textbotlang['Admin']['report']['reportcron']
     ]);
     if (!$createForumTopic['ok']) {
@@ -3418,7 +3400,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "reportcron");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $groupChatId,
+        'chat_id' => $text,
         'name' => "🤖 بکاپ ربات "
     ]);
     if (!$createForumTopic['ok']) {
@@ -3431,7 +3413,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "backupfile");
     }
     sendmessage($from_id, $textbotlang['Admin']['Channel']['SetChannelReport'], $setting_panel, 'HTML');
-    update("setting", "Channel_Report", $groupChatId);
+    update("setting", "Channel_Report", $text);
     step('home', $from_id);
 } elseif ($text == "🏬 تنظیمات فروشگاه" && $adminrulecheck['rule'] == "administrator") {
     sendmessage($from_id, $textbotlang['users']['selectoption'], $shopkeyboard, 'HTML');
@@ -6156,8 +6138,7 @@ $iduser  در ربات  رفع مسدود گردید
     update("affiliates", "price_Discount", $text);
     step('home', $from_id);
 } elseif ($datain == "mainbalanceaccount" && $adminrulecheck['rule'] == "administrator") {
-    $minBalanceRow = select("PaySetting", "ValuePay", "NamePay", "minbalance", "select");
-    $PaySetting = json_decode(is_array($minBalanceRow) ? ($minBalanceRow['ValuePay'] ?? '{}') : '{}', true);
+    $PaySetting = json_decode(select("PaySetting", "ValuePay", "NamePay", "minbalance", "select")[$user['agent']], true);
     $textmin = "📌 حداقل مبلغی که می خواهید کاربر حساب خود را شارژ کند را تعیین کنید";
     sendmessage($from_id, $textmin, $backadmin, 'HTML');
     step('minbalance', $from_id);
@@ -6291,20 +6272,14 @@ n2", $backadmin, 'HTML');
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
         $stmt->bindParam(':notes', $usernameconfig, PDO::PARAM_STR);
-    } elseif (!empty($text) && isset($text[0]) && $text[0] === "/") {
-        $cmdParts = preg_split('/\s+/', trim($text), 2);
-        $usernameconfig = trim($cmdParts[1] ?? '');
-        if ($usernameconfig === '') {
-            sendmessage($from_id, $textbotlang['Admin']['order']['vieworderusername'] ?? '❌ نام کاربری را وارد کنید.', $backadmin, 'HTML');
-            return;
-        }
+    } elseif ($text[0] == "/") {
+        $usernameconfig = explode(" ", $text)[1];
         $sql = "SELECT * FROM invoice WHERE username LIKE CONCAT('%', :username, '%') OR note  LIKE CONCAT('%', :notes, '%')";
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
         $stmt->bindParam(':notes', $usernameconfig, PDO::PARAM_STR);
     } else {
-        $invoiceRow = select("invoice", "*", "id_invoice", $datagetr[1] ?? '', "select");
-        $usernameconfig = is_array($invoiceRow) ? (string) ($invoiceRow['username'] ?? '') : '';
+        $usernameconfig = select("invoice", "*", "id_invoice", $datagetr[1], "select")['username'];
         $sql = "SELECT * FROM invoice WHERE username = :username OR note  = :notes";
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
@@ -7083,7 +7058,8 @@ n2", $backadmin, 'HTML');
     sendmessage($from_id, $textbotlang['Admin']['cronjob']['changeddata'], $setting_panel, 'HTML');
     step("home", $from_id);
     update("setting", "on_hold_day", $text);
-} elseif ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator") {
+}
+if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator") {
     sendmessage($from_id, $textbotlang['Admin']['cronjob']['setdayremove'] . $setting['removedayc'] . "روز", $backadmin, 'HTML');
     step("getdaycron", $from_id);
 } elseif ($user['step'] == "getdaycron") {
@@ -10023,37 +9999,37 @@ elseif ($text == "🫣 مخفی کردن پنل برای یک کاربر" && $ad
     $list_payment = $stmt->fetchAll();
     $list_payment_count = $stmt->rowCount();
     if ($list_payment_count == 0) {
-        sendmessage($from_id, "❌ هیچ پرداخت تایید نشده ای ندارید.", null, 'HTML');
+        sendmessage($from_id, "❌ هیچ پرداخت تایید نشده ای ندارید.", $list_payment, 'HTML');
         return;
     }
     $list_pay = ['inline_keyboard' => []];
     foreach ($list_payment as $payment) {
-        $list_pay['inline_keyboard'][] = [
+        $list_payment['inline_keyboard'][] = [
             ['text' => $payment['id_user'], 'callback_data' => "checkpay"]
         ];
-        $list_pay['inline_keyboard'][] = [
+        $list_payment['inline_keyboard'][] = [
             ['text' => "✅", 'callback_data' => "Confirm_pay_{$payment['id_order']}"],
             ['text' => "❌", 'callback_data' => "reject_pay_{$payment['id_order']}"],
             ['text' => "📝", 'callback_data' => "showinfopay_{$payment['id_order']}"],
             ['text' => "🗑", 'callback_data' => "removeresid_{$payment['id_order']}"],
         ];
-        $list_pay['inline_keyboard'][] = [
+        $list_payment['inline_keyboard'][] = [
             ['text' => "💸💸💸💸💸💸💸💸💸", 'callback_data' => "checkpay"]
         ];
     }
-    $list_pay['inline_keyboard'][] = [
+    $list_payment['inline_keyboard'][] = [
         ['text' => "❌ حذف همه رسید ها", 'callback_data' => "removeresid"]
     ];
-    $list_payment_markup = json_encode($list_pay);
+    $list_payment = json_encode($list_payment);
     sendmessage($from_id, "📌 پرداخت های تایید نشده کارت به کارت 
 در این بخش میتوانید پرداخت های تایید نشده مشاهده و تایید یا رد نمایید.
 ❌ : رد کردن پرداخت 
 ✅ : تایید پرداخت
 📝 مشخصات پرداخت
-🗑 : حذف رسید بدون اطلاع کاربر", $list_payment_markup, 'HTML');
+🗑 : حذف رسید بدون اطلاع کاربر", $list_payment, 'HTML');
 } elseif ($datain == "removeresid") {
     deletemessage($from_id, $message_id);
-    sendmessage($from_id, "✅  تمامی رسید ها با موفقیت حذف شدند ", null, 'HTML');
+    sendmessage($from_id, "✅  تمامی رسید ها با موفقیت حذف شدند ", $list_payment, 'HTML');
     $sql = "UPDATE Payment_report SET payment_Status = 'reject',dec_not_confirmed = 'remove_all' WHERE Payment_Method = 'cart to cart' AND payment_Status = 'waiting'";
     $stmt = $pdo->prepare($sql);
     $stmt->execute();
@@ -10172,14 +10148,9 @@ elseif ($text == "🫣 مخفی کردن پنل برای یک کاربر" && $ad
     $stmt->execute();
     sendmessage($from_id, "✅محصول بروزرسانی شد", $shopkeyboard, 'HTML');
     step('home', $from_id);
-} elseif (preg_match('/extendadmin_(\w+)/', $datain, $dataget) || strpos((string) $text, "/extend ") !== false) {
-    if (!empty($text) && isset($text[0]) && $text[0] === "/") {
-        $cmdParts = preg_split('/\s+/', trim($text), 2);
-        $usernameconfig = trim($cmdParts[1] ?? '');
-        if ($usernameconfig === '') {
-            sendmessage($from_id, "❌ نام کاربری را وارد کنید.", null, 'HTML');
-            return;
-        }
+} elseif (preg_match('/extendadmin_(\w+)/', $datain, $dataget) || strpos($text, "/extend ") !== false) {
+    if ($text[0] == "/") {
+        $usernameconfig = explode(" ", $text)[1];
         $id_invoice = select("invoice", "id_invoice", "username", $usernameconfig, 'select');
         if ($id_invoice == false) {
             sendmessage($from_id, "❌ کاربر وجو ندارد.", null, 'HTML');
@@ -10809,7 +10780,8 @@ if (isset($update["inline_query"])) {
     $botinfo['minpricetime'] = $text;
     update("botsaz", "setting", json_encode($botinfo), "id_user", $userdate['id_user']);
     sendmessage($from_id, "✅ قیمت با موفقیت ذخیره گردید.", $keyboardadmin, 'HTML');
-} elseif ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
+}
+if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
     sendmessage($from_id, "📌 در این بخش می توانید تعیین کنید چند روز مانده است به پایان اشتراک به کاربر اطلاع داده شود. زمان برحسب روز است" . $setting['daywarn'] . "روز", $backadmin, 'HTML');
     step("getdaywarn", $from_id);
 } elseif ($user['step'] == "getdaywarn") {
