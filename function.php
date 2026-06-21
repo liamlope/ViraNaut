@@ -987,9 +987,16 @@ function mirza_card_sms_invoice_expected_rial(int $priceToman): int
     return $priceToman * 10;
 }
 
+function mirza_card_sms_normalize_whitespace(string $text): string
+{
+    $text = preg_replace('/[\x{200C}\x{200B}\x{00A0}\x{202F}\x{FEFF}]/u', ' ', $text);
+    return preg_replace('/[ \t]+/u', ' ', $text);
+}
+
 function mirza_card_sms_clean_text(string $smsText): string
 {
     $smsText = mirza_card_sms_normalize_digits($smsText);
+    $smsText = mirza_card_sms_normalize_whitespace($smsText);
     $lines = [];
     foreach (preg_split('/\R/u', $smsText) as $line) {
         $stripped = trim($line);
@@ -1006,6 +1013,15 @@ function mirza_card_sms_clean_text(string $smsText): string
             continue;
         }
         if (preg_match('/^\+\d{10,}\s*$/u', $stripped)) {
+            continue;
+        }
+        if (preg_match('/^\d{1,2}:\d{2}\s*$/u', $stripped)) {
+            continue;
+        }
+        if (preg_match('/^\d{4}[./]\d{1,2}[./]\d{1,2}\s*$/u', $stripped)) {
+            continue;
+        }
+        if (preg_match('/^واریز\s*پول\s*$/u', $stripped)) {
             continue;
         }
         $lines[] = $stripped;
@@ -1049,12 +1065,14 @@ function mirza_card_sms_parse_blu_amount(string $text): ?int
     $patterns = [
         '/(\d[\d,،٬]+)\s*ریال\s*به\s*حساب\s*شما\s*نشست/u',
         '/(\d[\d,،٬]+)\s*ريال\s*به\s*حساب\s*شما\s*نشست/u',
+        '/(\d[\d,،٬]+)\s*ریال[^.\n]{0,80}?نشست/u',
+        '/(\d[\d,،٬]+)\s*ريال[^.\n]{0,80}?نشست/u',
     ];
     foreach (preg_split('/\R/u', $text) as $line) {
-        if (!preg_match('/نشست/u', $line) || !preg_match('/به\s*حساب/u', $line)) {
+        if (!preg_match('/نشست/u', $line)) {
             continue;
         }
-        if (preg_match('/موجودی/u', $line)) {
+        if (preg_match('/موجودی/u', $line) && !preg_match('/به\s*حساب/u', $line)) {
             continue;
         }
         foreach ($patterns as $pattern) {
@@ -1064,6 +1082,12 @@ function mirza_card_sms_parse_blu_amount(string $text): ?int
                     return $rial;
                 }
             }
+        }
+    }
+    if (preg_match('/(\d[\d,،٬]+)\s*ریال[^.\n]{0,120}?به\s*حساب[^.\n]{0,40}?نشست/u', $text, $m)) {
+        $rial = mirza_card_sms_amount_string_to_rial($m[1]);
+        if ($rial > 0) {
+            return $rial;
         }
     }
     return null;
@@ -1273,6 +1297,8 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
 
     $parsed = mirza_card_sms_parse_from_text($smsText, $bankCode);
     if ($parsed === null) {
+        $snippet = mb_substr(mirza_card_sms_clean_text($smsText), 0, 280);
+        error_log('[card-sms] parse_failed snippet=' . $snippet);
         return ['ok' => false, 'reason' => 'parse_failed'];
     }
 
@@ -1282,11 +1308,12 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
     $orderId = null;
     try {
         $pdo->beginTransaction();
+        $decSql = mirza_card_sms_match_dec_sql_clause();
         $matchStmt = $pdo->prepare(
             "SELECT id_order FROM Payment_report
              WHERE Payment_Method = 'cart to cart'
                AND payment_Status = 'Unpaid'
-               AND (dec_not_confirmed = 'sms_auto' OR dec_not_confirmed LIKE 'sms_auto:%')
+               AND {$decSql}
                AND (CAST(price AS UNSIGNED) * 10) = :rial
              ORDER BY time ASC, id_order ASC
              LIMIT 1
@@ -1347,6 +1374,8 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
     }
 
     if (!DirectPayment($orderId, __DIR__ . '/images.jpg', true)) {
+        mirza_payment_revert_claim($orderId);
+        error_log('[card-sms] process_failed order=' . $orderId);
         return ['ok' => false, 'reason' => 'process_failed', 'order_id' => $orderId];
     }
 
@@ -1486,13 +1515,29 @@ function mirza_card_is_sms_auto_pending(?string $dec): bool
     return $dec === 'sms_auto' || str_starts_with($dec, 'sms_auto:');
 }
 
+/** SQL: فاکتورهای قابل تطبیق SMS (مارکر sms_auto یا فاکتور legacy بدون dec) */
+function mirza_card_sms_match_dec_sql_clause(): string
+{
+    return "(dec_not_confirmed = 'sms_auto'
+        OR dec_not_confirmed LIKE 'sms_auto:%'
+        OR dec_not_confirmed = ''
+        OR dec_not_confirmed IS NULL)";
+}
+
 /** آیا این فاکتور هنوز واجد تأیید خودکار SMS است؟ (بعد از نمایش دکمه رسید = فقط ادمین) */
 function mirza_card_sms_may_auto_approve(array $row): bool
 {
     if ((string) ($row['payment_Status'] ?? '') !== 'Unpaid') {
         return false;
     }
-    return mirza_card_is_sms_auto_pending($row['dec_not_confirmed'] ?? '');
+    $dec = trim((string) ($row['dec_not_confirmed'] ?? ''));
+    if (in_array($dec, ['receipt_submitted', 'sms_auto_confirmed', 'receipt_ready'], true)) {
+        return false;
+    }
+    if (mirza_card_is_sms_auto_pending($dec)) {
+        return true;
+    }
+    return mirza_card_sms_autoconfirm_enabled() && $dec === '';
 }
 
 function mirza_card_sms_auto_receipt_due(?string $dec, array $row): bool
@@ -1504,27 +1549,53 @@ function mirza_card_sms_auto_receipt_due(?string $dec, array $row): bool
             return time() >= $due;
         }
     }
-    if (!mirza_card_is_sms_auto_pending($dec)) {
-        return false;
+    if ($dec === 'sms_auto') {
+        $ts = mirza_parse_payment_report_time($row['time'] ?? null)
+            ?? mirza_parse_payment_report_time($row['at_updated'] ?? null);
+        if ($ts === null) {
+            return true;
+        }
+        return $ts <= time() - mirza_card_autoconfirm_receipt_delay_sec();
     }
-    $ts = mirza_parse_payment_report_time($row['time'] ?? null)
-        ?? mirza_parse_payment_report_time($row['at_updated'] ?? null);
-    if ($ts === null) {
-        return false;
+    if ($dec === '' && mirza_card_sms_autoconfirm_enabled()) {
+        $ts = mirza_parse_payment_report_time($row['time'] ?? null)
+            ?? mirza_parse_payment_report_time($row['at_updated'] ?? null);
+        if ($ts === null) {
+            return false;
+        }
+        return $ts <= time() - mirza_card_autoconfirm_receipt_delay_sec();
     }
-    return $ts <= time() - mirza_card_autoconfirm_receipt_delay_sec();
+    return false;
 }
 
 function mirza_card_receipt_prompt_sql_pending(): string
 {
-    return "(dec_not_confirmed = 'sms_auto' OR dec_not_confirmed LIKE 'sms_auto:%')";
+    return "(dec_not_confirmed = 'sms_auto'
+        OR dec_not_confirmed LIKE 'sms_auto:%'
+        OR dec_not_confirmed = '')";
 }
 
 /** فاکتورهایی که زمان تأخیر دکمه رسیدشان رسیده (برای cron) */
 function mirza_card_receipt_prompt_sql_due(): string
 {
     $now = time();
-    return "(dec_not_confirmed = 'sms_auto' OR (dec_not_confirmed LIKE 'sms_auto:%' AND CAST(SUBSTRING(dec_not_confirmed, 10) AS UNSIGNED) <= {$now}))";
+    $cutoff = date('Y/m/d H:i:s', $now - mirza_card_autoconfirm_receipt_delay_sec());
+    return "(dec_not_confirmed = 'sms_auto'
+        OR (dec_not_confirmed LIKE 'sms_auto:%' AND CAST(SUBSTRING(dec_not_confirmed, 10) AS UNSIGNED) <= {$now})
+        OR (dec_not_confirmed = '' AND time <= '{$cutoff}'))";
+}
+
+/** آیا این فاکتور هنوز در فاز «فقط SMS» است (قبل از دکمه رسید)؟ */
+function mirza_card_receipt_awaiting_sms_window(array $row): bool
+{
+    $dec = trim((string) ($row['dec_not_confirmed'] ?? ''));
+    if (in_array($dec, ['receipt_ready', 'receipt_submitted', 'sms_auto_confirmed'], true)) {
+        return false;
+    }
+    if (mirza_card_is_sms_auto_pending($dec)) {
+        return true;
+    }
+    return mirza_card_sms_autoconfirm_enabled() && $dec === '';
 }
 
 /** پیام یادآور ارسال رسید دستی (بعد از تأخیر SMS) */
@@ -1678,7 +1749,7 @@ function mirza_card_payment_receipt_due(array $row): bool
 /** دکمه «ارسال رسید» را روی پیام فاکتور می‌گذارد (یا پیام یادآور) */
 function mirza_card_receipt_prompt_apply_row(array $row): bool
 {
-    if (!mirza_card_is_sms_auto_pending($row['dec_not_confirmed'] ?? '')) {
+    if (!mirza_card_receipt_awaiting_sms_window($row)) {
         return false;
     }
     $status = (string) ($row['payment_Status'] ?? '');
@@ -1699,36 +1770,22 @@ function mirza_card_receipt_prompt_apply_row(array $row): bool
     if (!isset($setting) || !is_array($setting)) {
         $setting = select('setting', '*');
     }
-    $showCopy = (($setting['statuscopycart'] ?? '0') == '1');
-    $cardNumber = '';
+    $orderId = (string) ($row['id_order'] ?? '');
     $priceCopy = (string) ((int) ($row['price'] ?? 0)) . '0';
-    if ($showCopy && isset($connect)) {
-        $cardQuery = mysqli_query($connect, 'SELECT cardnumber FROM card_number ORDER BY RAND() LIMIT 1');
-        if ($cardQuery) {
-            $cardRow = mysqli_fetch_assoc($cardQuery);
-            $cardNumber = (string) ($cardRow['cardnumber'] ?? '');
-            mysqli_free_result($cardQuery);
-        }
-    }
 
-    $keyboard = mirza_card_payment_inline_keyboard(
-        (string) $row['id_order'],
-        $cardNumber,
-        $priceCopy,
-        true,
-        $showCopy && $cardNumber !== ''
-    );
-    if ($keyboard === null) {
+    // فقط دکمه رسید — copy_text در editMessageReplyMarkup گاهی خطا می‌دهد
+    $keyboardReceipt = mirza_card_payment_inline_keyboard($orderId, '', $priceCopy, true, false);
+    if ($keyboardReceipt === null) {
         return false;
     }
 
-    $orderId = (string) ($row['id_order'] ?? '');
     $applied = false;
+
     if ($msgId > 0) {
         $response = telegram('editMessageReplyMarkup', [
             'chat_id' => $chatId,
             'message_id' => $msgId,
-            'reply_markup' => $keyboard,
+            'reply_markup' => $keyboardReceipt,
         ]);
         if (!empty($response['ok'])) {
             $applied = true;
@@ -1742,18 +1799,17 @@ function mirza_card_receipt_prompt_apply_row(array $row): bool
         }
     }
 
-    if (!$applied) {
-        $fallback = sendmessage(
-            $chatId,
-            mirza_card_receipt_fallback_user_message(),
-            $keyboard,
-            'HTML'
-        );
-        if (!empty($fallback['ok'])) {
-            $applied = true;
-        } else {
-            error_log('[card-receipt-prompt] fallback failed order=' . $orderId . ' ' . json_encode($fallback, JSON_UNESCAPED_UNICODE));
-        }
+    // همیشه پیام یادآور با دکمه — کاربر حتی بدون cron/interaction متوجه می‌شود
+    $notify = sendmessage(
+        $chatId,
+        mirza_card_receipt_fallback_user_message(),
+        $keyboardReceipt,
+        'HTML'
+    );
+    if (!empty($notify['ok'])) {
+        $applied = true;
+    } elseif (!$applied) {
+        error_log('[card-receipt-prompt] notify failed order=' . $orderId . ' ' . json_encode($notify, JSON_UNESCAPED_UNICODE));
     }
 
     if ($applied) {
@@ -2329,6 +2385,21 @@ function mirza_payment_try_claim(string $orderId): bool
     );
     $stmt->execute([':oid' => $orderId]);
     return $stmt->rowCount() > 0;
+}
+
+/** برگرداندن claim ناموفق DirectPayment به Unpaid */
+function mirza_payment_revert_claim(string $orderId): void
+{
+    global $pdo;
+    if ($orderId === '') {
+        return;
+    }
+    $stmt = $pdo->prepare(
+        "UPDATE Payment_report SET payment_Status = 'Unpaid'
+         WHERE id_order = :oid AND payment_Status = 'paid'"
+    );
+    $stmt->execute([':oid' => $orderId]);
+    clearSelectCache('Payment_report');
 }
 
 function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = false): bool
