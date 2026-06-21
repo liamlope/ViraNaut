@@ -622,10 +622,15 @@ function step($step, $from_id, array $options = [])
 {
     global $pdo;
 
-    if ($step === 'home' && empty($options['skip_card_cancel'])) {
+    if (empty($options['skip_card_cancel'])) {
         $prev = select('user', 'step', 'id', $from_id, 'select');
         $prevStep = is_array($prev) ? (string) ($prev['step'] ?? '') : '';
-        if ($prevStep === 'get_step_payment') {
+        $paymentSteps = mirza_card_payment_flow_steps();
+        $leavingPayment = in_array($prevStep, $paymentSteps, true)
+            && !in_array($step, $paymentSteps, true);
+        $goingHomeWithPending = in_array($step, ['home', 'none'], true)
+            && mirza_card_user_has_pending((string) $from_id);
+        if ($leavingPayment || $goingHomeWithPending) {
             mirza_card_cancel_unpaid_invoices((string) $from_id);
         }
     }
@@ -1018,7 +1023,7 @@ function mirza_card_sms_clean_text(string $smsText): string
         if (preg_match('/^\d{1,2}:\d{2}\s*$/u', $stripped)) {
             continue;
         }
-        if (preg_match('/^\d{4}[./]\d{1,2}[./]\d{1,2}\s*$/u', $stripped)) {
+        if (preg_match('#^\d{4}[./]\d{1,2}[./]\d{1,2}\s*$#u', $stripped)) {
             continue;
         }
         if (preg_match('/^واریز\s*پول\s*$/u', $stripped)) {
@@ -1928,7 +1933,36 @@ function mirza_card_receipt_prompt_run(): void
 /** مراحل جریان پرداخت که با خروج کاربر باید فاکتور کارت لغو شود */
 function mirza_card_payment_flow_steps(): array
 {
-    return ['get_step_payment', 'cart_to_cart_user'];
+    return ['get_step_payment', 'card_invoice_pending', 'cart_to_cart_user'];
+}
+
+/** آیا کاربر فاکتور کارت Unpaid یا waiting دارد؟ */
+function mirza_card_user_has_pending(string $userId): bool
+{
+    global $pdo;
+
+    if ($userId === '' || $userId === '0') {
+        return false;
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT 1 FROM Payment_report
+         WHERE id_user = :uid
+           AND Payment_Method = 'cart to cart'
+           AND payment_Status IN ('Unpaid', 'waiting')
+         LIMIT 1"
+    );
+    $stmt->bindValue(':uid', $userId, PDO::PARAM_STR);
+    $stmt->execute();
+
+    return (bool) $stmt->fetchColumn();
+}
+
+/** قبل از ساخت فاکتور جدید — همهٔ فاکتورهای باز کاربر لغو می‌شود */
+function mirza_card_prepare_new_invoice(string $userId): void
+{
+    mirza_card_cancel_unpaid_invoices($userId, false, 'replaced_by_new');
+    mirza_card_expire_abandoned_unpaid();
 }
 
 /** callback_data انتخاب روش پرداخت در get_step_payment */
@@ -2097,6 +2131,9 @@ function mirza_card_cancel_if_user_left_payment_flow(
     if ($step === 'get_step_payment' && mirza_is_payment_method_datain($datain)) {
         return;
     }
+    if ($step === 'card_invoice_pending' && preg_match('/^sendresidcart-/', (string) $datain)) {
+        return;
+    }
 
     $notify = false;
     $left = false;
@@ -2113,7 +2150,14 @@ function mirza_card_cancel_if_user_left_payment_flow(
         ];
         foreach ($menuKeys as $key) {
             $label = (string) ($datatextbot[$key] ?? '');
-            if ($label !== '' && $text === $label) {
+            if ($label === '') {
+                continue;
+            }
+            $matches = ($text === $label);
+            if (!$matches && function_exists('mirza_textbot_matches')) {
+                $matches = mirza_textbot_matches($text, $label);
+            }
+            if ($matches) {
                 $left = true;
                 $notify = true;
                 break;
@@ -2440,7 +2484,11 @@ function mirza_payment_try_claim(string $orderId): bool
          WHERE id_order = :oid AND payment_Status NOT IN ('paid', 'reject', 'expire')"
     );
     $stmt->execute([':oid' => $orderId]);
-    return $stmt->rowCount() > 0;
+    if ($stmt->rowCount() > 0) {
+        clearSelectCache('Payment_report');
+        return true;
+    }
+    return false;
 }
 
 /** برگرداندن claim ناموفق DirectPayment به Unpaid */
@@ -2462,12 +2510,14 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
 {
     global $pdo, $ManagePanel, $textbotlang, $keyboardextendfnished, $keyboard, $Confirm_pay, $from_id, $message_id, $datatextbot;
     mirza_ensure_manage_panel();
-    $Payment_report = select("Payment_report", "*", "id_order", $order_id, "select");
+    $Payment_report = select('Payment_report', '*', 'id_order', $order_id, 'select', ['cache' => false]);
     if (!is_array($Payment_report) || empty($Payment_report['id_order'])) {
+        error_log('[DirectPayment] order_missing id=' . $order_id);
         return false;
     }
     if ($alreadyClaimed) {
         if (($Payment_report['payment_Status'] ?? '') !== 'paid') {
+            error_log('[DirectPayment] alreadyClaimed stale status=' . ($Payment_report['payment_Status'] ?? 'null') . ' order=' . $order_id);
             return false;
         }
     } elseif (!mirza_payment_try_claim($order_id)) {

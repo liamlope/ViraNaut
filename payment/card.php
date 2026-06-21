@@ -6,6 +6,9 @@ require_once __DIR__ . '/../botapi.php';
 require_once __DIR__ . '/../Marzban.php';
 require_once __DIR__ . '/../panels.php';
 require_once __DIR__ . '/../function.php';
+if (function_exists('mirza_ensure_user_lang_column')) {
+    mirza_ensure_user_lang_column();
+}
 require_once __DIR__ . '/../keyboard.php';
 $ManagePanel = new ManagePanel();
 require __DIR__ . '/../vendor/autoload.php';

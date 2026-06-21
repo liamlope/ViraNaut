@@ -5028,8 +5028,7 @@ $textonebuy
         mirza_card_cancel_unpaid_invoices((string) $from_id);
     }
     if ($datain == "cart_to_offline") {
-        mirza_card_cancel_unpaid_invoices((string) $from_id, false, 'replaced_by_new');
-        mirza_card_expire_abandoned_unpaid();
+        mirza_card_prepare_new_invoice((string) $from_id);
         $mainbalance = select("PaySetting", "ValuePay", "NamePay", "minbalancecart", "select")['ValuePay'];
         $maxbalance = select("PaySetting", "ValuePay", "NamePay", "maxbalancecart", "select")['ValuePay'];
         if ($user['Processing_value'] < $mainbalance || $user['Processing_value'] > $maxbalance) {
@@ -5122,6 +5121,7 @@ $textonebuy
         }
         $message_id = telegram('sendmessage', $payMsg);
         updatePaymentMessageId($message_id, $randomString);
+        step('card_invoice_pending', $from_id);
     } elseif ($datain == "aqayepardakht") {
         if ($user['Processing_value'] < 5000) {
             sendmessage($from_id, $textbotlang['users']['Balance']['zarinpal'], null, 'HTML');
