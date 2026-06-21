@@ -3769,6 +3769,72 @@ function mirza_resolve_user_lang(string $fallback = 'fa'): string
     return in_array($lang, $allowed, true) ? $lang : 'fa';
 }
 
+/** زبان UI ربات — برای ادمین‌ها همیشه فارسی (جلوگیری از مخلوط روسی/انگلیسی در پنل). */
+function mirza_is_bot_admin($userId): bool
+{
+    $userId = (string) $userId;
+    if ($userId === '' || $userId === '0') {
+        return false;
+    }
+    static $adminIdCache = null;
+    if ($adminIdCache === null) {
+        $ids = select('admin', 'id_admin', null, null, 'FETCH_COLUMN');
+        $adminIdCache = is_array($ids) ? array_map('strval', $ids) : [];
+    }
+    return in_array($userId, $adminIdCache, true);
+}
+
+function mirza_resolve_bot_ui_lang(string $fallback = 'fa'): string
+{
+    global $from_id;
+    if (mirza_is_bot_admin((string) ($from_id ?? ''))) {
+        return 'fa';
+    }
+    return mirza_resolve_user_lang($fallback);
+}
+
+function mirza_online_status_label($onlineAt, array $textbotlang): string
+{
+    $idx = $textbotlang['extracted']['index_php'] ?? [];
+    if ($onlineAt === 'online') {
+        return (string) ($idx['statusOnline'] ?? 'آنلاین');
+    }
+    if ($onlineAt === 'offline') {
+        return (string) ($idx['statusOffline'] ?? 'آفلاین');
+    }
+    if ($onlineAt !== null && $onlineAt !== '') {
+        try {
+            $dateTime = new DateTime((string) $onlineAt, new DateTimeZone('UTC'));
+            $dateTime->setTimezone(new DateTimeZone('Asia/Tehran'));
+            return jdate('Y/m/d H:i:s', $dateTime->getTimestamp());
+        } catch (Throwable $e) {
+            return (string) $onlineAt;
+        }
+    }
+    return (string) ($idx['statusNotConnected'] ?? 'متصل نشده');
+}
+
+function mirza_xray_state_label($state, array $textbotlang): string
+{
+    $stateKey = strtolower(trim((string) $state));
+    $panels = $textbotlang['extracted']['panels_php'] ?? [];
+    $map = [
+        'running' => $panels['xrayActive'] ?? '🟢 فعال',
+        'run' => $panels['xrayActive'] ?? '🟢 فعال',
+        'active' => $panels['xrayActive'] ?? '🟢 فعال',
+        'stop' => $panels['xrayStopped'] ?? '🔴 متوقف',
+        'stopped' => $panels['xrayStopped'] ?? '🔴 متوقف',
+        'inactive' => $panels['xrayStopped'] ?? '🔴 متوقف',
+    ];
+    if (isset($map[$stateKey])) {
+        return (string) $map[$stateKey];
+    }
+    if ($stateKey === '' || $stateKey === '—' || $stateKey === '-') {
+        return '—';
+    }
+    return (string) $state;
+}
+
 /**
  * Read per-agent value from JSON column (maintime, maxtime, mainvolume, …).
  */

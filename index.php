@@ -17,7 +17,7 @@ require_once 'vendor/autoload.php';
 require_once 'panels.php';
 require_once 'viranaut_handlers.php';
 $ManagePanel = new ManagePanel();
-$textbotlang = languagechange();
+$textbotlang = languagechange(null, mirza_resolve_bot_ui_lang('fa'));
 if (!isset($update['update_id'])) {
     http_response_code(200);
     exit;
@@ -899,16 +899,14 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         return;
     }
     if ($DataUserOut['online_at'] == "online") {
-        $lastonline = 'آنلاین';
+        $lastonline = mirza_online_status_label('online', $textbotlang);
     } elseif ($DataUserOut['online_at'] == "offline") {
-        $lastonline = 'آفلاین';
+        $lastonline = mirza_online_status_label('offline', $textbotlang);
     } else {
         if (isset($DataUserOut['online_at']) && $DataUserOut['online_at'] !== null) {
-            $dateTime = new DateTime($DataUserOut['online_at'], new DateTimeZone('UTC'));
-            $dateTime->setTimezone(new DateTimeZone('Asia/Tehran'));
-            $lastonline = jdate('Y/m/d H:i:s', $dateTime->getTimestamp());
+            $lastonline = mirza_online_status_label($DataUserOut['online_at'], $textbotlang);
         } else {
-            $lastonline = "متصل نشده";
+            $lastonline = mirza_online_status_label(null, $textbotlang);
         }
     }
     #-------------status----------------#
@@ -2662,15 +2660,14 @@ $textconnect
 - توضیحات اختلال : {$user['Processing_value']}";
     $DataUserOut = $ManagePanel->DataUser($nameloc['Service_location'], $nameloc['username']);
     if ($DataUserOut['online_at'] == "online") {
-        $lastonline = 'آنلاین';
+        $lastonline = mirza_online_status_label('online', $textbotlang);
     } elseif ($DataUserOut['online_at'] == "offline") {
-        $lastonline = 'آفلاین';
+        $lastonline = mirza_online_status_label('offline', $textbotlang);
     } else {
         if (isset($DataUserOut['online_at']) && $DataUserOut['online_at'] !== null) {
-            $dateString = $DataUserOut['online_at'];
-            $lastonline = jdate('Y/m/d H:i:s', strtotime($dateString));
+            $lastonline = mirza_online_status_label($DataUserOut['online_at'], $textbotlang);
         } else {
-            $lastonline = "متصل نشده";
+            $lastonline = mirza_online_status_label(null, $textbotlang);
         }
     }
     #-------------status----------------#
@@ -3015,15 +3012,14 @@ $textconnect
     }
     #-------------status----------------#
     if ($DataUserOut['online_at'] == "online") {
-        $lastonline = 'آنلاین';
+        $lastonline = mirza_online_status_label('online', $textbotlang);
     } elseif ($DataUserOut['online_at'] == "offline") {
-        $lastonline = 'آفلاین';
+        $lastonline = mirza_online_status_label('offline', $textbotlang);
     } else {
         if (isset($DataUserOut['online_at']) && $DataUserOut['online_at'] !== null) {
-            $dateString = $DataUserOut['online_at'];
-            $lastonline = jdate('Y/m/d H:i:s', strtotime($dateString));
+            $lastonline = mirza_online_status_label($DataUserOut['online_at'], $textbotlang);
         } else {
-            $lastonline = "متصل نشده";
+            $lastonline = mirza_online_status_label(null, $textbotlang);
         }
     }
     $status = $DataUserOut['status'];

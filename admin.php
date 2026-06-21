@@ -5,6 +5,7 @@ if (!defined('VIRA_BOT_BOOTSTRAP') && !defined('MIRZA_BOT_BOOTSTRAP')) {
 }
 require_once __DIR__ . '/admin_user_manage.php';
 #----------------[  admin section  ]------------------#
+$textbotlang = languagechange(null, 'fa');
 $textadmin = ["panel", "/panel", $textbotlang['Admin']['textpaneladmin']];
 $text_panel_admin_login_template = "💎 | نسخه ربات: %s
 📌 | نسخه مینی‌اپ: %s
@@ -6383,15 +6384,14 @@ n2", $backadmin, 'HTML');
         return;
     }
     if ($DataUserOut['online_at'] == "online") {
-        $lastonline = 'آنلاین';
+        $lastonline = mirza_online_status_label('online', $textbotlang);
     } elseif ($DataUserOut['online_at'] == "offline") {
-        $lastonline = 'آفلاین';
+        $lastonline = mirza_online_status_label('offline', $textbotlang);
     } else {
         if (isset($DataUserOut['online_at']) && $DataUserOut['online_at'] !== null) {
-            $dateString = $DataUserOut['online_at'];
-            $lastonline = jdate('Y/m/d H:i:s', strtotime($dateString));
+            $lastonline = mirza_online_status_label($DataUserOut['online_at'], $textbotlang);
         } else {
-            $lastonline = "متصل نشده";
+            $lastonline = mirza_online_status_label(null, $textbotlang);
         }
     }
     #-------------status----------------#

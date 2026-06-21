@@ -1461,7 +1461,9 @@ function mirza_xui_admin_dashboard_text(array $panel, $connect = null)
         $stats = mirza_xui_fetch_server_status($panel['name_panel']);
         if (is_array($stats)) {
             $cpu = isset($stats['cpu']) ? round((float) $stats['cpu'], 1) : '—';
-            $xray = $stats['xray']['state'] ?? '—';
+            global $textbotlang;
+            $uiLang = is_array($textbotlang ?? null) ? $textbotlang : (function_exists('languagechange') ? languagechange(null, 'fa') : []);
+            $xray = mirza_xray_state_label($stats['xray']['state'] ?? '', $uiLang);
             $xver = $stats['xray']['version'] ?? '';
             $memPct = '—';
             if (isset($stats['mem']['current'], $stats['mem']['total']) && (int) $stats['mem']['total'] > 0) {

@@ -1,7 +1,7 @@
 <?php
 require_once 'config.php';
 $setting = select("setting", "*", null, null, "select");
-$textbotlang = languagechange();
+$textbotlang = languagechange(null, mirza_resolve_bot_ui_lang('fa'));
 if (!function_exists('getPaySettingValue')) {
     function getPaySettingValue($name)
     {

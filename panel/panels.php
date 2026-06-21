@@ -108,7 +108,7 @@ include __DIR__ . '/inc/layout_head.php';
                                 <?php if ($webCrud): ?>
                                     <span class="tag" id="conn-<?= $nameEsc ?>">—</span>
                                     <button type="button" class="btn btn-ghost btn-sm" style="margin-top:4px;font-size:.68rem"
-                                        data-panel-test="<?= $nameEsc ?>">تست</button>
+                                        data-panel-test="<?= $nameEsc ?>">تست اتصال</button>
                                 <?php else: ?>
                                     <span class="cf">—</span>
                                 <?php endif; ?>
@@ -184,7 +184,7 @@ include __DIR__ . '/inc/layout_head.php';
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
                     <span class="field-hint">اتصال:</span>
                     <span class="tag" id="edit_conn_status">—</span>
-                    <button type="button" class="btn btn-ghost btn-sm" id="btnTestPanelConn">تست</button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="btnTestPanelConn">تست اتصال</button>
                 </div>
                 <div id="editDynamicFields" class="form-grid"></div>
                 <div class="field" style="margin-top:8px">
