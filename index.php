@@ -12,6 +12,9 @@ require_once 'function.php';
 if (function_exists('mirza_ensure_user_lang_column')) {
     mirza_ensure_user_lang_column();
 }
+if (function_exists('mirza_ensure_legacy_unreviewed_autoconfirm_removed')) {
+    mirza_ensure_legacy_unreviewed_autoconfirm_removed();
+}
 require_once 'keyboard.php';
 require_once 'vendor/autoload.php';
 require_once 'panels.php';
