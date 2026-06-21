@@ -316,14 +316,28 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     sendmessage($from_id, $textbotlang['Admin']['manageadmin']['addadminset'], $keyboardadmin, 'HTML');
     sendmessage($user['Processing_value'], $textbotlang['Admin']['manageadmin']['adminedsenduser'], null, 'HTML');
     step('home', $from_id);
-    $usernamepanel = "root";
-    $randomString = bin2hex(random_bytes(5));
-    $stmt = $pdo->prepare("INSERT INTO admin (id_admin, username, password, rule) VALUES (:id_admin, :username, :password, :rule)");
-    $stmt->bindParam(':id_admin', $user['Processing_value'], PDO::PARAM_STR);
-    $stmt->bindParam(':username', $usernamepanel, PDO::PARAM_STR);
-    $stmt->bindParam(':password', $randomString, PDO::PARAM_STR);
-    $stmt->bindParam(':rule', $text, PDO::PARAM_STR);
-    $stmt->execute();
+    $newAdminId = (string) $user['Processing_value'];
+    $existingAdmin = select("admin", "*", "id_admin", $newAdminId, "select");
+    if (is_array($existingAdmin) && !empty($existingAdmin['id_admin'])) {
+        update("admin", "rule", $text, "id_admin", $newAdminId);
+    } else {
+        $usernamepanel = "root";
+        $randomString = bin2hex(random_bytes(5));
+        $stmt = $pdo->prepare("INSERT INTO admin (id_admin, username, password, rule) VALUES (:id_admin, :username, :password, :rule)");
+        $stmt->bindParam(':id_admin', $newAdminId, PDO::PARAM_STR);
+        $stmt->bindParam(':username', $usernamepanel, PDO::PARAM_STR);
+        $stmt->bindParam(':password', $randomString, PDO::PARAM_STR);
+        $stmt->bindParam(':rule', $text, PDO::PARAM_STR);
+        try {
+            $stmt->execute();
+        } catch (PDOException $e) {
+            if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
+                update("admin", "rule", $text, "id_admin", $newAdminId);
+            } else {
+                throw $e;
+            }
+        }
+    }
     $text_report = sprintf($textbotlang['Admin']['reportgroup']['adminadded'], $username, $from_id, $text, $user['Processing_value']);
     if (strlen($setting['Channel_Report']) > 0) {
         telegram('sendmessage', [
@@ -3265,21 +3279,34 @@ $caption";
     sendmessage($from_id, $textreports, $backadmin, 'HTML');
     step('addchannelid', $from_id);
 } elseif ($user['step'] == "addchannelid") {
-    $outputcheck = sendmessage($text, $textbotlang['Admin']['Channel']['TestChannel'], null, 'HTML');
-    if (!$outputcheck['ok']) {
-        $texterror = "❌ اتصال به گروه با موفقیت انجام نشد  
-
-خطای دریافتی :  {$outputcheck['description']}";
-        sendmessage($from_id, $texterror, null, 'HTML');
+    $groupChatId = trim((string) $text);
+    if (!preg_match('/^-100\d{5,20}$/', $groupChatId)) {
+        sendmessage($from_id, "❌ آیدی گروه نامعتبر است. باید با -100 شروع شود (مثال: -1001234567890).", $backadmin, 'HTML');
         return;
     }
-    if ($outputcheck['result']['chat']['is_forum'] == false) {
+    $testMessage = trim((string) ($textbotlang['Admin']['Channel']['testChannel'] ?? $textbotlang['Admin']['Channel']['TestChannel'] ?? 'تست اتصال گروه'));
+    if ($testMessage === '') {
+        $testMessage = 'تست اتصال گروه';
+    }
+    $outputcheck = sendmessage($groupChatId, $testMessage, null, 'HTML');
+    if (empty($outputcheck['ok'])) {
+        $apiError = function_exists('mirza_telegram_error_description')
+            ? mirza_telegram_error_description($outputcheck)
+            : (string) ($outputcheck['description'] ?? 'Unknown error');
+        $texterror = "❌ اتصال به گروه با موفقیت انجام نشد  
+
+خطای دریافتی: {$apiError}";
+        sendmessage($from_id, $texterror, $backadmin, 'HTML');
+        return;
+    }
+    $isForum = (bool) ($outputcheck['result']['chat']['is_forum'] ?? false);
+    if (!$isForum) {
         $texterror = "❌ گروه انتخاب شده درحالت انجمن نیست ابتدا قابلیت تاپیک گروه را روشن کرده سپس آیدی عددی گروه را مجددا تنظیم نمایید";
         sendmessage($from_id, $texterror, null, 'HTML');
         return;
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $groupChatId,
         'name' => "🛍 گزارش های خرید"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3291,7 +3318,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "buyreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $groupChatId,
         'name' => "📌 گزارش خرید خدمات"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3303,7 +3330,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "otherservice");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $groupChatId,
         'name' => "🔑 گزارش اکانت تست"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3315,7 +3342,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "reporttest");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $groupChatId,
         'name' => "⚙️ سایر گزارشات"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3327,7 +3354,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "otherreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $groupChatId,
         'name' => "❌ گزارش خطا ها"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3339,7 +3366,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "errorreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $groupChatId,
         'name' => "💰 گزارش مالی"
     ]);
     if (!$createForumTopic['ok']) {
@@ -3352,7 +3379,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "paymentreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $groupChatId,
         'name' => $textbotlang['Admin']['affiliates']['titletopic']
     ]);
     if (!$createForumTopic['ok']) {
@@ -3365,7 +3392,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "porsantreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $groupChatId,
         'name' => $textbotlang['Admin']['report']['reportnight']
     ]);
     if (!$createForumTopic['ok']) {
@@ -3378,7 +3405,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "reportnight");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $groupChatId,
         'name' => $textbotlang['Admin']['report']['reportcron']
     ]);
     if (!$createForumTopic['ok']) {
@@ -3391,7 +3418,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "reportcron");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $groupChatId,
         'name' => "🤖 بکاپ ربات "
     ]);
     if (!$createForumTopic['ok']) {
@@ -3404,7 +3431,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "backupfile");
     }
     sendmessage($from_id, $textbotlang['Admin']['Channel']['SetChannelReport'], $setting_panel, 'HTML');
-    update("setting", "Channel_Report", $text);
+    update("setting", "Channel_Report", $groupChatId);
     step('home', $from_id);
 } elseif ($text == "🏬 تنظیمات فروشگاه" && $adminrulecheck['rule'] == "administrator") {
     sendmessage($from_id, $textbotlang['users']['selectoption'], $shopkeyboard, 'HTML');
@@ -6264,14 +6291,20 @@ n2", $backadmin, 'HTML');
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
         $stmt->bindParam(':notes', $usernameconfig, PDO::PARAM_STR);
-    } elseif ($text[0] == "/") {
-        $usernameconfig = explode(" ", $text)[1];
+    } elseif (!empty($text) && isset($text[0]) && $text[0] === "/") {
+        $cmdParts = preg_split('/\s+/', trim($text), 2);
+        $usernameconfig = trim($cmdParts[1] ?? '');
+        if ($usernameconfig === '') {
+            sendmessage($from_id, $textbotlang['Admin']['order']['vieworderusername'] ?? '❌ نام کاربری را وارد کنید.', $backadmin, 'HTML');
+            return;
+        }
         $sql = "SELECT * FROM invoice WHERE username LIKE CONCAT('%', :username, '%') OR note  LIKE CONCAT('%', :notes, '%')";
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
         $stmt->bindParam(':notes', $usernameconfig, PDO::PARAM_STR);
     } else {
-        $usernameconfig = select("invoice", "*", "id_invoice", $datagetr[1], "select")['username'];
+        $invoiceRow = select("invoice", "*", "id_invoice", $datagetr[1] ?? '', "select");
+        $usernameconfig = is_array($invoiceRow) ? (string) ($invoiceRow['username'] ?? '') : '';
         $sql = "SELECT * FROM invoice WHERE username = :username OR note  = :notes";
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
@@ -10139,9 +10172,14 @@ elseif ($text == "🫣 مخفی کردن پنل برای یک کاربر" && $ad
     $stmt->execute();
     sendmessage($from_id, "✅محصول بروزرسانی شد", $shopkeyboard, 'HTML');
     step('home', $from_id);
-} elseif (preg_match('/extendadmin_(\w+)/', $datain, $dataget) || strpos($text, "/extend ") !== false) {
-    if ($text[0] == "/") {
-        $usernameconfig = explode(" ", $text)[1];
+} elseif (preg_match('/extendadmin_(\w+)/', $datain, $dataget) || strpos((string) $text, "/extend ") !== false) {
+    if (!empty($text) && isset($text[0]) && $text[0] === "/") {
+        $cmdParts = preg_split('/\s+/', trim($text), 2);
+        $usernameconfig = trim($cmdParts[1] ?? '');
+        if ($usernameconfig === '') {
+            sendmessage($from_id, "❌ نام کاربری را وارد کنید.", null, 'HTML');
+            return;
+        }
         $id_invoice = select("invoice", "id_invoice", "username", $usernameconfig, 'select');
         if ($id_invoice == false) {
             sendmessage($from_id, "❌ کاربر وجو ندارد.", null, 'HTML');

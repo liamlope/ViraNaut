@@ -268,6 +268,10 @@ mirza_card_cancel_if_user_left_payment_flow(
     $textbotlang
 );
 
+if (!empty($datain) && !empty($callback_query_id)) {
+    mirza_answer_callback_query($callback_query_id);
+}
+
 if (strpos($text, "/start ") !== false && $user['step'] != "gettextSystemMessage") {
     $affiliatesid = explode(" ", $text)[1];
     if (!in_array($affiliatesid, ['start', "usertest", "/start", "buy", "help", "charge"])) {
@@ -4068,6 +4072,9 @@ $textinvite
         $info_product['price_product'] = ($parts[2] * $custompricevalue) + ($parts[1] * $customtimevalueprice);
     } else {
         $info_product = mysqli_fetch_assoc(mysqli_query($connect, "SELECT * FROM product WHERE code_product = '$loc' AND (Location = '{$userdate['name_panel']}'or Location = '/all') LIMIT 1"));
+        if (!is_array($info_product)) {
+            $info_product = [];
+        }
     }
     if (!isset($info_product['price_product'])) {
         sendmessage($from_id, "❌ خطایی در تایید  انجام شده است لطفا مراحل پرداخت را مجددا انجام دهید", $keyboard, 'HTML');

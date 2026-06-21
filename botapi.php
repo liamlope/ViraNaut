@@ -59,6 +59,12 @@ function telegram($method, $datas = [], $token = null)
             'message is not modified',
             'message to delete not found',
             'message can\'t be deleted',
+            'message to edit not found',
+            'query is too old',
+            'query id is invalid',
+            'query is too old and response timeout expired',
+            'query has already been answered',
+            'message text is empty',
         ];
         $skipLog = false;
         foreach ($ignored as $needle) {
@@ -87,6 +93,9 @@ function sendmessage($chat_id, $text, $keyboard, $parse_mode, $bot_token = null,
     }
     if (!is_string($text)) {
         $text = (string) $text;
+    }
+    if (trim($text) === '') {
+        return ['ok' => false, 'description' => 'message text is empty'];
     }
     $limit = 4096;
     if (mb_strlen($text, 'UTF-8') <= $limit) {
@@ -187,9 +196,14 @@ function senddocumentsid($chat_id,$documentid,$caption){
 }
 function mirza_answer_callback_query(?string $callback_query_id, string $text = '', bool $showAlert = false): void
 {
+    static $answered = [];
     if ($callback_query_id === null || $callback_query_id === '') {
         return;
     }
+    if (isset($answered[$callback_query_id])) {
+        return;
+    }
+    $answered[$callback_query_id] = true;
     telegram('answerCallbackQuery', [
         'callback_query_id' => $callback_query_id,
         'text' => $text,
@@ -198,8 +212,25 @@ function mirza_answer_callback_query(?string $callback_query_id, string $text = 
     ]);
 }
 
+function mirza_telegram_error_description($response): string
+{
+    if (!is_array($response)) {
+        return 'Unknown error';
+    }
+    if (!empty($response['description'])) {
+        return (string) $response['description'];
+    }
+    if (!empty($response['error_code'])) {
+        return 'Telegram error ' . $response['error_code'];
+    }
+    return 'Unknown error';
+}
+
 function Editmessagetext($chat_id, $message_id, $text, $keyboard, $parse_mode = 'HTML')
 {
+    if ($text === null || trim((string) $text) === '') {
+        return ['ok' => false, 'description' => 'message text is empty'];
+    }
     $entities = null;
     if (is_string($text) && strpos($text, '{emoji:') !== false && function_exists('mirza_prepare_outgoing_text')) {
         $prepared = mirza_prepare_outgoing_text($text, $parse_mode);
