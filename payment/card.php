@@ -9,9 +9,6 @@ require_once __DIR__ . '/../function.php';
 if (function_exists('mirza_ensure_user_lang_column')) {
     mirza_ensure_user_lang_column();
 }
-if (function_exists('mirza_ensure_legacy_unreviewed_autoconfirm_removed')) {
-    mirza_ensure_legacy_unreviewed_autoconfirm_removed();
-}
 require_once __DIR__ . '/../keyboard.php';
 $ManagePanel = new ManagePanel();
 require __DIR__ . '/../vendor/autoload.php';

@@ -12,9 +12,6 @@ require_once 'function.php';
 if (function_exists('mirza_ensure_user_lang_column')) {
     mirza_ensure_user_lang_column();
 }
-if (function_exists('mirza_ensure_legacy_unreviewed_autoconfirm_removed')) {
-    mirza_ensure_legacy_unreviewed_autoconfirm_removed();
-}
 require_once 'keyboard.php';
 require_once 'vendor/autoload.php';
 require_once 'panels.php';
@@ -326,7 +323,7 @@ if (strpos($text, "/start ") !== false && $user['step'] != "gettextSystemMessage
             update("user", "Processing_value_one", "0", "id", $from_id);
             update("user", "Processing_value_tow", "0", "id", $from_id);
             update("user", "Processing_value_four", "0", "id", $from_id);
-            step('home', $from_id);
+            step('home', $from_id, ['skip_card_cancel' => true]);
         }
     } else {
         $text = $affiliatesid;
@@ -472,7 +469,7 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     update("user", "Processing_value_one", "0", "id", $from_id);
     update("user", "Processing_value_tow", "0", "id", $from_id);
     update("user", "Processing_value_four", "0", "id", $from_id);
-    step('home', $from_id);
+    step('home', $from_id, ['skip_card_cancel' => true]);
     return;
 } elseif ($text == "version") {
     sendmessage($from_id, $version, null, 'html');
