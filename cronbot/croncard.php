@@ -1,6 +1,7 @@
 <?php
 /**
- * Card cron — after SMS autoconfirm delay, add «send receipt» button to invoice messages.
+ * Card cron — ViraNaut: only SMS receipt-button prompt (no legacy «approve without review»).
+ * Legacy Mirza croncard auto-approved waiting receipts — permanently removed.
  * Run every minute: * * * * * php /path/to/cronbot/croncard.php
  */
 ini_set('error_log', 'error_log');

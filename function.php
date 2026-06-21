@@ -1965,6 +1965,184 @@ function mirza_card_prepare_new_invoice(string $userId): void
     mirza_card_expire_abandoned_unpaid();
 }
 
+/** مارکر Mirza legacy — cron «تأیید بدون بررسی» */
+function mirza_card_legacy_unreviewed_autoconfirm_markers(): array
+{
+    return [
+        'تایید توسط ربات بدون بررسی',
+        'Approved by the bot without review',
+        'Подтверждено ботом без проверки',
+        '由机器人无需审核批准',
+    ];
+}
+
+function mirza_set_pay_setting_value(string $name, string $value): void
+{
+    global $pdo;
+    $existing = select('PaySetting', 'ValuePay', 'NamePay', $name, 'select');
+    if (is_array($existing) && array_key_exists('ValuePay', $existing)) {
+        update('PaySetting', 'ValuePay', $value, 'NamePay', $name);
+        return;
+    }
+    if (!isset($pdo)) {
+        return;
+    }
+    $stmt = $pdo->prepare('INSERT INTO PaySetting (NamePay, ValuePay) VALUES (?, ?)');
+    $stmt->execute([$name, $value]);
+}
+
+/** خاموش کردن cron قدیمی Mirza — تأیید waiting بدون ادمین */
+function mirza_disable_legacy_unreviewed_autoconfirm_settings(): void
+{
+    global $pdo;
+    if (!isset($pdo)) {
+        return;
+    }
+    try {
+        $stmt = $pdo->prepare('UPDATE setting SET timeauto_not_verify = ? LIMIT 1');
+        $stmt->execute(['99999']);
+    } catch (Throwable $e) {
+        error_log('mirza_disable_legacy_unreviewed_autoconfirm_settings: ' . $e->getMessage());
+    }
+    mirza_set_pay_setting_value('card_autoconfirm_mode', 'receipt_only');
+}
+
+function mirza_payment_is_balance_topup_row(array $row): bool
+{
+    $payload = mirza_card_invoice_payment_payload((string) ($row['id_invoice'] ?? ''));
+    $parts = explode('|', $payload);
+    $type = (string) ($parts[0] ?? '');
+    return !in_array($type, ['getconfigafterpay', 'getextenduser', 'getextravolumeuser', 'getextratimeuser'], true);
+}
+
+function mirza_is_legacy_unreviewed_bot_payment(array $row): bool
+{
+    if ((string) ($row['Payment_Method'] ?? '') !== 'cart to cart') {
+        return false;
+    }
+    if ((string) ($row['payment_Status'] ?? '') !== 'paid') {
+        return false;
+    }
+    $dec = trim((string) ($row['dec_not_confirmed'] ?? ''));
+    if ($dec === '') {
+        return false;
+    }
+    foreach (mirza_card_legacy_unreviewed_autoconfirm_markers() as $marker) {
+        if ($dec === $marker || str_contains($dec, $marker)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function mirza_legacy_autoconfirm_revert_user_message(bool $servicePurchase): string
+{
+    $msg = "⚠️ پرداخت کارت به کارت شما به‌اشتباه بدون بررسی ادمین تأیید شده بود و لغو گردید.\n\n"
+        . "لطفاً از منوی «کیف پول / افزایش موجودی» دوباره فاکتور بگیرید، واریز کنید و رسید را ارسال نمایید.";
+    if ($servicePurchase) {
+        $msg .= "\n\n📌 اگر این پرداخت برای خرید سرویس بود، با پشتیبانی تماس بگیرید.";
+    }
+    return $msg;
+}
+
+/**
+ * یک پرداخت legacy «بدون بررسی» را لغو می‌کند — برای شارژ کیف پول موجودی را برمی‌گرداند.
+ * @return array{ok:bool,reason?:string,balance_deducted?:int}
+ */
+function mirza_revert_legacy_unreviewed_card_payment(array $row, bool $notifyUser = true): array
+{
+    global $pdo;
+
+    $orderId = (string) ($row['id_order'] ?? '');
+    if ($orderId === '' || !mirza_is_legacy_unreviewed_bot_payment($row)) {
+        return ['ok' => false, 'reason' => 'not_legacy_unreviewed'];
+    }
+
+    $userId = (string) ($row['id_user'] ?? '');
+    $price = (int) ($row['price'] ?? 0);
+    $isBalance = mirza_payment_is_balance_topup_row($row);
+    $deducted = 0;
+
+    if ($isBalance && $userId !== '' && $price > 0) {
+        $user = select('user', '*', 'id', $userId, 'select', ['cache' => false]);
+        if (is_array($user)) {
+            $cashbackPct = (int) getPaySettingValue('chashbackcart', '0');
+            $cashback = $cashbackPct > 0 ? (int) floor($price * $cashbackPct / 100) : 0;
+            $deducted = $price + $cashback;
+            $newBal = max(0, (int) ($user['Balance'] ?? 0) - $deducted);
+            update('user', 'Balance', $newBal, 'id', $userId);
+        }
+    }
+
+    update('Payment_report', 'payment_Status', 'reject', 'id_order', $orderId);
+    update('Payment_report', 'dec_not_confirmed', 'reverted_unreviewed_bot', 'id_order', $orderId);
+    clearSelectCache('Payment_report');
+
+    if ($notifyUser && $userId !== '') {
+        sendmessage($userId, mirza_legacy_autoconfirm_revert_user_message(!$isBalance), null, 'HTML');
+    }
+
+    error_log('[card-legacy-revert] order=' . $orderId . ' user=' . $userId . ' balance_deduct=' . $deducted);
+
+    return ['ok' => true, 'balance_deducted' => $deducted];
+}
+
+/**
+ * همهٔ پرداخت‌های cart to cart که cron legacy بدون بررسی تأیید کرده را لغو می‌کند.
+ * @return array{reverted:int,skipped:int}
+ */
+function mirza_revert_all_legacy_unreviewed_card_payments(bool $notifyUsers = true): array
+{
+    global $pdo;
+
+    $stats = ['reverted' => 0, 'skipped' => 0];
+    if (!isset($pdo)) {
+        return $stats;
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT * FROM Payment_report
+         WHERE Payment_Method = 'cart to cart'
+           AND payment_Status = 'paid'"
+    );
+    $stmt->execute();
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        if (!is_array($row) || !mirza_is_legacy_unreviewed_bot_payment($row)) {
+            $stats['skipped']++;
+            continue;
+        }
+        $result = mirza_revert_legacy_unreviewed_card_payment($row, $notifyUsers);
+        if (!empty($result['ok'])) {
+            $stats['reverted']++;
+        } else {
+            $stats['skipped']++;
+        }
+    }
+
+    return $stats;
+}
+
+/** یک‌بار: cron legacy را خاموش + پرداخت‌های اشتباه را برگردان */
+function mirza_ensure_legacy_unreviewed_autoconfirm_removed(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    mirza_disable_legacy_unreviewed_autoconfirm_settings();
+
+    if (getPaySettingValue('legacy_unreviewed_autoconfirm_purged', '0') === '1') {
+        return;
+    }
+
+    $stats = mirza_revert_all_legacy_unreviewed_card_payments(true);
+    mirza_set_pay_setting_value('legacy_unreviewed_autoconfirm_purged', '1');
+    error_log('[card-legacy] purged unreviewed autoconfirm reverted=' . ($stats['reverted'] ?? 0));
+}
+
 /** callback_data انتخاب روش پرداخت در get_step_payment */
 function mirza_is_payment_method_datain(?string $datain): bool
 {

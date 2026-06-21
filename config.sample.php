@@ -38,3 +38,6 @@ if (!function_exists('select')) {
 if (function_exists('mirza_ensure_user_lang_column')) {
     mirza_ensure_user_lang_column();
 }
+if (function_exists('mirza_ensure_legacy_unreviewed_autoconfirm_removed')) {
+    mirza_ensure_legacy_unreviewed_autoconfirm_removed();
+}
