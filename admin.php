@@ -3574,6 +3574,15 @@ $caption";
 } elseif (preg_match('/Confirm_pay_(\w+)/', $datain, $dataget) && ($adminrulecheck['rule'] == "administrator" || $adminrulecheck['rule'] == "Seller")) {
     $order_id = $dataget[1];
     $Payment_report = select("Payment_report", "*", "id_order", $order_id, "select");
+    if ($Payment_report == false) {
+        telegram('answerCallbackQuery', array(
+            'callback_query_id' => $callback_query_id,
+            'text' => "تراکنش حذف شده است",
+            'show_alert' => true,
+            'cache_time' => 5,
+        ));
+        return;
+    }
     $Confirm_pay = json_encode([
         'inline_keyboard' => [
             [
@@ -3584,15 +3593,6 @@ $caption";
             ]
         ]
     ]);
-    if ($Payment_report == false) {
-        telegram('answerCallbackQuery', array(
-            'callback_query_id' => $callback_query_id,
-            'text' => "تراکنش حذف شده است",
-            'show_alert' => true,
-            'cache_time' => 5,
-        ));
-        return;
-    }
     $sql = "SELECT * FROM Payment_report WHERE id_user = '{$Payment_report['id_user']}' AND payment_Status != 'paid' AND payment_Status != 'Unpaid' AND payment_Status != 'expire' AND payment_Status != 'reject' AND  (id_invoice  LIKE CONCAT('%','getconfigafterpay', '%') OR id_invoice  LIKE CONCAT('%','getextenduser', '%') OR id_invoice  LIKE CONCAT('%','getextravolumeuser', '%') OR id_invoice  LIKE CONCAT('%','getextratimeuser', '%'))";
     $stmt = $pdo->prepare($sql);
     $stmt->execute();
@@ -3621,7 +3621,21 @@ $caption";
         Editmessagetext($from_id, $message_id, $textconfrom, $Confirm_pay);
         return;
     }
-    DirectPayment($order_id);
+    if (!DirectPayment($order_id)) {
+        telegram('answerCallbackQuery', array(
+            'callback_query_id' => $callback_query_id,
+            'text' => $textbotlang['Admin']['Payment']['reviewedpayment'] ?? 'این پرداخت قبلاً تأیید شده است',
+            'show_alert' => true,
+            'cache_time' => 5,
+        ));
+        return;
+    }
+    telegram('answerCallbackQuery', array(
+        'callback_query_id' => $callback_query_id,
+        'text' => '✅ پرداخت تأیید شد',
+        'show_alert' => false,
+        'cache_time' => 3,
+    ));
     $pricecashback = select("PaySetting", "ValuePay", "NamePay", "chashbackcart", "select")['ValuePay'];
     $Balance_id = select("user", "*", "id", $Payment_report['id_user'], "select");
     if ($pricecashback != "0") {
@@ -4005,31 +4019,59 @@ $caption";
     step("getmeesagestatus", $from_id);
 } elseif ($user['step'] == "getmeesagestatus") {
     $userdata = json_decode($user['Processing_value'], true);
+    if (!is_array($userdata) || !isset($userdata['price'], $userdata['agent'], $userdata['typecustomer'])) {
+        sendmessage($from_id, "❌ داده‌های هدیه نامعتبر است. از ابتدا شروع کنید.", $keyboardadmin, 'HTML');
+        step('home', $from_id);
+        return;
+    }
+    $giftPrice = (int) $userdata['price'];
+    if ($giftPrice <= 0) {
+        sendmessage($from_id, "❌ مبلغ هدیه باید بزرگ‌تر از صفر باشد.", $keyboardadmin, 'HTML');
+        step('home', $from_id);
+        return;
+    }
     sendmessage($from_id, $textbotlang['Admin']['Balance']['AddBalanceUsers'], $keyboardadmin, 'HTML');
-    $query_where = "";
-    if ($userdata['agent'] == "all") {
-        if ($userdata['typecustomer'] == "all") {
-            $query_where = "";
-        } elseif ($userdata['typecustomer'] == "customer") {
-            $query_where = "WHERE EXISTS ( SELECT 1 FROM invoice i WHERE i.id_user = u.id);";
-        } elseif ($userdata['typecustomer'] == "notcustomer") {
-            $query_where = "WHERE  NOT EXISTS ( SELECT 1 FROM invoice i WHERE i.id_user = u.id);";
+    $validCustomerTypes = ['all', 'customer', 'notcustomer'];
+    if (!in_array((string) $userdata['typecustomer'], $validCustomerTypes, true)) {
+        sendmessage($from_id, "❌ نوع مشتری نامعتبر است. از ابتدا شروع کنید.", $keyboardadmin, 'HTML');
+        step('home', $from_id);
+        return;
+    }
+    $queryWhere = '';
+    $queryParams = [];
+    if ($userdata['agent'] === 'all') {
+        if ($userdata['typecustomer'] === 'customer') {
+            $queryWhere = 'WHERE EXISTS (SELECT 1 FROM invoice i WHERE i.id_user = u.id)';
+        } elseif ($userdata['typecustomer'] === 'notcustomer') {
+            $queryWhere = 'WHERE NOT EXISTS (SELECT 1 FROM invoice i WHERE i.id_user = u.id)';
         }
     } else {
-        if ($userdata['typecustomer'] == "all") {
-            $query_where = null;
-            ;
-        } elseif ($userdata['typecustomer'] == "customer") {
-            $query_where = " WHERE u.agent =  '{$userdata['agent']}' AND EXISTS ( SELECT 1 FROM invoice i WHERE i.id_user = u.id);";
-        } elseif ($userdata['typecustomer'] == "notcustomer") {
-            $query_where = " WHERE u.agent =  '{$userdata['agent']}' AND NOT EXISTS ( SELECT 1 FROM invoice i WHERE i.id_user = u.id);";
+        $agentFilter = (string) $userdata['agent'];
+        if ($agentFilter === 'nl') {
+            $agentFilter = 'n';
+        }
+        if (!in_array($agentFilter, ['f', 'n', 'n2'], true)) {
+            sendmessage($from_id, "❌ نوع نماینده نامعتبر است.", $keyboardadmin, 'HTML');
+            step('home', $from_id);
+            return;
+        }
+        if ($userdata['typecustomer'] === 'all') {
+            $queryWhere = 'WHERE u.agent = :agent';
+            $queryParams[':agent'] = $agentFilter;
+        } elseif ($userdata['typecustomer'] === 'customer') {
+            $queryWhere = 'WHERE u.agent = :agent AND EXISTS (SELECT 1 FROM invoice i WHERE i.id_user = u.id)';
+            $queryParams[':agent'] = $agentFilter;
+        } elseif ($userdata['typecustomer'] === 'notcustomer') {
+            $queryWhere = 'WHERE u.agent = :agent AND NOT EXISTS (SELECT 1 FROM invoice i WHERE i.id_user = u.id)';
+            $queryParams[':agent'] = $agentFilter;
         }
     }
-    $stmt = $pdo->prepare("SELECT u.id FROM user u " . $query_where);
-    $stmt->execute();
+    $stmt = $pdo->prepare('SELECT u.id FROM user u ' . $queryWhere);
+    $stmt->execute($queryParams);
     $Balance_user = $stmt->fetchAll();
-    $stmt = $pdo->prepare("UPDATE user as u SET  Balance = Balance + {$userdata['price']} " . $query_where);
-    $stmt->execute();
+    $stmt = $pdo->prepare('UPDATE user AS u SET Balance = Balance + :price ' . $queryWhere);
+    $queryParams[':price'] = $giftPrice;
+    $stmt->execute($queryParams);
     step('home', $from_id);
     if ($text == "1") {
         $cancelmessage = json_encode([

@@ -1278,28 +1278,41 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
 
     $amountRial = (int) $parsed['amount_rial'];
     $amountToman = (int) $parsed['amount_toman'];
-    $rialEsc = mysqli_real_escape_string($connect, (string) $amountRial);
-    // تطبیق فقط با ریال: price در DB تومان است → price×10 = ریال واریز
-    // جلوگیری از تأیید اشتباه: 99,000 ریال ≠ فاکتور 99,000 تومان (990,000 ریال)
-    $datauser = mysqli_fetch_assoc(mysqli_query(
-        $connect,
-        "SELECT * FROM Payment_report
-         WHERE Payment_Method = 'cart to cart'
-           AND payment_Status = 'Unpaid'
-           AND (CAST(price AS UNSIGNED) * 10) = '$rialEsc'
-         LIMIT 1"
-    ));
-    if (!$datauser || empty($datauser['id_order'])) {
-        return [
-            'ok' => false,
-            'reason' => 'no_match',
-            'amount_rial' => $amountRial,
-            'amount_toman' => $amountToman,
-            'bank' => $parsed['bank'],
-        ];
+    global $pdo;
+    $orderId = null;
+    try {
+        $pdo->beginTransaction();
+        $matchStmt = $pdo->prepare(
+            "SELECT id_order FROM Payment_report
+             WHERE Payment_Method = 'cart to cart'
+               AND payment_Status = 'Unpaid'
+               AND (CAST(price AS UNSIGNED) * 10) = :rial
+             ORDER BY time ASC, id_order ASC
+             LIMIT 1
+             FOR UPDATE"
+        );
+        $matchStmt->execute([':rial' => $amountRial]);
+        $matchRow = $matchStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$matchRow || empty($matchRow['id_order'])) {
+            $pdo->rollBack();
+            return [
+                'ok' => false,
+                'reason' => 'no_match',
+                'amount_rial' => $amountRial,
+                'amount_toman' => $amountToman,
+                'bank' => $parsed['bank'],
+            ];
+        }
+        $orderId = (string) $matchRow['id_order'];
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('mirza_card_sms_process_and_approve: ' . $e->getMessage());
+        return ['ok' => false, 'reason' => 'db_error'];
     }
 
-    $orderId = $datauser['id_order'];
     $Payment_report = select('Payment_report', '*', 'id_order', $orderId, 'select');
     if (!is_array($Payment_report) || empty($Payment_report['price'])) {
         return ['ok' => false, 'reason' => 'order_missing'];
@@ -1328,8 +1341,13 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
         return ['ok' => false, 'reason' => 'already_reviewed', 'order_id' => $orderId];
     }
 
-    DirectPayment($orderId, __DIR__ . '/images.jpg');
-    update('Payment_report', 'payment_Status', 'paid', 'id_order', $orderId);
+    if (!mirza_payment_try_claim($orderId)) {
+        return ['ok' => false, 'reason' => 'already_reviewed', 'order_id' => $orderId];
+    }
+
+    if (!DirectPayment($orderId, __DIR__ . '/images.jpg', true)) {
+        return ['ok' => false, 'reason' => 'process_failed', 'order_id' => $orderId];
+    }
 
     if (!is_array($textbotlang)) {
         $textbotlang = languagechange('text.json');
@@ -2212,10 +2230,38 @@ function mirza_edit_payment_status_messages(array $Payment_report, string $admin
     Editmessagetext($ctxChatId, $ctxMsgId, $adminText, $adminKeyboard);
 }
 
-function DirectPayment($order_id, $image = 'images.jpg')
+/**
+ * اتمیک: فقط اولین بار وضعیت را paid می‌کند — جلوگیری از پردازش دوباره DirectPayment
+ */
+function mirza_payment_try_claim(string $orderId): bool
+{
+    global $pdo;
+    if ($orderId === '') {
+        return false;
+    }
+    $stmt = $pdo->prepare(
+        "UPDATE Payment_report SET payment_Status = 'paid'
+         WHERE id_order = :oid AND payment_Status NOT IN ('paid', 'reject', 'expire')"
+    );
+    $stmt->execute([':oid' => $orderId]);
+    return $stmt->rowCount() > 0;
+}
+
+function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = false): bool
 {
     global $pdo, $ManagePanel, $textbotlang, $keyboardextendfnished, $keyboard, $Confirm_pay, $from_id, $message_id, $datatextbot;
     mirza_ensure_manage_panel();
+    $Payment_report = select("Payment_report", "*", "id_order", $order_id, "select");
+    if (!is_array($Payment_report) || empty($Payment_report['id_order'])) {
+        return false;
+    }
+    if ($alreadyClaimed) {
+        if (($Payment_report['payment_Status'] ?? '') !== 'paid') {
+            return false;
+        }
+    } elseif (!mirza_payment_try_claim($order_id)) {
+        return false;
+    }
     $buyreport = select("topicid", "idreport", "report", "buyreport", "select")['idreport'];
     $admin_ids = select("admin", "id_admin", null, null, "FETCH_COLUMN");
     $otherservice = select("topicid", "idreport", "report", "otherservice", "select")['idreport'];
@@ -2223,7 +2269,6 @@ function DirectPayment($order_id, $image = 'images.jpg')
     $errorreport = select("topicid", "idreport", "report", "errorreport", "select")['idreport'];
     $porsantreport = select("topicid", "idreport", "report", "porsantreport", "select")['idreport'];
     $setting = select("setting", "*");
-    $Payment_report = select("Payment_report", "*", "id_order", $order_id, "select");
     $format_price_cart = number_format($Payment_report['price']);
     $Balance_id = select("user", "*", "id", $Payment_report['id_user'], "select");
     $steppay = explode("|", $Payment_report['id_invoice']);
@@ -2289,7 +2334,7 @@ function DirectPayment($order_id, $image = 'images.jpg')
                     'parse_mode' => "HTML"
                 ]);
             }
-            return;
+            return true;
         }
         $Shoppinginfo = json_encode([
             'inline_keyboard' => [
@@ -2498,7 +2543,7 @@ $textonebuy
         $service_other = $data_order;
         if ($service_other == false) {
             sendmessage($Balance_id['id'], '❌ خطایی در هنگام تمدید رخ داده با پشتیبانی در ارتباط باشید', $keyboard, 'HTML');
-            return;
+            return true;
         }
         $service_other = json_decode($service_other['value'], true);
         $codeproduct = $service_other['code_product'];
@@ -2544,7 +2589,7 @@ $textonebuy
                     'parse_mode' => "HTML"
                 ]);
             }
-            return;
+            return true;
         }
 
         update("service_other", "output", json_encode($extend), "id", $data_order['id']);
@@ -2676,7 +2721,7 @@ $textonebuy
                     'parse_mode' => "HTML"
                 ]);
             }
-            return;
+            return true;
         }
         $stmt = $pdo->prepare("INSERT IGNORE INTO service_other (id_user, username,value,type,time,price,output) VALUES (:id_user,:username,:value,:type,:time,:price,:output)");
         $stmt->bindParam(':id_user', $Balance_id['id']);
@@ -2776,7 +2821,7 @@ $textonebuy
                     'parse_mode' => "HTML"
                 ]);
             }
-            return;
+            return true;
         }
         $stmt = $pdo->prepare("INSERT IGNORE INTO service_other (id_user, username,value,type,time,price,output) VALUES (:id_user,:username,:value,:type,:time,:price,:output)");
         $stmt->bindParam(':id_user', $Balance_id['id']);
@@ -2839,7 +2884,6 @@ $textonebuy
     } else {
         $Balance_confrim = intval($Balance_id['Balance']) + intval($Payment_report['price']);
         update("user", "Balance", $Balance_confrim, "id", $Payment_report['id_user']);
-        update("Payment_report", "payment_Status", "paid", "id_order", $Payment_report['id_order']);
         $Payment_report['price'] = number_format($Payment_report['price'], 0);
         $format_price_cart = $Payment_report['price'];
         if ($Payment_report['Payment_Method'] == "cart to cart" or $Payment_report['Payment_Method'] == "arze digital offline") {
@@ -2857,6 +2901,7 @@ $textonebuy
                 
 🛒 کد پیگیری شما: {$Payment_report['id_order']}", null, 'HTML');
     }
+    return true;
 }
 function plisio($order_id, $price)
 {
@@ -3812,6 +3857,25 @@ function mirza_online_status_label($onlineAt, array $textbotlang): string
         }
     }
     return (string) ($idx['statusNotConnected'] ?? 'متصل نشده');
+}
+
+/** برچسب وضعیت سرویس پنل — با fallback برای status نامعتبر */
+function mirza_service_status_label(?string $status, array $textbotlang): string
+{
+    $unknown = (string) ($textbotlang['users']['stateus']['Unknown'] ?? 'نامشخص');
+    if ($status === null || $status === '') {
+        return $unknown;
+    }
+    $map = [
+        'active' => $textbotlang['users']['stateus']['active'] ?? 'فعال',
+        'limited' => $textbotlang['users']['stateus']['limited'] ?? 'محدود',
+        'disabled' => $textbotlang['users']['stateus']['disabled'] ?? 'غیرفعال',
+        'deactivev' => $textbotlang['users']['stateus']['disabled'] ?? 'غیرفعال',
+        'expired' => $textbotlang['users']['stateus']['expired'] ?? 'منقضی',
+        'on_hold' => $textbotlang['users']['stateus']['on_hold'] ?? 'معلق',
+        'Unknown' => $unknown,
+    ];
+    return (string) ($map[$status] ?? $unknown);
 }
 
 function mirza_xray_state_label($state, array $textbotlang): string

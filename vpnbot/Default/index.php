@@ -29,7 +29,7 @@ $admin_ids = json_decode($dataBase['admin_ids']);
 $setting = json_decode($dataBase['setting'], true);
 if (!empty($setting['channel'])) {
     $channel = channel_check("@" . $setting['channel']);
-    if (count($channel) != 0) {
+    if (count($channel) != 0 && !in_array($from_id, $admin_ids)) {
         $keyboardchannel = [
             'inline_keyboard' => [
                 [
@@ -95,7 +95,12 @@ if ($from_id != 0) {
     $stmt->execute();
 }
 $user = select("user", "*", "id", $from_id, "select");
-$user['Balance'] = json_decode(file_get_contents("data/$from_id/$from_id.json"), true)['Balance'];
+if (is_array($user)) {
+    $user['Balance'] = (int) ($user['Balance'] ?? 0);
+    if (function_exists('vpnbot_sync_user_balance_json')) {
+        vpnbot_sync_user_balance_json((string) $from_id, (int) $user['Balance']);
+    }
+}
 $usernameinvoice = select("invoice", "username", null, null, "FETCH_COLUMN");
 $buyreport = select("topicid", "idreport", "report", "buyreport", "select")['idreport'];
 $reportnight = select("topicid", "idreport", "report", "reportnight", "select")['idreport'];
@@ -1211,10 +1216,12 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
         $datafactor['price_productMain'] = $datafactor['price_productMain'] - $resultper;
     }
     if (intval($datafactor['price_product']) != 0) {
-        $Balance_prim = $user['Balance'] - $datafactor['price_product'];
-        $userbalance = json_decode(file_get_contents("data/$from_id/$from_id.json"), true);
-        $userbalance['Balance'] = $Balance_prim;
-        file_put_contents("data/$from_id/$from_id.json", json_encode($userbalance));
+        $Balance_prim = (int) $user['Balance'] - (int) $datafactor['price_product'];
+        update('user', 'Balance', $Balance_prim, 'id', $from_id);
+        if (function_exists('vpnbot_sync_user_balance_json')) {
+            vpnbot_sync_user_balance_json((string) $from_id, $Balance_prim);
+        }
+        $user['Balance'] = $Balance_prim;
     }
     $Balancebot = $userbotbalance['Balance'] - $datafactor['price_productMain'];
     update("user", "Balance", $Balancebot, "id", $userbotbalance['id']);
@@ -1829,10 +1836,12 @@ $output
     $stmt->close();
     update("invoice", "Status", "active", "id_invoice", $id_invoice);
     if (intval($datafactor['price_product']) != 0) {
-        $Balance_prim = $user['Balance'] - $datafactor['price_product'];
-        $userbalance = json_decode(file_get_contents("data/$from_id/$from_id.json"), true);
-        $userbalance['Balance'] = $Balance_prim;
-        file_put_contents("data/$from_id/$from_id.json", json_encode($userbalance));
+        $Balance_prim = (int) $user['Balance'] - (int) $datafactor['price_product'];
+        update('user', 'Balance', $Balance_prim, 'id', $from_id);
+        if (function_exists('vpnbot_sync_user_balance_json')) {
+            vpnbot_sync_user_balance_json((string) $from_id, $Balance_prim);
+        }
+        $user['Balance'] = $Balance_prim;
     }
     if (intval($userbotbalance['pricediscount']) != 0) {
         $resultper = ($datafactor['price_productMain'] * $userbotbalance['pricediscount']) / 100;
@@ -1851,7 +1860,7 @@ $output
         ]
     ]);
     $priceproductformat = number_format($datafactor['price_product']);
-    $balanceformatsell = number_format($userbalance = json_decode(file_get_contents("data/$from_id/$from_id.json"), true)['Balance']);
+    $balanceformatsell = number_format((int) ($user['Balance'] ?? 0));
     $balanceformatsellbefore = number_format($user['Balance'], 0);
     $textextend = "✅ تمدید برای سرویس شما با موفقیت صورت گرفت
  

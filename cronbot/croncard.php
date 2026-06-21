@@ -47,9 +47,10 @@ if ($mode === 'auto_only' || $mode === 'both') {
         if ($Payment_report['payment_Status'] === 'paid') {
             continue;
         }
-        update('Payment_report', 'payment_Status', 'paid', 'id_order', $Payment_report['id_order']);
         update('Payment_report', 'dec_not_confirmed', $textbotlang['hardcoded']['autoConfirmedByBot'] ?? 'تأیید خودکار', 'id_order', $Payment_report['id_order']);
-        DirectPayment($Payment_report['id_order'], '../images.jpg');
+        if (!DirectPayment($Payment_report['id_order'], '../images.jpg')) {
+            continue;
+        }
         $pricecashback = select('PaySetting', 'ValuePay', 'NamePay', 'chashbackcart', 'select')['ValuePay'] ?? '0';
         if ($pricecashback != '0') {
             $result = ($Payment_report['price'] * $pricecashback) / 100;

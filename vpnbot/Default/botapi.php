@@ -13,19 +13,63 @@ function telegram($method, $datas = [],$botToken = null)
     curl_setopt($ch, CURLOPT_POSTFIELDS, $datas);
     $res = curl_exec($ch);
     if (curl_error($ch)) {
-        var_dump(curl_error($ch));
-    } else {
-        return json_decode($res,true);
+        error_log('vpnbot telegram curl: ' . curl_error($ch));
+        curl_close($ch);
+        return ['ok' => false];
     }
+    curl_close($ch);
+    return json_decode($res, true);
 }
-function sendmessage($chat_id,$text,$keyboard,$parse_mode){
-    return telegram('sendmessage',[
-        'chat_id' => $chat_id,
-        'text' => $text,
-        'reply_markup' => $keyboard,
-        'parse_mode' => $parse_mode,
-        
-        ]);
+function sendmessage($chat_id, $text, $keyboard, $parse_mode, $bot_token = null)
+{
+    if (!is_string($text)) {
+        $text = (string) $text;
+    }
+    $limit = 4096;
+    if (mb_strlen($text, 'UTF-8') <= $limit) {
+        return telegram('sendmessage', [
+            'chat_id' => $chat_id,
+            'text' => $text,
+            'reply_markup' => $keyboard,
+            'parse_mode' => $parse_mode,
+        ], $bot_token);
+    }
+    $chunks = [];
+    $remaining = $text;
+    while (mb_strlen($remaining, 'UTF-8') > $limit) {
+        $slice = mb_substr($remaining, 0, $limit, 'UTF-8');
+        $breakAt = max(
+            (int) mb_strrpos($slice, "\n\n", 0, 'UTF-8'),
+            (int) mb_strrpos($slice, "\n", 0, 'UTF-8'),
+            (int) mb_strrpos($slice, ' ', 0, 'UTF-8')
+        );
+        if ($breakAt > (int) ($limit * 0.5)) {
+            $part = mb_substr($remaining, 0, $breakAt, 'UTF-8');
+            $remaining = mb_substr($remaining, $breakAt, null, 'UTF-8');
+        } else {
+            $part = $slice;
+            $remaining = mb_substr($remaining, $limit, null, 'UTF-8');
+        }
+        $chunks[] = trim($part);
+    }
+    if (trim($remaining) !== '') {
+        $chunks[] = trim($remaining);
+    }
+    $lastResponse = ['ok' => false];
+    $chunkCount = count($chunks);
+    foreach ($chunks as $index => $chunk) {
+        $markup = ($index === $chunkCount - 1) ? $keyboard : null;
+        $lastResponse = telegram('sendmessage', [
+            'chat_id' => $chat_id,
+            'text' => $chunk,
+            'reply_markup' => $markup,
+            'parse_mode' => $parse_mode,
+        ], $bot_token);
+        if (empty($lastResponse['ok'])) {
+            break;
+        }
+    }
+    return $lastResponse;
 }
 function sendDocument($chat_id, $documentPath, $caption) {
         telegram('sendDocument',[
@@ -63,7 +107,14 @@ function senddocumentsid($chat_id,$documentid,$caption){
         'caption'=> $caption,
     ]);
 }
-function Editmessagetext($chat_id, $message_id, $text, $keyboard,$parse_mode = 'HTML'){
+function Editmessagetext($chat_id, $message_id, $text, $keyboard, $parse_mode = 'HTML')
+{
+    if (!is_string($text)) {
+        $text = (string) $text;
+    }
+    if (mb_strlen($text, 'UTF-8') > 4096) {
+        $text = mb_substr($text, 0, 4095, 'UTF-8') . '…';
+    }
     return telegram('editmessagetext', [
         'chat_id' => $chat_id,
         'message_id' => $message_id,

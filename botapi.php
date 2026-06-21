@@ -194,6 +194,13 @@ function Editmessagetext($chat_id, $message_id, $text, $keyboard, $parse_mode = 
         $parse_mode = $prepared['parse_mode'];
         $entities = $prepared['entities'];
     }
+    if (!is_string($text)) {
+        $text = (string) $text;
+    }
+    $limit = 4096;
+    if (mb_strlen($text, 'UTF-8') > $limit) {
+        $text = mb_substr($text, 0, $limit - 1, 'UTF-8') . '…';
+    }
     $data = [
         'chat_id' => $chat_id,
         'message_id' => $message_id,

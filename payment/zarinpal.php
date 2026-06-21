@@ -61,7 +61,7 @@ $response = json_decode($response,true);
     $Payment_report = select("Payment_report", "*", "id_order", $invoice_id,"select");
     if($Payment_report['payment_Status'] != "paid"){
     $textbotlang = languagechange('../text.json');
-    DirectPayment($invoice_id,"../images.jpg");
+    if(DirectPayment($invoice_id,"../images.jpg")){
     $pricecashback = select("PaySetting", "ValuePay", "NamePay", "chashbackzarinpal","select")['ValuePay'];
     $Balance_id = select("user","*","id",$Payment_report['id_user'],"select");
     if($pricecashback != "0"){
@@ -86,7 +86,8 @@ $text_report = sprintf($textbotlang['paymentGateway']['reportZarinpal'], $Paymen
         'parse_mode' => "HTML"
         ]);
     }
-}
+    }
+    }
 }else {
         $payment_status = $textbotlang['paymentGateway']['zarinpalResultCodes'][$response['errors']['code']];
      $dec_payment_status = "";

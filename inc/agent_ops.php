@@ -305,11 +305,45 @@ function agent_deduct_balance(string $agentId, int $amount): void
     if ($amount <= 0) {
         return;
     }
-    $u = select('user', '*', 'id', $agentId, 'select');
-    if (!$u) {
+    global $pdo;
+    $stmt = $pdo->prepare('UPDATE user SET Balance = Balance - :amt WHERE id = :id');
+    $stmt->execute([':amt' => $amount, ':id' => $agentId]);
+}
+
+function agent_refund_balance(PDO $pdo, string $agentId, int $amount): void
+{
+    if ($amount <= 0) {
         return;
     }
-    update('user', 'Balance', (int) $u['Balance'] - $amount, 'id', $agentId);
+    $stmt = $pdo->prepare('UPDATE user SET Balance = Balance + :amt WHERE id = :id');
+    $stmt->execute([':amt' => $amount, ':id' => $agentId]);
+}
+
+/** کسر اتمیک موجودی — قبل از ساخت/تمدید سرویس */
+function agent_deduct_balance_atomic(PDO $pdo, array $user, int $amount): bool
+{
+    if ($amount <= 0) {
+        return true;
+    }
+    $agentId = (string) ($user['id'] ?? '');
+    if ($agentId === '') {
+        return false;
+    }
+    $agent = $user['agent'] ?? 'f';
+    if ($agent === 'n2' && (int) ($user['maxbuyagent'] ?? 0) > 0) {
+        $floor = -(int) $user['maxbuyagent'];
+        $stmt = $pdo->prepare(
+            'UPDATE user SET Balance = Balance - :amt WHERE id = :id AND (Balance - :amt2) >= :floor'
+        );
+        $stmt->execute([':amt' => $amount, ':amt2' => $amount, ':id' => $agentId, ':floor' => $floor]);
+    } elseif ($agent === 'n2') {
+        $stmt = $pdo->prepare('UPDATE user SET Balance = Balance - :amt WHERE id = :id');
+        $stmt->execute([':amt' => $amount, ':id' => $agentId]);
+    } else {
+        $stmt = $pdo->prepare('UPDATE user SET Balance = Balance - :amt WHERE id = :id AND Balance >= :amt');
+        $stmt->execute([':amt' => $amount, ':id' => $agentId]);
+    }
+    return $stmt->rowCount() > 0;
 }
 
 function agent_generate_username(string $agentId, array $panelRow, ?string $customName = null): string
@@ -388,15 +422,23 @@ function agent_finalize_service(PDO $pdo, ManagePanel $mp, string $agentId, arra
         'type' => 'buy',
     ];
     try {
+        if ($price > 0 && !agent_deduct_balance_atomic($pdo, $user, $price)) {
+            return ['ok' => false, 'msg' => 'balance deduct failed'];
+        }
         $out = $mp->createUser($panel['name_panel'], $product['code_product'], $username, $datac);
     } catch (Throwable $e) {
+        if ($price > 0) {
+            agent_refund_balance($pdo, $agentId, $price);
+        }
         return ['ok' => false, 'msg' => $e->getMessage()];
     }
     if (empty($out['username'])) {
+        if ($price > 0) {
+            agent_refund_balance($pdo, $agentId, $price);
+        }
         return ['ok' => false, 'msg' => $out['msg'] ?? 'create failed'];
     }
     update('invoice', 'Status', 'active', 'username', $username);
-    agent_deduct_balance($agentId, $price);
     agent_bump_username_counter($agentId, $panel);
     agent_log_action($pdo, $agentId, 'buy', $username, $product['name_product'] . ' @ ' . $panel['name_panel']);
     agent_notify_webhook($pdo, $agentId, 'purchase', ['username' => $username, 'product' => $product['name_product'], 'price' => $price]);
@@ -533,6 +575,9 @@ function agent_extend_service(PDO $pdo, array $user, string $username, ?array $p
         return ['ok' => false, 'msg' => $preflight['msg'], 'needs_gateway' => true, 'gateway_amount' => $preflight['gateway_amount']];
     }
     $mp = new ManagePanel();
+    if ($price > 0 && !agent_deduct_balance_atomic($pdo, $user, $price)) {
+        return ['ok' => false, 'msg' => 'balance deduct failed'];
+    }
     $ext = $mp->extend(
         agent_extend_method(),
         (int) $product['Volume_constraint'],
@@ -542,9 +587,11 @@ function agent_extend_service(PDO $pdo, array $user, string $username, ?array $p
         agent_invoice_panel($inv)
     );
     if (empty($ext['status'])) {
+        if ($price > 0) {
+            agent_refund_balance($pdo, $agentId, $price);
+        }
         return ['ok' => false, 'msg' => $ext['msg'] ?? 'extend failed'];
     }
-    agent_deduct_balance($agentId, $price);
     agent_log_action($pdo, $agentId, 'renew', $username);
     agent_notify_webhook($pdo, $agentId, 'renew', ['username' => $username, 'price' => $price]);
     return ['ok' => true, 'msg' => $ext['msg'] ?? 'renewed', 'data' => $ext];
@@ -564,11 +611,16 @@ function agent_add_volume(PDO $pdo, array $user, string $username, int $gb): arr
         return ['ok' => false, 'msg' => $preflight['msg'], 'needs_gateway' => true, 'gateway_amount' => $preflight['gateway_amount']];
     }
     $mp = new ManagePanel();
+    if ($price > 0 && !agent_deduct_balance_atomic($pdo, $user, $price)) {
+        return ['ok' => false, 'msg' => 'balance deduct failed'];
+    }
     $ext = $mp->extra_volume($username, $panelName, $gb);
     if (empty($ext['status'])) {
+        if ($price > 0) {
+            agent_refund_balance($pdo, $agentId, $price);
+        }
         return ['ok' => false, 'msg' => $ext['msg'] ?? 'failed'];
     }
-    agent_deduct_balance($agentId, $price);
     agent_log_action($pdo, $agentId, 'add_volume', $username, (string) $gb . 'GB');
     return ['ok' => true, 'msg' => $ext['msg'] ?? 'ok', 'data' => $ext, 'price' => $price];
 }
@@ -586,11 +638,16 @@ function agent_add_time(PDO $pdo, array $user, string $username, int $days): arr
         return ['ok' => false, 'msg' => $preflight['msg'], 'needs_gateway' => true, 'gateway_amount' => $preflight['gateway_amount']];
     }
     $mp = new ManagePanel();
+    if ($price > 0 && !agent_deduct_balance_atomic($pdo, $user, $price)) {
+        return ['ok' => false, 'msg' => 'balance deduct failed'];
+    }
     $ext = $mp->extra_time($username, agent_invoice_panel($inv), $days);
     if (empty($ext['status'])) {
+        if ($price > 0) {
+            agent_refund_balance($pdo, $agentId, $price);
+        }
         return ['ok' => false, 'msg' => $ext['msg'] ?? 'failed'];
     }
-    agent_deduct_balance($agentId, $price);
     agent_log_action($pdo, $agentId, 'add_time', $username, (string) $days . 'd');
     return ['ok' => true, 'msg' => $ext['msg'] ?? 'ok', 'data' => $ext, 'price' => $price];
 }
