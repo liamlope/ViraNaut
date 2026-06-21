@@ -59,6 +59,10 @@ function telegram($method, $datas = [], $token = null)
             'message is not modified',
             'message to delete not found',
             'message can\'t be deleted',
+            'message to edit not found',
+            'chat not found',
+            'bot was blocked by the user',
+            'user is deactivated',
         ];
         $skipLog = false;
         foreach ($ignored as $needle) {

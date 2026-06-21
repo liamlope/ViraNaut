@@ -6320,18 +6320,21 @@ n2", $backadmin, 'HTML');
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
         $stmt->bindParam(':notes', $usernameconfig, PDO::PARAM_STR);
-    } elseif ($text[0] == "/") {
+    } elseif (preg_match('/manageinvoice_(\w+)/', (string) $datain, $datagetr)) {
+        $usernameconfig = select("invoice", "*", "id_invoice", $datagetr[1], "select")['username'];
+        $sql = "SELECT * FROM invoice WHERE username = :username OR note  = :notes";
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
+        $stmt->bindParam(':notes', $usernameconfig, PDO::PARAM_STR);
+    } elseif (is_string($text) && $text !== '' && $text[0] === '/') {
         $usernameconfig = explode(" ", $text)[1];
         $sql = "SELECT * FROM invoice WHERE username LIKE CONCAT('%', :username, '%') OR note  LIKE CONCAT('%', :notes, '%')";
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
         $stmt->bindParam(':notes', $usernameconfig, PDO::PARAM_STR);
     } else {
-        $usernameconfig = select("invoice", "*", "id_invoice", $datagetr[1], "select")['username'];
-        $sql = "SELECT * FROM invoice WHERE username = :username OR note  = :notes";
-        $stmt = $pdo->prepare($sql);
-        $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
-        $stmt->bindParam(':notes', $usernameconfig, PDO::PARAM_STR);
+        sendmessage($from_id, $textbotlang['Admin']['order']['notfound'], null, 'HTML');
+        return;
     }
     $stmt->execute();
     step("home", $from_id);

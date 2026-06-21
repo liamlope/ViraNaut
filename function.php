@@ -1849,7 +1849,8 @@ function mirza_card_receipt_prompt_apply_row(array $row): bool
         return true;
     }
     $desc = (string) ($response['description'] ?? '');
-    if (stripos($desc, 'message is not modified') !== false) {
+    if (stripos($desc, 'message is not modified') !== false
+        || stripos($desc, 'message to edit not found') !== false) {
         return true;
     }
 
