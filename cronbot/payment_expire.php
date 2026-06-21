@@ -11,18 +11,16 @@ $setting = select("setting", "*");
 $textbotlang = languagechange();
 $unpaid_cutoff = time() - 86400;
 $unpaid_cutoff_str = date('Y/m/d H:i:s', $unpaid_cutoff);
-$waiting_cutoff = time() - mirza_card_pending_expire_sec();
-$waiting_cutoff_str = date('Y/m/d H:i:s', $waiting_cutoff);
 
+// فاکتور کارت به کارت: انقضای cron ندارد — فقط با خروج کاربر لغو می‌شود.
 $stmt = $pdo->prepare(
-    "SELECT * FROM Payment_report WHERE Payment_Method = 'cart to cart' AND (
-        (payment_Status = 'Unpaid' AND time < :unpaid_cutoff)
-        OR (payment_Status = 'waiting' AND time < :waiting_cutoff)
-    )"
+    "SELECT * FROM Payment_report
+     WHERE Payment_Method != 'cart to cart'
+       AND payment_Status = 'Unpaid'
+       AND time < :unpaid_cutoff"
 );
 $stmt->execute([
     ':unpaid_cutoff' => $unpaid_cutoff_str,
-    ':waiting_cutoff' => $waiting_cutoff_str,
 ]);
 
 while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -42,7 +40,7 @@ while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
         'Star Telegram' => $textbotlang['textbot']['starTelegram'],
         'nowpayment' => $textbotlang['textbot']['cryptoPayment']
         
-    ][$result['Payment_Method']];
+    ][$result['Payment_Method']] ?? $result['Payment_Method'];
     $textexpire = sprintf($textbotlang['hardcoded']['invoiceExpiredNotice'], $status_var, $result['id_order'], $result['price']);
 // sendmessage($result['id_user'], $textexpire, null, 'html');
 deletemessage($result['id_user'], $result['message_id']);

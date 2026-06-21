@@ -42,7 +42,7 @@ check(is_readable($root . '/lang/fa.php'), 'lang/fa.php not readable');
 check(strpos(file_get_contents($root . '/panels.php'), 'mirza_agent') !== false, 'panels.php missing mirza_agent');
 check(strpos(file_get_contents($root . '/panels.php'), "case 'ilan'") !== false, 'panels.php missing ilan hooks');
 check(strpos(file_get_contents($root . '/function.php'), 'mirza_languagechange_from_json') !== false, 'unified languagechange missing');
-check(strpos(file_get_contents($root . '/cronbot/croncard.php'), 'card_autoconfirm_mode') !== false, 'dual croncard missing');
+check(strpos(file_get_contents($root . '/cronbot/croncard.php'), 'card_receipt_prompt') !== false, 'croncard receipt prompt missing');
 check(strpos(file_get_contents($root . '/keyboard.php'), 'agent-panel') !== false, 'keyboard missing agent-panel link');
 check(strpos(file_get_contents($root . '/inc/agent_ops.php'), 'agent_buy_service') !== false, 'agent_ops missing');
 check(strpos(file_get_contents($root . '/vpnbot/update/keyboard.php'), 'پنل وب نمایندگی') !== false, 'vpnbot missing web panel');
