@@ -3597,7 +3597,7 @@ $caption";
     $stmt = $pdo->prepare($sql);
     $stmt->execute();
     $countpay = $stmt->rowCount();
-    $typepay = explode('|', $Payment_report['id_invoice']);
+    $typepay = explode('|', mirza_card_invoice_payment_payload((string) $Payment_report['id_invoice']));
     if ($countpay > 0 and !in_array($typepay[0], ['getconfigafterpay', 'getextenduser', 'getextravolumeuser', 'getextratimeuser'])) {
         sendmessage($from_id, "⚠️ برای تأیید درخواست‌های کاربر، ابتدا رسیدهای خرید یا تمدید اشتراک را بررسی و تأیید کنید. سپس رسید شارژ کیف پول را تأیید کنید. ", null, 'HTML');
         return;

@@ -5028,8 +5028,8 @@ $textonebuy
         mirza_card_cancel_unpaid_invoices((string) $from_id);
     }
     if ($datain == "cart_to_offline") {
-        $PaySetting = select("PaySetting", "ValuePay", "NamePay", "statuscardautoconfirm", "select")['ValuePay'];
         mirza_card_cancel_unpaid_invoices((string) $from_id, false, 'replaced_by_new');
+        mirza_card_expire_abandoned_unpaid();
         $mainbalance = select("PaySetting", "ValuePay", "NamePay", "minbalancecart", "select")['ValuePay'];
         $maxbalance = select("PaySetting", "ValuePay", "NamePay", "maxbalancecart", "select")['ValuePay'];
         if ($user['Processing_value'] < $mainbalance || $user['Processing_value'] > $maxbalance) {
@@ -5056,7 +5056,7 @@ $textonebuy
         $PaySettingname = $card_info['namecard'];
         mysqli_free_result($cardQuery);
         $price_copy = $user['Processing_value'];
-        $autoCardSms = mirza_card_sms_autoconfirm_enabled($PaySetting);
+        $autoCardSms = mirza_card_sms_autoconfirm_enabled();
         if ($autoCardSms) {
             $random_number = rand(0, 2000);
             $user['Processing_value'] = intval($user['Processing_value']) + $random_number;
@@ -5087,7 +5087,8 @@ $textonebuy
             $price_copy = intval($user['Processing_value'] . "0");
             $textcart = strtr($datatextbot['text_cart'] ?? mirza_lang_str($textbotlang, 'textbot.cart', ''), $replacements);
         }
-        $invoice = "{$user['Processing_value_tow']}|{$user['Processing_value_one']}";
+        $invoice = ($autoCardSms ? 'card:' . $card_number . '|' : '')
+            . "{$user['Processing_value_tow']}|{$user['Processing_value_one']}";
         $dateacc = date('Y/m/d H:i:s');
         $randomString = bin2hex(random_bytes(5));
         $dec_not_confirmed = $autoCardSms ? mirza_card_sms_auto_pending_marker() : '';
@@ -6241,7 +6242,7 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         ]
     ]);
     $format_price_cart = number_format($PaymentReport['price'], 0);
-    $split_data = explode('|', $PaymentReport['id_invoice']);
+    $split_data = explode('|', mirza_card_invoice_payment_payload((string) $PaymentReport['id_invoice']));
     if ($split_data[0] == "getconfigafterpay") {
         $get_invoice = select("invoice", "*", "username", $split_data[1], "select");
         if ($get_invoice == false) {

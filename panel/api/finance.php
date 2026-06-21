@@ -312,7 +312,7 @@ if ($action === 'transactions') {
             $r['method_label'] = $methodMap[$r['Payment_Method'] ?? ''] ?? ($r['Payment_Method'] ?? '—');
             $r['price'] = (int) ($r['price'] ?? 0);
             $r['time_label'] = panel_format_payment_time($r['time'] ?? '');
-            $inv = explode('|', (string) ($r['id_invoice'] ?? ''));
+            $inv = explode('|', mirza_card_invoice_payment_payload((string) ($r['id_invoice'] ?? '')));
             $r['invoice_type'] = $inv[0] ?? '';
         }
         unset($r);
@@ -341,7 +341,7 @@ if ($action === 'payment_approve' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (in_array($pay['payment_Status'], ['paid', 'reject'], true)) {
             fin_json(false, 'این تراکنش قبلاً بررسی شده است');
         }
-        $typepay = explode('|', (string) ($pay['id_invoice'] ?? ''));
+        $typepay = explode('|', mirza_card_invoice_payment_payload((string) ($pay['id_invoice'] ?? '')));
         $blockTypes = ['getconfigafterpay', 'getextenduser', 'getextravolumeuser', 'getextratimeuser'];
         if (!in_array($typepay[0] ?? '', $blockTypes, true)) {
             $cnt = db_count(
