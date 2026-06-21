@@ -1349,6 +1349,8 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
         return ['ok' => false, 'reason' => 'process_failed', 'order_id' => $orderId];
     }
 
+    update('Payment_report', 'dec_not_confirmed', 'sms_auto_confirmed', 'id_order', $orderId);
+
     if (!is_array($textbotlang)) {
         $textbotlang = languagechange('text.json');
     }
@@ -1491,7 +1493,7 @@ function mirza_card_sms_may_auto_approve(array $row): bool
         return false;
     }
     $dec = trim((string) ($row['dec_not_confirmed'] ?? ''));
-    if ($dec === 'receipt_submitted') {
+    if (in_array($dec, ['receipt_submitted', 'sms_auto_confirmed'], true)) {
         return false;
     }
     if ($dec !== '' && $dec !== 'receipt_ready' && !mirza_card_is_sms_auto_pending($dec)) {
@@ -1539,6 +1541,72 @@ function mirza_card_receipt_submitted_user_message(): string
     return "✅ رسید شما ثبت شده و در انتظار بررسی است.\n"
         . "پس از تأیید، موجودی یا سرویس به‌صورت خودکار اعمال می‌شود.\n"
         . "اگر تأیید نشد، به پشتیبانی پیام دهید.";
+}
+
+/** فقط از Unpaid → waiting — جلوگیری از بازنویسی paid و تأیید دوباره */
+function mirza_card_try_mark_receipt_waiting(string $orderId): bool
+{
+    global $pdo;
+    if ($orderId === '') {
+        return false;
+    }
+    $now = date('Y/m/d H:i:s');
+    $stmt = $pdo->prepare(
+        "UPDATE Payment_report
+         SET payment_Status = 'waiting', dec_not_confirmed = 'receipt_submitted', at_updated = :now
+         WHERE id_order = :oid AND payment_Status = 'Unpaid'"
+    );
+    $stmt->execute([':oid' => $orderId, ':now' => $now]);
+    return $stmt->rowCount() > 0;
+}
+
+function mirza_card_receipt_submission_blocked_reply(int|string $chatId, string $orderId): void
+{
+    $row = select('Payment_report', '*', 'id_order', $orderId, 'select');
+    if (!is_array($row)) {
+        sendmessage($chatId, '❌ خطایی در هنگام دریافت اطلاعات رخ داده است.', null, 'HTML');
+        return;
+    }
+    $status = (string) ($row['payment_Status'] ?? '');
+    if ($status === 'paid') {
+        sendmessage($chatId, '❗️ این تراکنش قبلاً تأیید شده است.', null, 'HTML');
+        return;
+    }
+    if ($status === 'waiting') {
+        sendmessage($chatId, mirza_card_receipt_submitted_user_message(), null, 'HTML');
+        return;
+    }
+    if ($status === 'expire') {
+        sendmessage($chatId, '❗ زمان این تراکنش به پایان رسیده است.', null, 'HTML');
+        return;
+    }
+    if ($status === 'reject') {
+        sendmessage($chatId, '❗ این تراکنش رد شده است.', null, 'HTML');
+        return;
+    }
+    sendmessage($chatId, '❌ امکان ثبت رسید برای این فاکتور وجود ندارد.', null, 'HTML');
+}
+
+function mirza_card_receipt_prompt_for_order(string $orderId): void
+{
+    global $pdo;
+    if ($orderId === '' || !mirza_card_sms_autoconfirm_enabled()) {
+        return;
+    }
+    $pendingSql = mirza_card_receipt_prompt_sql_pending();
+    $stmt = $pdo->prepare(
+        "SELECT * FROM Payment_report
+         WHERE id_order = :oid
+           AND Payment_Method = 'cart to cart'
+           AND payment_Status = 'Unpaid'
+           AND {$pendingSql}"
+    );
+    $stmt->bindValue(':oid', $orderId, PDO::PARAM_STR);
+    $stmt->execute();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (is_array($row)) {
+        mirza_card_receipt_prompt_apply_row($row);
+    }
 }
 
 /** متن قدیمی/طولانی کارت خودکار (Mirza legacy) */
@@ -1662,6 +1730,11 @@ function mirza_card_receipt_prompt_apply_row(array $row): bool
             'reply_markup' => $keyboard,
         ]);
         if (!empty($response['ok'])) {
+            update('Payment_report', 'dec_not_confirmed', 'receipt_ready', 'id_order', $orderId);
+            return true;
+        }
+        $desc = (string) ($response['description'] ?? '');
+        if (stripos($desc, 'message is not modified') !== false) {
             update('Payment_report', 'dec_not_confirmed', 'receipt_ready', 'id_order', $orderId);
             return true;
         }

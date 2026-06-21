@@ -5991,6 +5991,8 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         sendmessage($from_id, mirza_card_receipt_submitted_user_message(), null, 'HTML');
         return;
     }
+    mirza_card_receipt_prompt_for_order((string) $dataget[1]);
+    $payemntcheck = select("Payment_report", "*", "id_order", $dataget[1], "select");
     if (
         mirza_card_sms_autoconfirm_enabled()
         && mirza_card_is_sms_auto_pending($payemntcheck['dec_not_confirmed'] ?? '')
@@ -6222,6 +6224,10 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         sendmessage($from_id, '❌ خطایی در هنگام دریافت اطلاعات رخ داده است لطفا مراحل را از اول انجام دهید', $keyboard, 'HTML');
         return;
     }
+    if (!mirza_card_try_mark_receipt_waiting((string) $PaymentReport['id_order'])) {
+        mirza_card_receipt_submission_blocked_reply($from_id, (string) $PaymentReport['id_order']);
+        return;
+    }
     $Confirm_pay = json_encode([
         'inline_keyboard' => [
             [
@@ -6389,10 +6395,6 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         ]);
         sendmessage($id_admin, $textsendrasid, $Confirm_pay, 'HTML');
     }
-    update("Payment_report", "payment_Status", "waiting", "id_order", $PaymentReport['id_order']);
-    update("Payment_report", "dec_not_confirmed", "receipt_submitted", "id_order", $PaymentReport['id_order']);
-    $dateacc = date('Y/m/d H:i:s');
-    update("Payment_report", "at_updated", $dateacc, "id_order", $PaymentReport['id_order']);
 } elseif ($datain == "Discount") {
     $bakinfos = json_encode([
         'inline_keyboard' => [

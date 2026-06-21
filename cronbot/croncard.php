@@ -14,7 +14,7 @@ require_once __DIR__ . '/../jdf.php';
 
 $mode = mirza_card_autoconfirm_mode();
 
-if ($mode === 'receipt_only' || $mode === 'both') {
+if (mirza_card_sms_autoconfirm_enabled() || $mode === 'receipt_only' || $mode === 'both') {
     require_once __DIR__ . '/card_receipt_prompt.php';
 }
 
@@ -37,6 +37,12 @@ if ($mode === 'auto_only' || $mode === 'both') {
             continue;
         }
         $Payment_report = $row;
+        if (
+            mirza_card_sms_autoconfirm_enabled()
+            && ($Payment_report['Payment_Method'] ?? '') === 'cart to cart'
+        ) {
+            continue;
+        }
         $list_Exceptions = select('PaySetting', 'ValuePay', 'NamePay', 'Exception_auto_cart', 'select')['ValuePay'] ?? '[]';
         $list_Exceptions = is_string($list_Exceptions) ? json_decode($list_Exceptions, true) : [];
         $Balance_id = select('user', '*', 'id', $Payment_report['id_user'], 'select');
