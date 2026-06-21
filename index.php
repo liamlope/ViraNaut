@@ -448,6 +448,10 @@ if ($user['joinchannel'] != "active") {
         }
     }
 }
+if ($text == "/start" || $datain == "start" || $text == "start") {
+    mirza_handle_bot_start_command($from_id, $datatextbot, $keyboard);
+    return;
+}
 if (in_array($from_id, $admin_ids) && mirza_admin_run_exclusive((string) ($user['step'] ?? 'home'))) {
     if (!defined('VIRA_BOT_BOOTSTRAP')) {
         define('VIRA_BOT_BOOTSTRAP', true);
@@ -463,15 +467,7 @@ if (in_array($from_id, $admin_ids) && mirza_admin_run_exclusive((string) ($user[
     http_response_code(200);
     exit;
 }
-if ($text == "/start" || $datain == "start" || $text == "start") {
-    mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, "html");
-    update("user", "Processing_value", "0", "id", $from_id);
-    update("user", "Processing_value_one", "0", "id", $from_id);
-    update("user", "Processing_value_tow", "0", "id", $from_id);
-    update("user", "Processing_value_four", "0", "id", $from_id);
-    step('home', $from_id, ['skip_card_cancel' => true]);
-    return;
-} elseif ($text == "version") {
+if ($text == "version") {
     sendmessage($from_id, $version, null, 'html');
 } elseif ($text == $textbotlang['users']['backbtn'] || $datain == "backuser") {
     if ($datain == "backuser")

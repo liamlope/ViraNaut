@@ -4307,6 +4307,16 @@ function mirza_json_agent_scalar($jsonValue, string $agent, $default = 0)
     return $first !== false ? $first : $default;
 }
 
+function mirza_handle_bot_start_command($from_id, array $datatextbot, $keyboard): void
+{
+    mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
+    update('user', 'Processing_value', '0', 'id', $from_id);
+    update('user', 'Processing_value_one', '0', 'id', $from_id);
+    update('user', 'Processing_value_tow', '0', 'id', $from_id);
+    update('user', 'Processing_value_four', '0', 'id', $from_id);
+    step('home', $from_id, ['skip_card_cancel' => true]);
+}
+
 function mirza_admin_allows_user_lookup(string $step): bool
 {
     $step = trim($step);
@@ -4324,7 +4334,7 @@ function mirza_admin_user_flow_step(string $step): bool
         'getcodesellDiscount', 'getcountconfig', 'gettimecustomvolom', 'getvolumecustomusernameom',
         'endstepuserom', 'endstepusersom', 'getvolumecustomuserom', 'payments', 'getprice',
         'get_step_payment', 'getresidcurrency', 'cart_to_cart_user', 'get_code_user', 'getvolumeextras',
-        'getmessageAsuser', 'selectusernamecustom', 'confirmchannel',
+        'getmessageAsuser', 'selectusernamecustom', 'confirmchannel', 'card_invoice_pending',
     ];
     return in_array(trim($step), $steps, true);
 }

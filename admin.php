@@ -21,6 +21,11 @@ $text_panel_admin_login_template = "💎 | نسخه ربات: %s
 if (!in_array($from_id, $admin_ids))
     return;
 
+if ($text == "/start" || $datain == "start" || $text == "start") {
+    mirza_handle_bot_start_command($from_id, $datatextbot, $keyboard);
+    return;
+}
+
 $domainhostsEscaped = htmlspecialchars($domainhosts, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $mini_app_url_display = htmlspecialchars(bot_site_https_url('app/'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
