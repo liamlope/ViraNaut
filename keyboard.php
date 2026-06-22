@@ -1,6 +1,6 @@
 <?php
 require_once 'config.php';
-$setting = select("setting", "*", null, null, "select");
+$setting = mirza_ensure_setting_ready();
 $textbotlang = languagechange(null, mirza_resolve_bot_ui_lang('fa'));
 if (!function_exists('getPaySettingValue')) {
     function getPaySettingValue($name)
@@ -90,13 +90,13 @@ $replacements = [
 ];
 $admin_idss = select("admin", "*", "id_admin", $from_id, "count");
 $temp_addtional_key = [];
-$keyboardLayout = json_decode($setting['keyboardmain'], true);
+$keyboardLayout = json_decode((string) ($setting['keyboardmain'] ?? ''), true);
 $keyboardRows = [];
 if (is_array($keyboardLayout) && isset($keyboardLayout['keyboard']) && is_array($keyboardLayout['keyboard'])) {
     $keyboardRows = $keyboardLayout['keyboard'];
 }
 
-if ($setting['inlinebtnmain'] == "oninline" && !empty($keyboardRows)) {
+if (($setting['inlinebtnmain'] ?? '') == "oninline" && !empty($keyboardRows)) {
     $trace_keyboard = $keyboardRows;
     if (function_exists('mirza_keyboard_apply_custom_emojis')) {
         mirza_keyboard_apply_custom_emojis($trace_keyboard);
@@ -418,7 +418,7 @@ $keyboard_shop_manage = json_encode([
     ],
     'resize_keyboard' => true
 ]);
-if ($setting['inlinebtnmain'] == "oninline") {
+if (($setting['inlinebtnmain'] ?? '') == "oninline") {
     $confrimrolls = json_encode([
         'inline_keyboard' => [
             [
@@ -456,7 +456,7 @@ $channelkeyboard = json_encode([
     ],
     'resize_keyboard' => true
 ]);
-if ($setting['inlinebtnmain'] == "oninline") {
+if (($setting['inlinebtnmain'] ?? '') == "oninline") {
     $backuser = json_encode([
         'inline_keyboard' => [
             [['text' => $textbotlang['users']['backbtn'], 'callback_data' => "backuser"]]
@@ -1313,7 +1313,7 @@ $keyboardtypepanel = json_encode([
 ]);
 
 $panelechekc = select("marzban_panel", "*", "MethodUsername", "متن دلخواه نماینده + عدد ترتیبی", "count");
-if ($setting['inlinebtnmain'] == "oninline") {
+if (($setting['inlinebtnmain'] ?? '') == "oninline") {
     $agentWebUrl = 'https://' . ($domainhosts ?? 'localhost') . '/agent-panel/';
     $keyboardagent = [
         'inline_keyboard' => [

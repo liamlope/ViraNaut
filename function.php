@@ -4308,6 +4308,35 @@ function mirza_json_agent_scalar($jsonValue, string $agent, $default = 0)
     return $first !== false ? $first : $default;
 }
 
+function mirza_default_keyboardmain_json(): string
+{
+    return '{"keyboard":[[{"text":"text_sell"},{"text":"text_extend"}],[{"text":"text_usertest"},{"text":"text_wheel_luck"}],[{"text":"text_Purchased_services"},{"text":"accountwallet"}],[{"text":"text_affiliates"},{"text":"text_Tariff_list"}],[{"text":"text_support"},{"text":"text_help"}]]}';
+}
+
+/** setting خالی یا keyboardmain خراب → دیگر 500 ندهد؛ در صورت امکان در DB اصلاح می‌کند */
+function mirza_ensure_setting_ready(): array
+{
+    $row = select('setting', '*', null, null, 'select', ['cache' => false]);
+    if (!is_array($row)) {
+        error_log('[viranaut] setting table has no row — run: cd BOT_DIR && php table.php');
+        return [
+            'keyboardmain' => mirza_default_keyboardmain_json(),
+            'inlinebtnmain' => 'offinline',
+            'Bot_Status' => 'botstatuson',
+            'statusagentrequest' => 'onrequestagent',
+            'statusnewuser' => 'onnewuser',
+            'statusnoteforf' => '1',
+        ];
+    }
+    $km = trim((string) ($row['keyboardmain'] ?? ''));
+    if ($km === '' || !is_array(json_decode($km, true))) {
+        $km = mirza_default_keyboardmain_json();
+        update('setting', 'keyboardmain', $km, null, null);
+        $row['keyboardmain'] = $km;
+    }
+    return $row;
+}
+
 function mirza_handle_bot_start_command($from_id, array $datatextbot, $keyboard): void
 {
     mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');

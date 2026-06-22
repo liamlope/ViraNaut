@@ -61,9 +61,11 @@ if ($Chat_type === 'private' && !empty($from_id)) {
 if (isset($chat_member))
     return;
 $first_name = sanitizeUserName($first_name);
-$setting = select("setting", "*");
-$keyboard_check = json_decode($setting['keyboardmain'], true);
-if (is_array($keyboard_check) && preg_match('/[\x{600}-\x{6FF}\x{FB50}-\x{FDFF}]/u', $keyboard_check['keyboard'][0][0]['text'])) {
+$setting = mirza_ensure_setting_ready();
+$keyboard_check = json_decode((string) ($setting['keyboardmain'] ?? ''), true);
+$keyboard_first_text = $keyboard_check['keyboard'][0][0]['text'] ?? '';
+if (is_array($keyboard_check) && $keyboard_first_text !== ''
+    && preg_match('/[\x{600}-\x{6FF}\x{FB50}-\x{FDFF}]/u', $keyboard_first_text)) {
     $keyboardmain = '{"keyboard":[[{"text":"text_sell"},{"text":"text_extend"}],[{"text":"text_usertest"},{"text":"text_wheel_luck"}],[{"text":"text_Purchased_services"},{"text":"accountwallet"}],[{"text":"text_affiliates"},{"text":"text_Tariff_list"}],[{"text":"text_support"},{"text":"text_help"}]]}';
     update("setting", "keyboardmain", $keyboardmain, null, null);
 }
