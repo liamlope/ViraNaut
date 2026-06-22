@@ -75,7 +75,7 @@ function vira_campaign_target_defs(): array
         'customers' => 'دارای خرید',
         'no_purchase' => 'بدون خرید',
         'blocked' => 'مسدودها',
-        'users' => 'انتخاب دستی',
+        'users' => 'فقط کاربران انتخاب‌شده',
     ];
 }
 
@@ -114,27 +114,33 @@ function vira_campaign_search_users(PDO $pdo, string $q, int $limit = 25): array
     if ($q === '') {
         return [];
     }
+    $qClean = ltrim($q, '@');
     $limit = max(1, min(50, $limit));
-    $like = '%' . $q . '%';
+    $like = '%' . $qClean . '%';
+    $conds = ['id LIKE ?', 'username LIKE ?', 'namecustom LIKE ?'];
     $params = [$like, $like, $like];
-    $sql = "SELECT id, username, namecustom, lang FROM user WHERE User_Status != 'block' AND (id LIKE ? OR username LIKE ? OR namecustom LIKE ?)";
-    if (ctype_digit($q)) {
-        $sql .= ' OR id = ?';
-        $params[] = $q;
+    if (ctype_digit($qClean)) {
+        $conds[] = 'id = ?';
+        $params[] = $qClean;
     }
-    $sql .= ' ORDER BY register DESC LIMIT ' . $limit;
+    $sql = 'SELECT id, username, namecustom, lang, User_Status FROM user WHERE (' . implode(' OR ', $conds) . ') ORDER BY register DESC LIMIT ' . $limit;
     $rows = db_fetchAll($pdo, $sql, $params);
     return array_map(static function (array $row): array {
         $name = trim((string) ($row['namecustom'] ?? ''));
+        $username = trim((string) ($row['username'] ?? ''));
         if ($name === '' || $name === 'none') {
-            $name = trim((string) ($row['username'] ?? ''));
+            $name = ($username !== '' && $username !== 'none') ? $username : 'کاربر';
+        }
+        if ($username === 'none') {
+            $username = '';
         }
         return [
             'id' => (string) ($row['id'] ?? ''),
             'telegram_id' => (string) ($row['id'] ?? ''),
-            'username' => (string) ($row['username'] ?? ''),
-            'first_name' => $name !== '' && $name !== 'none' ? $name : 'کاربر',
+            'username' => $username,
+            'first_name' => $name,
             'language_code' => (string) ($row['lang'] ?? ''),
+            'is_blocked' => (string) ($row['User_Status'] ?? '') === 'block',
         ];
     }, $rows);
 }

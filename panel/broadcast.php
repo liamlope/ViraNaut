@@ -30,8 +30,19 @@ include __DIR__ . '/inc/layout_head.php';
                     <button type="button" class="bc-seg-btn" data-type="video">ویدیو</button>
                 </div>
 
+                <div class="bc-user-search-section">
+                    <p class="bc-panel-title">ارسال به کاربر مشخص</p>
+                    <p class="field-hint">آیدی عددی، نام یا @username — برای ارسال به یک نفر جستجو و انتخاب کنید</p>
+                    <div class="bc-search-row">
+                        <input type="text" id="bcUserSearch" class="input" placeholder="مثلاً 123456789 یا @username یا نام" autocomplete="off">
+                        <button type="button" class="btn btn-ghost btn-sm" id="bcUserSearchBtn">جستجو</button>
+                    </div>
+                    <div id="bcUserResults" class="bc-user-results"></div>
+                    <div id="bcUserSelectedChips" class="bc-selected-users"></div>
+                </div>
+
                 <div class="bc-target-section">
-                    <p class="bc-panel-title">مخاطبان</p>
+                    <p class="bc-panel-title">یا ارسال گروهی</p>
                     <div class="bc-target-list" id="bcTargetList">
                         <?php foreach ($targets as $i => $t): ?>
                             <button type="button" class="bc-target-chip<?= $i === 0 ? ' active' : '' ?>" data-target="<?= htmlspecialchars($t['id']) ?>">
@@ -40,16 +51,6 @@ include __DIR__ . '/inc/layout_head.php';
                             </button>
                         <?php endforeach; ?>
                     </div>
-                </div>
-
-                <div id="bcUserPanel" class="bc-panel hidden">
-                    <p class="bc-panel-title">جستجو و انتخاب کاربر</p>
-                    <div class="bc-search-row">
-                        <input type="text" id="bcUserSearch" class="input" placeholder="ID، @username، نام">
-                        <button type="button" class="btn btn-ghost btn-sm" id="bcUserSearchBtn">جستجو</button>
-                    </div>
-                    <div id="bcUserResults" class="bc-user-results"></div>
-                    <p id="bcUserSelected" class="field-hint"></p>
                 </div>
 
                 <label class="bc-field">

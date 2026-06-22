@@ -137,7 +137,8 @@
     var ok = !state.sending;
     if (state.messageType === 'text') ok = ok && !!text;
     else ok = ok && !!state.mediaFile;
-    if (state.target === 'users') ok = ok && state.selectedUsers.length > 0;
+    var target = state.selectedUsers.length > 0 ? 'users' : state.target;
+    if (target === 'users') ok = ok && state.selectedUsers.length > 0;
     document.getElementById('bcSend').disabled = !ok;
   }
 
@@ -277,20 +278,71 @@
     return state.targets.find(function (t) { return t.id === state.target; }) || { id: state.target, label: state.target, count: 0 };
   }
 
+  function userLabel(u) {
+    var un = u.username && u.username !== 'none' ? '@' + u.username : '';
+    return (u.first_name || 'کاربر') + (un ? ' ' + un : '') + ' · ' + u.telegram_id;
+  }
+
+  function applyUserSelection() {
+    if (state.selectedUsers.length > 0) {
+      state.target = 'users';
+    }
+    renderSelectedChips();
+    renderTargetChips();
+    updateSendDisabled();
+    updateAudiencePreview();
+  }
+
+  function renderSelectedChips() {
+    var el = document.getElementById('bcUserSelectedChips');
+    if (!el) return;
+    if (!state.selectedUsers.length) {
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML = state.selectedUsers.map(function (u) {
+      return '<span class="bc-selected-chip">' + esc(userLabel(u)) +
+        '<button type="button" class="bc-selected-remove" data-id="' + esc(u.id) + '" title="حذف">×</button></span>';
+    }).join('');
+    el.querySelectorAll('.bc-selected-remove').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute('data-id');
+        state.selectedUsers = state.selectedUsers.filter(function (u) { return u.id !== id; });
+        if (!state.selectedUsers.length && state.target === 'users') {
+          state.target = 'all';
+        }
+        applyUserSelection();
+      };
+    });
+  }
+
+  function toggleUser(user) {
+    var idx = state.selectedUsers.findIndex(function (x) { return x.id === user.id; });
+    if (idx >= 0) state.selectedUsers.splice(idx, 1);
+    else state.selectedUsers.push(user);
+    applyUserSelection();
+  }
+
   function renderTargetChips() {
     var list = document.getElementById('bcTargetList');
     if (!list || !state.targets.length) return;
+    var activeTarget = state.selectedUsers.length > 0 ? 'users' : state.target;
     list.innerHTML = state.targets.map(function (t) {
-      var active = t.id === state.target ? ' active' : '';
+      var active = t.id === activeTarget ? ' active' : '';
       var count = t.id === 'users' ? state.selectedUsers.length : t.count;
       return '<button type="button" class="bc-target-chip' + active + '" data-target="' + esc(t.id) + '">' +
         esc(t.label) + ' <span class="bc-target-count">(' + fa(count) + ')</span></button>';
     }).join('');
     list.querySelectorAll('.bc-target-chip').forEach(function (btn) {
       btn.onclick = function () {
-        state.target = btn.getAttribute('data-target');
+        var picked = btn.getAttribute('data-target');
+        if (picked !== 'users') {
+          state.selectedUsers = [];
+          renderSelectedChips();
+          document.getElementById('bcUserResults').innerHTML = '';
+        }
+        state.target = picked;
         renderTargetChips();
-        document.getElementById('bcUserPanel').classList.toggle('hidden', state.target !== 'users');
         updateSendDisabled();
         updateAudiencePreview();
       };
@@ -298,14 +350,15 @@
   }
 
   function updateAudiencePreview() {
-    var meta = currentTargetMeta();
+    var target = state.selectedUsers.length > 0 ? 'users' : state.target;
+    var meta = state.targets.find(function (t) { return t.id === target; }) || currentTargetMeta();
     var label = meta.label;
     var detail = '';
-    if (state.target === 'users') {
+    if (target === 'users') {
       label = fa(state.selectedUsers.length) + ' کاربر انتخابی';
       detail = state.selectedUsers.length
         ? state.selectedUsers.map(function (u) { return u.telegram_id; }).join(', ')
-        : 'حداقل یک کاربر انتخاب کنید';
+        : 'از جعبه جستجو بالا یک کاربر انتخاب کنید';
     } else {
       var count = meta.count || 0;
       label = meta.label + ' (' + fa(count) + ' نفر)';
@@ -318,13 +371,15 @@
   function renderUserResults(users) {
     var el = document.getElementById('bcUserResults');
     if (!users.length) {
-      el.innerHTML = '<p class="field-hint">نتیجه‌ای نیست</p>';
+      el.innerHTML = '<p class="field-hint">نتیجه‌ای نیست — آیدی عددی، @username یا نام را امتحان کنید</p>';
       return;
     }
     el.innerHTML = users.map(function (u) {
       var on = state.selectedUsers.some(function (x) { return x.id === u.id; });
+      var blocked = u.is_blocked ? ' <span class="tag tag-warn">مسدود</span>' : '';
+      var un = u.username ? '@' + esc(u.username) : esc(u.telegram_id);
       return '<button type="button" class="bc-user-item' + (on ? ' selected' : '') + '" data-id="' + esc(u.id) + '">' +
-        '<span>' + esc(u.first_name) + ' @' + esc(u.username || u.telegram_id) + (u.language_code ? ' · ' + esc(u.language_code) : '') + '</span>' +
+        '<span>' + esc(u.first_name) + ' · ' + un + blocked + '</span>' +
         (on ? '<span class="tag tag-ok">✓</span>' : '') + '</button>';
     }).join('');
     el.querySelectorAll('.bc-user-item').forEach(function (btn) {
@@ -332,17 +387,29 @@
         var id = btn.getAttribute('data-id');
         var user = users.find(function (u) { return u.id === id; });
         if (!user) return;
-        var idx = state.selectedUsers.findIndex(function (x) { return x.id === id; });
-        if (idx >= 0) state.selectedUsers.splice(idx, 1);
-        else state.selectedUsers.push(user);
-        document.getElementById('bcUserSelected').textContent = state.selectedUsers.length
-          ? 'انتخاب: ' + state.selectedUsers.map(function (u) { return u.telegram_id; }).join(', ')
-          : '';
+        toggleUser(user);
         renderUserResults(users);
-        renderTargetChips();
-        updateSendDisabled();
-        updateAudiencePreview();
       };
+    });
+  }
+
+  function searchUsers() {
+    var q = document.getElementById('bcUserSearch').value.trim();
+    if (!q) {
+      document.getElementById('bcUserResults').innerHTML = '<p class="field-hint">عبارت جستجو را وارد کنید</p>';
+      return;
+    }
+    api('search_users', { q: q }).then(function (d) {
+      if (!d.ok) return;
+      var users = d.users || [];
+      if (users.length === 1 && /^\d+$/.test(q.replace(/^@/, ''))) {
+        var u = users[0];
+        if (!state.selectedUsers.some(function (x) { return x.id === u.id; })) {
+          state.selectedUsers.push(u);
+          applyUserSelection();
+        }
+      }
+      renderUserResults(users);
     });
   }
 
@@ -429,7 +496,6 @@
         state.target = state.targets[0] ? state.targets[0].id : 'all';
       }
       renderTargetChips();
-      document.getElementById('bcUserPanel').classList.toggle('hidden', state.target !== 'users');
       updateAudiencePreview();
     });
   }
@@ -496,7 +562,7 @@
     var fd = new FormData();
     fd.append('text', document.getElementById('bcText').value);
     fd.append('message_type', state.messageType);
-    fd.append('target', state.target);
+    fd.append('target', state.selectedUsers.length > 0 ? 'users' : state.target);
     fd.append('parse_mode', document.getElementById('bcParseMode').value);
     fd.append('disable_web_page_preview', document.getElementById('bcDisablePreview').checked ? '1' : '0');
     fd.append('pin_after_send', document.getElementById('bcPin').checked ? '1' : '0');
@@ -504,7 +570,9 @@
     fd.append('auto_send_delay_minutes', document.getElementById('bcAutoDelay').value || '5');
     var buttons = serializeButtonRows(state.buttonRows);
     if (buttons) fd.append('buttons_json', buttons);
-    if (state.target === 'users') fd.append('user_ids', state.selectedUsers.map(function (u) { return u.telegram_id; }).join(','));
+    if (state.selectedUsers.length > 0) {
+      fd.append('user_ids', state.selectedUsers.map(function (u) { return u.telegram_id; }).join(','));
+    }
     if (state.mediaFile) fd.append('media', state.mediaFile);
 
     state.sending = true;
@@ -524,6 +592,12 @@
       setResult('کمپین ایجاد شد — تخمین: حدود ' + fa(estimateMinutes(total)) + ' دقیقه', true);
       document.getElementById('bcText').value = '';
       state.buttonRows = [];
+      state.selectedUsers = [];
+      state.target = 'all';
+      document.getElementById('bcUserSearch').value = '';
+      document.getElementById('bcUserResults').innerHTML = '';
+      renderSelectedChips();
+      renderTargetChips();
       state.mediaFile = null;
       if (state.mediaUrl) URL.revokeObjectURL(state.mediaUrl);
       state.mediaUrl = null;
@@ -587,13 +661,9 @@
     document.getElementById('bcAutoSendLabel').textContent = on ? 'فعال' : 'غیرفعال';
   });
 
-  document.getElementById('bcUserSearchBtn').onclick = function () {
-    api('search_users', { q: document.getElementById('bcUserSearch').value }).then(function (d) {
-      if (d.ok) renderUserResults(d.users || []);
-    });
-  };
+  document.getElementById('bcUserSearchBtn').onclick = searchUsers;
   document.getElementById('bcUserSearch').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') document.getElementById('bcUserSearchBtn').click();
+    if (e.key === 'Enter') searchUsers();
   });
 
   document.getElementById('bcSend').onclick = sendCampaign;
