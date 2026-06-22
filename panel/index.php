@@ -173,6 +173,37 @@ include __DIR__ . '/inc/layout_head.php';
     </div>
 </div>
 
+<div class="card fade-up d1" style="margin-bottom:16px">
+    <div class="card-head">
+        <div>
+            <div class="card-title">آمار کاربران</div>
+            <div class="card-subtitle">رشد عضویت — نمودار ستونی و خطی</div>
+        </div>
+        <div class="chart-mode-tabs" id="userChartModeTabs">
+            <button type="button" class="active" data-mode="bar">ستونی</button>
+            <button type="button" data-mode="line">خطی</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="user-stats-row" id="userStatsRow">
+            <div class="user-stat-pill"><span>کل کاربران</span><strong id="usTotal">—</strong></div>
+            <div class="user-stat-pill"><span>امروز</span><strong id="usToday">—</strong></div>
+            <div class="user-stat-pill"><span>۷ روز</span><strong id="us7d">—</strong></div>
+            <div class="user-stat-pill"><span>۳۰ روز</span><strong id="us30d">—</strong></div>
+            <div class="user-stat-pill"><span>فعال</span><strong id="usActive">—</strong></div>
+            <div class="user-stat-pill"><span>مسدود</span><strong id="usBlocked">—</strong></div>
+        </div>
+        <div class="chart-range-tabs" id="userChartRangeTabs">
+            <button type="button" data-days="7">۷ روز</button>
+            <button type="button" class="active" data-days="30">۳۰ روز</button>
+            <button type="button" data-days="90">۹۰ روز</button>
+            <button type="button" data-days="180">۶ ماه</button>
+            <button type="button" data-days="365">۱ سال</button>
+        </div>
+        <div class="dashboard-chart-wrap" style="height:260px;margin-top:12px"><canvas id="userGrowthChart"></canvas></div>
+    </div>
+</div>
+
 <?php if (!empty($recentActivity)): ?>
 <div class="card fade-up d1" style="margin-bottom:16px">
     <div class="card-head">
