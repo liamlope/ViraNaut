@@ -4422,34 +4422,51 @@ function vira_donation_wallet_address(string $payKey, string $default): string
     return $default;
 }
 
+function vira_donation_wallet_rows(): array
+{
+    return [
+        ['icon' => '₿', 'label' => 'Bitcoin', 'key' => 'wallet_btc', 'default' => 'bc1q5xw4nyqc5s993eukq9udrcpfh8ky6pc0mzlfsn'],
+        ['icon' => '⟠', 'label' => 'Ethereum · BNB · Polygon', 'key' => 'wallet_eth', 'default' => '0xb60a111813bae216e3b178a5f9e31a95549c000e', 'aliases' => ['wallet_bnb', 'wallet_polygon']],
+        ['icon' => '◎', 'label' => 'Solana', 'key' => 'wallet_solana', 'default' => 'GfKRLRTrKx7SYJHd76Rc7tVE6WwJKTNoZutSQitfppR6'],
+        ['icon' => '🔺', 'label' => 'Tron · USDT · USDC', 'key' => 'wallet_trx_tron', 'default' => 'TQEW4TP8eGzmJNyzu6kdi4GJdZdNqmTFRL'],
+        ['icon' => 'Ð', 'label' => 'Dogecoin', 'key' => 'wallet_doge', 'default' => 'DFAfCU1LHdc7sKFVs9dD7MySA7Wt4EJQtX'],
+        ['icon' => '💎', 'label' => 'Toncoin', 'key' => 'wallet_ton', 'default' => 'UQDpQupJJM8bcxk19XmEZtwe-oQ4XmIbxM8SB88z0MXmXYsu'],
+    ];
+}
+
 function vira_developer_donation_wallets_html(): string
 {
-    $rows = [
-        ['BTC', 'wallet_btc', 'bc1q24r7j79eghk0lcury2ly4hm04mt2yh59ejajxz'],
-        ['ETH · USDT · USDC', 'wallet_eth', '0xb60a111813bae216e3b178a5f9e31a95549c000e'],
-        ['BNB · USDT · USDC', 'wallet_bnb', '0xb60a111813bae216e3b178a5f9e31a95549c000e'],
-        ['MATIC · USDT', 'wallet_polygon', '0xb60a111813bae216e3b178a5f9e31a95549c000e'],
-        ['SOL', 'wallet_solana', '8NE5a13aHCQF38mEHspRwikskEg8JMAG9ZA9qtgwRUdM'],
-        ['TRX · USDT · USDC', 'wallet_trx_tron', 'TFxj93JHJ9s2jybwcWQ3C4b4rppM8Vvuc5'],
-        ['DOGE', 'wallet_doge', 'DFAfCU1LHdc7sKFVs9dD7MySA7Wt4EJQtX'],
-        ['TON', 'wallet_ton', 'UQDpQupJJM8bcxk19XmEZtwe-oQ4XmIbxM8SB88z0MXmXYsu'],
-    ];
-    $lines = "💎 | <b>حمایت از توسعه‌دهنده</b> (اختیاری)\n\n";
-    foreach ($rows as [$label, $key, $default]) {
-        $addr = htmlspecialchars(vira_donation_wallet_address($key, $default), ENT_QUOTES, 'UTF-8');
-        $lines .= "🔸 {$label}: <code>{$addr}</code>\n";
+    $sep = "➖➖➖➖➖➖➖➖➖➖➖\n";
+    $lines = $sep
+        . "💎 <b>حمایت از توسعه‌دهنده</b> <i>(اختیاری)</i>\n\n";
+
+    foreach (vira_donation_wallet_rows() as $row) {
+        $addr = vira_donation_wallet_address($row['key'], $row['default']);
+        $addr = htmlspecialchars($addr, ENT_QUOTES, 'UTF-8');
+        $icon = $row['icon'];
+        $label = htmlspecialchars($row['label'], ENT_QUOTES, 'UTF-8');
+        $lines .= "{$icon} <b>{$label}</b>\n<code>{$addr}</code>\n\n";
     }
-    $lines .= "\nاز حمایت شما برای توسعه ویرا سپاسگزاریم 🙏";
-    return "<blockquote>{$lines}</blockquote>";
+
+    $lines .= "🙏 از حمایت شما برای توسعه <b>ویرا</b> سپاسگزاریم";
+    return $lines;
 }
 
 function vira_admin_panel_login_message(string $botVersion, string $miniAppVersion): string
 {
-    return "💎 | نسخه ربات: {$botVersion}\n📌 | نسخه مینی‌اپ: {$miniAppVersion}\n\n"
-        . "<blockquote>🔹 | <b>ویرا ViraNaut</b> — ربات VPN رایگان و متن‌باز</blockquote>\n\n"
-        . "<blockquote>🔹 | توسعه‌یافته توسط تیم ویرا · نسخه 2.0.1</blockquote>\n\n"
-        . "<blockquote>🔹 | هرگونه فروش یا دریافت وجه بابت این ربات تخلف محسوب می‌شود.</blockquote>\n\n"
-        . "<blockquote>🐞 | گزارش باگ: دکمهٔ <b>📬 گزارش ربات</b> در پنل ادمین</blockquote>"
+    $botVersion = htmlspecialchars($botVersion, ENT_QUOTES, 'UTF-8');
+    $miniAppVersion = htmlspecialchars($miniAppVersion, ENT_QUOTES, 'UTF-8');
+    $sep = "➖➖➖➖➖➖➖➖➖➖➖\n";
+
+    return "💎 <b>نسخه ربات:</b> {$botVersion}\n"
+        . "📌 <b>نسخه مینی‌اپ:</b> {$miniAppVersion}\n\n"
+        . $sep . "\n"
+        . "<blockquote>"
+        . "🔹 <b>ویرا ViraNaut</b> — ربات VPN رایگان و متن‌باز\n"
+        . "🔹 توسعه‌یافته توسط تیم ویرا · نسخه 2.0.1\n"
+        . "🔹 هرگونه فروش یا دریافت وجه بابت این ربات تخلف محسوب می‌شود.\n"
+        . "🐞 گزارش باگ: دکمه <b>📬 گزارش ربات</b> در پنل ادمین"
+        . "</blockquote>\n\n"
         . vira_developer_donation_wallets_html();
 }
 

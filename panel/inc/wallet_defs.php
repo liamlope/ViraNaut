@@ -6,12 +6,12 @@ function vira_crypto_wallet_defs(): array
     $evm = '0xb60a111813bae216e3b178a5f9e31a95549c000e';
 
     return [
-        ['key' => 'wallet_btc', 'label' => 'Bitcoin', 'network' => 'Bitcoin', 'symbol' => 'BTC', 'default' => 'bc1q24r7j79eghk0lcury2ly4hm04mt2yh59ejajxz'],
+        ['key' => 'wallet_btc', 'label' => 'Bitcoin', 'network' => 'Bitcoin', 'symbol' => 'BTC', 'default' => 'bc1q5xw4nyqc5s993eukq9udrcpfh8ky6pc0mzlfsn'],
         ['key' => 'wallet_eth', 'label' => 'Ethereum', 'network' => 'Ethereum', 'symbol' => 'ETH · USDT · USDC', 'default' => $evm],
         ['key' => 'wallet_bnb', 'label' => 'BNB Smart Chain', 'network' => 'BSC', 'symbol' => 'BNB · USDT · USDC', 'default' => $evm],
         ['key' => 'wallet_polygon', 'label' => 'Polygon', 'network' => 'Polygon', 'symbol' => 'MATIC · USDT', 'default' => $evm],
-        ['key' => 'wallet_solana', 'label' => 'Solana', 'network' => 'Solana', 'symbol' => 'SOL', 'default' => '8NE5a13aHCQF38mEHspRwikskEg8JMAG9ZA9qtgwRUdM'],
-        ['key' => 'wallet_trx_tron', 'label' => 'Tron', 'network' => 'Tron', 'symbol' => 'TRX · USDT · USDC', 'default' => 'TFxj93JHJ9s2jybwcWQ3C4b4rppM8Vvuc5'],
+        ['key' => 'wallet_solana', 'label' => 'Solana', 'network' => 'Solana', 'symbol' => 'SOL', 'default' => 'GfKRLRTrKx7SYJHd76Rc7tVE6WwJKTNoZutSQitfppR6'],
+        ['key' => 'wallet_trx_tron', 'label' => 'Tron', 'network' => 'Tron', 'symbol' => 'TRX · USDT · USDC', 'default' => 'TQEW4TP8eGzmJNyzu6kdi4GJdZdNqmTFRL'],
         ['key' => 'wallet_doge', 'label' => 'Dogecoin', 'network' => 'Dogecoin', 'symbol' => 'DOGE', 'default' => 'DFAfCU1LHdc7sKFVs9dD7MySA7Wt4EJQtX'],
         ['key' => 'wallet_ton', 'label' => 'Toncoin', 'network' => 'TON', 'symbol' => 'TON (Gram)', 'default' => 'UQDpQupJJM8bcxk19XmEZtwe-oQ4XmIbxM8SB88z0MXmXYsu'],
     ];
@@ -70,6 +70,6 @@ function vira_seed_default_wallets(PDO $pdo): void
         }
     }
     if (vira_wallet_get($pdo, 'urlpaymenttron') === '') {
-        vira_wallet_set($pdo, 'urlpaymenttron', 'TFxj93JHJ9s2jybwcWQ3C4b4rppM8Vvuc5');
+        vira_wallet_set($pdo, 'urlpaymenttron', 'TQEW4TP8eGzmJNyzu6kdi4GJdZdNqmTFRL');
     }
 }

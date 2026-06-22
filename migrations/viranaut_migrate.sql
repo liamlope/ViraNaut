@@ -3,12 +3,12 @@
 
 -- Crypto wallets (PaySetting)
 INSERT INTO PaySetting (NamePay, ValuePay) VALUES
-('wallet_btc', 'bc1q24r7j79eghk0lcury2ly4hm04mt2yh59ejajxz'),
+('wallet_btc', 'bc1q5xw4nyqc5s993eukq9udrcpfh8ky6pc0mzlfsn'),
 ('wallet_eth', '0xb60a111813bae216e3b178a5f9e31a95549c000e'),
 ('wallet_bnb', '0xb60a111813bae216e3b178a5f9e31a95549c000e'),
 ('wallet_polygon', '0xb60a111813bae216e3b178a5f9e31a95549c000e'),
-('wallet_solana', '8NE5a13aHCQF38mEHspRwikskEg8JMAG9ZA9qtgwRUdM'),
-('wallet_trx_tron', 'TFxj93JHJ9s2jybwcWQ3C4b4rppM8Vvuc5'),
+('wallet_solana', 'GfKRLRTrKx7SYJHd76Rc7tVE6WwJKTNoZutSQitfppR6'),
+('wallet_trx_tron', 'TQEW4TP8eGzmJNyzu6kdi4GJdZdNqmTFRL'),
 ('wallet_doge', 'DFAfCU1LHdc7sKFVs9dD7MySA7Wt4EJQtX'),
 ('wallet_ton', 'UQDpQupJJM8bcxk19XmEZtwe-oQ4XmIbxM8SB88z0MXmXYsu'),
 ('donation_enabled', '1'),
