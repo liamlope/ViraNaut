@@ -2902,7 +2902,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
     $otherreport = select("topicid", "idreport", "report", "otherreport", "select")['idreport'];
     $errorreport = select("topicid", "idreport", "report", "errorreport", "select")['idreport'];
     $porsantreport = select("topicid", "idreport", "report", "porsantreport", "select")['idreport'];
-    $setting = select("setting", "*");
+    $setting = vira_ensure_setting_ready();
     $format_price_cart = number_format($Payment_report['price']);
     $Balance_id = select("user", "*", "id", $Payment_report['id_user'], "select");
     $steppay = explode("|", vira_card_invoice_payment_payload((string) $Payment_report['id_invoice']));
@@ -3032,6 +3032,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
                 if ($countinvoice <= 1) {
                     $result = ($Payment_report['price'] * $setting['affiliatespercentage']) / 100;
                     $user_Balance = select("user", "*", "id", $Balance_id['affiliates'], "select");
+                    if (is_array($user_Balance)) {
                     if (intval($setting['scorestatus']) == 1 and !in_array($Balance_id['affiliates'], $admin_ids)) {
                         sendmessage($Balance_id['affiliates'], "📌شما 2 امتیاز جدید کسب کردید.", null, 'html');
                         $scorenew = $user_Balance['score'] + 2;
@@ -3047,7 +3048,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
                     $textreportport = "
 مبلغ $result به کاربر {$Balance_id['affiliates']} برای پورسانت از کاربر {$Balance_id['id']} واریز گردید 
 تایم : $dateacc";
-                    if (strlen($setting['Channel_Report']) > 0) {
+                    if (strlen($setting['Channel_Report'] ?? '') > 0) {
                         telegram('sendmessage', [
                             'chat_id' => $setting['Channel_Report'],
                             'message_thread_id' => $porsantreport,
@@ -3056,11 +3057,13 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
                         ]);
                     }
                     sendmessage($Balance_id['affiliates'], $textadd, null, 'HTML');
+                    }
                 }
             } else {
 
                 $result = ($Payment_report['price'] * $setting['affiliatespercentage']) / 100;
                 $user_Balance = select("user", "*", "id", $Balance_id['affiliates'], "select");
+                if (is_array($user_Balance)) {
                 if (intval($setting['scorestatus']) == 1 and !in_array($Balance_id['affiliates'], $admin_ids)) {
                     sendmessage($Balance_id['affiliates'], "📌شما 2 امتیاز جدید کسب کردید.", null, 'html');
                     $scorenew = $user_Balance['score'] + 2;
@@ -3076,7 +3079,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
                 $textreportport = "
 مبلغ $result به کاربر {$Balance_id['affiliates']} برای پورسانت از کاربر {$Balance_id['id']} واریز گردید 
 تایم : $dateacc";
-                if (strlen($setting['Channel_Report']) > 0) {
+                if (strlen($setting['Channel_Report'] ?? '') > 0) {
                     telegram('sendmessage', [
                         'chat_id' => $setting['Channel_Report'],
                         'message_thread_id' => $porsantreport,
@@ -3085,6 +3088,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
                     ]);
                 }
                 sendmessage($Balance_id['affiliates'], $textadd, null, 'HTML');
+                }
             }
         }
         if ($marzban_list_get['MethodUsername'] == "متن دلخواه + عدد ترتیبی" || $marzban_list_get['MethodUsername'] == "نام کاربری + عدد به ترتیب" || $marzban_list_get['MethodUsername'] == "آیدی عددی+عدد ترتیبی" || $marzban_list_get['MethodUsername'] == "متن دلخواه نماینده + عدد ترتیبی") {
@@ -4762,6 +4766,73 @@ function vira_setting_merge_defaults(array $row): array
     return $merged;
 }
 
+function vira_setting_column_types(): array
+{
+    return [
+        'Lottery_prize' => 'TEXT',
+        'keyboardmain' => 'TEXT',
+        'cron_status' => 'TEXT',
+        'limitnumber' => 'VARCHAR(200)',
+    ];
+}
+
+/** ستون‌های setting که در DB قدیمی نیستند را قبل از seed اضافه می‌کند */
+function vira_ensure_setting_schema(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    global $pdo;
+    if (!isset($pdo)) {
+        return;
+    }
+    try {
+        $chk = $pdo->query("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'setting' LIMIT 1");
+        if (!$chk || !$chk->fetchColumn()) {
+            return;
+        }
+    } catch (Throwable $e) {
+        error_log('[viranaut] setting schema check: ' . $e->getMessage());
+        return;
+    }
+    $types = vira_setting_column_types();
+    foreach (vira_setting_defaults() as $col => $default) {
+        $datatype = $types[$col] ?? 'VARCHAR(600)';
+        $seedVal = $default;
+        if (is_array($seedVal)) {
+            $seedVal = json_encode($seedVal, JSON_UNESCAPED_UNICODE);
+        }
+        vira_setting_add_column_if_missing('setting', (string) $col, $seedVal, $datatype);
+    }
+}
+
+function vira_setting_add_column_if_missing(string $tableName, string $fieldName, $defaultValue = null, string $datatype = 'VARCHAR(600)'): void
+{
+    global $pdo;
+    if (!isset($pdo)) {
+        return;
+    }
+    try {
+        $db = $pdo->query('SELECT DATABASE()')->fetchColumn();
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+        );
+        $stmt->execute([$db, $tableName, $fieldName]);
+        if ((int) $stmt->fetchColumn() !== 0) {
+            return;
+        }
+        $pdo->exec("ALTER TABLE `$tableName` ADD `$fieldName` $datatype NULL");
+        if ($defaultValue !== null) {
+            $upd = $pdo->prepare("UPDATE `$tableName` SET `$fieldName` = ?");
+            $upd->execute([(string) $defaultValue]);
+        }
+    } catch (Throwable $e) {
+        error_log("[viranaut] setting add column $fieldName: " . $e->getMessage());
+    }
+}
+
 function vira_setting_try_seed(): bool
 {
     global $pdo;
@@ -4770,6 +4841,7 @@ function vira_setting_try_seed(): bool
         return false;
     }
     $attempted = true;
+    vira_ensure_setting_schema();
     try {
         $count = (int) $pdo->query('SELECT COUNT(*) FROM setting')->fetchColumn();
         if ($count > 0) {
@@ -4793,14 +4865,19 @@ function vira_setting_try_seed(): bool
 /** setting خالی یا keyboardmain خراب → دیگر 500 ندهد؛ در صورت امکان در DB اصلاح می‌کند */
 function vira_ensure_setting_ready(): array
 {
+    vira_ensure_setting_schema();
     $defaults = vira_setting_defaults();
     $row = select('setting', '*', null, null, 'select', ['cache' => false]);
     if (!is_array($row)) {
-        error_log('[viranaut] setting table has no row — run: cd BOT_DIR && php table.php');
         if (vira_setting_try_seed()) {
             $row = select('setting', '*', null, null, 'select', ['cache' => false]);
         }
         if (!is_array($row)) {
+            static $warned = false;
+            if (!$warned) {
+                error_log('[viranaut] setting table has no row — using defaults (run: cd BOT_DIR && php table.php)');
+                $warned = true;
+            }
             return $defaults;
         }
     }

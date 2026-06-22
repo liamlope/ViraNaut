@@ -182,6 +182,7 @@ try {
         wheelـluck_price varchar(45)  NULL,
         btn_status_extned varchar(45)  NULL,
         daywarn varchar(45)  NULL,
+        iplogin varchar(45)  NULL,
         categoryhelp varchar(45)  NULL,
         linkappstatus varchar(45)  NULL,
         wheelagent varchar(45)  NULL,
@@ -223,6 +224,7 @@ try {
         addFieldToTable("setting", "linkappstatus", "0", "varchar(45)");
         addFieldToTable("setting", "categoryhelp", "0", "varchar(45)");
         addFieldToTable("setting", "daywarn", "2", "varchar(45)");
+        addFieldToTable("setting", "iplogin", "0", "varchar(45)");
         addFieldToTable("setting", "btn_status_extned", "0", "varchar(45)");
         addFieldToTable("setting", "wheelـluck_price", "0", "varchar(45)");
         addFieldToTable("setting", "wheelـluck", "0", "varchar(45)");
