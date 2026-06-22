@@ -34,13 +34,3 @@ if (isset($domainhosts) && $domainhosts !== '' && strpos((string) $domainhosts, 
 if (!function_exists('select')) {
     require_once __DIR__ . '/function.php';
 }
-
-if (function_exists('vira_ensure_user_lang_column')) {
-    vira_ensure_user_lang_column();
-}
-if (function_exists('vira_ensure_setting_schema')) {
-    vira_ensure_setting_schema();
-}
-if (function_exists('vira_setting_try_seed')) {
-    vira_setting_try_seed();
-}

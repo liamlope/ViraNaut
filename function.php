@@ -1083,8 +1083,38 @@ function clearSelectCache($table = null)
     unset($store['tableIndex'][$table]);
 }
 
+/** migration/seed یک‌بار در هر request — فقط از کد tracked (git pull)، نه config.php */
+function vira_runtime_bootstrap(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    global $pdo;
+    if (!isset($pdo)) {
+        return;
+    }
+    $done = true;
+    if (function_exists('vira_ensure_user_lang_column')) {
+        vira_ensure_user_lang_column();
+    }
+    if (function_exists('vira_ensure_marzban_panel_columns')) {
+        vira_ensure_marzban_panel_columns();
+    }
+    if (function_exists('vira_ensure_legacy_unreviewed_autoconfirm_removed')) {
+        vira_ensure_legacy_unreviewed_autoconfirm_removed();
+    }
+    if (function_exists('vira_ensure_setting_schema')) {
+        vira_ensure_setting_schema();
+    }
+    if (function_exists('vira_setting_try_seed')) {
+        vira_setting_try_seed();
+    }
+}
+
 function select($table, $field, $whereField = null, $whereValue = null, $type = "select", $options = [])
 {
+    vira_runtime_bootstrap();
     global $pdo;
 
     $useCache = true;
