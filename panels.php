@@ -189,15 +189,16 @@ class ManagePanel
                     }
                 } else {
                     $subUrl = rtrim((string) $Get_Data_Panel['linksubx'], '/') . '/' . $subId;
-                    $links_user = outputlink($subUrl);
-                    if ($links_user === null || $links_user === '') {
-                        $links_user = array();
-                    } else {
-                        if (isBase64($links_user)) {
-                            $links_user = base64_decode($links_user);
+                    $links_user = array();
+                    if (($Get_Data_Panel['config'] ?? '') === 'onconfig') {
+                        $fetchedLinks = outputlink($subUrl);
+                        if ($fetchedLinks !== null && $fetchedLinks !== '') {
+                            if (isBase64($fetchedLinks)) {
+                                $fetchedLinks = base64_decode($fetchedLinks);
+                            }
+                            $links_user = explode("\n", trim((string) $fetchedLinks));
+                            $links_user = array_values(array_filter($links_user));
                         }
-                        $links_user = explode("\n", trim((string) $links_user));
-                        $links_user = array_values(array_filter($links_user));
                     }
                     $Output['status'] = 'successful';
                     $Output['username'] = $usernameC;

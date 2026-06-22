@@ -666,8 +666,8 @@ switch ($data['actions'] ?? '') {
             sendJsonResponse(false, "You are allowed to create 15 representative bots in your bot.");
         if ($chec_kbot != 0)
             sendJsonResponse(false, "You are allowed to build a robot.");
-        $getInfoToken = json_decode(file_get_contents("https://api.telegram.org/bot{$data['token']}/getme"), true);
-        if ($getInfoToken == false or !$getInfoToken['ok'])
+        $getInfoToken = telegram('getMe', [], $data['token']);
+        if (!is_array($getInfoToken) || empty($getInfoToken['ok']))
             sendJsonResponse(false, "You are allowed! Token inavlid");
         $check_exits_token = select("botsaz", "*", "bot_token", $data['token'], "count");
         if ($check_exits_token != 0)
@@ -686,8 +686,13 @@ switch ($data['actions'] ?? '') {
         $contentconfig = file_get_contents($dirsource . "/config.php");
         $new_code = str_replace('BotTokenNew', $data['token'], $contentconfig);
         file_put_contents($dirsource . "/config.php", $new_code);
-        file_get_contents("https://api.telegram.org/bot{$data['token']}/setwebhook?url=https://$domainhosts/vpnbot/{$data['chat_id']}{$getInfoToken['result']['username']}/index.php");
-        file_get_contents(sprintf($textbotlang['hardcoded']['botActivatedTelegramUrl'], $data['token'], $data['chat_id']));
+        telegram('setWebhook', [
+            'url' => "https://$domainhosts/vpnbot/{$data['chat_id']}{$getInfoToken['result']['username']}/index.php",
+        ], $data['token']);
+        telegram('sendMessage', [
+            'chat_id' => $data['chat_id'],
+            'text' => '✅ کاربر عزیز ربات شما با موفقیت نصب گردید.',
+        ], $data['token']);
         $datasetting = json_encode(array(
             "minpricetime" => 4000,
             "pricetime" => 4000,
@@ -725,7 +730,7 @@ switch ($data['actions'] ?? '') {
             error_log('Failed to remove bot directory: ' . $dirsource);
         }
         if (!empty($contentbot['bot_token'])) {
-            file_get_contents("https://api.telegram.org/bot{$contentbot['bot_token']}/deletewebhook");
+            telegram('deleteWebhook', [], $contentbot['bot_token']);
         }
         $stmt = $pdo->prepare("DELETE FROM botsaz WHERE id_user = :id_user");
         $stmt->bindParam(':id_user', $data['chat_id'], PDO::PARAM_STR);

@@ -63,6 +63,8 @@ function telegram($method, $datas = [], $token = null)
             'chat not found',
             'bot was blocked by the user',
             'user is deactivated',
+            'query is too old',
+            'response timeout expired',
         ];
         $skipLog = false;
         foreach ($ignored as $needle) {

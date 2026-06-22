@@ -439,6 +439,7 @@ include __DIR__ . '/inc/layout_head.php';
                                     'sendedwarn' => ['tag-warn', 'اعلان همگی ارسال شده'],
                                     'send_on_hold' => ['tag-plain', 'در انتظار'],
                                     'unpiad' => ['tag-plain', 'پرداخت نشده'],
+                                    'removed_duplicate_auto' => ['tag-no', 'حذف خودکار (تکراری)'],
                                 ];
                                 foreach ($invoices as $inv):
                                     [$tagClass, $label] = $statusMap[$inv['Status'] ?? ''] ?? ['tag-plain', $inv['Status'] ?? '—'];

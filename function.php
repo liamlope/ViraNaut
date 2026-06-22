@@ -4,6 +4,8 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/panel/inc/bot_emojis.php';
 ini_set('error_log', 'error_log');
 
+require_once __DIR__ . '/inc/buy_guard.php';
+
 if (function_exists('vira_ensure_bot_custom_emoji_table')) {
     vira_ensure_bot_custom_emoji_table();
 }
@@ -24,6 +26,68 @@ if (!function_exists('vira_panel_is_active_status')) {
     function vira_panel_is_active_status($status): bool
     {
         return vira_normalize_panel_status($status) === 'active';
+    }
+}
+
+if (!function_exists('vira_create_user_missing_username')) {
+    function vira_create_user_missing_username($dataoutput): bool
+    {
+        return !is_array($dataoutput)
+            || !array_key_exists('username', $dataoutput)
+            || $dataoutput['username'] === null
+            || $dataoutput['username'] === '';
+    }
+}
+
+if (!function_exists('vira_decode_processing_panel')) {
+    function vira_decode_processing_panel($processingValue): ?array
+    {
+        $decoded = json_decode((string) $processingValue, true);
+        if (!is_array($decoded) || empty($decoded['name_panel'])) {
+            return null;
+        }
+        return $decoded;
+    }
+}
+
+if (!function_exists('vira_try_begin_buy_lock')) {
+    function vira_try_begin_buy_lock($user_id, $from_step = 'payment'): bool
+    {
+        global $pdo;
+        $stmt = $pdo->prepare('UPDATE user SET step = ? WHERE id = ? AND step = ?');
+        $stmt->execute(['buying_service', (string) $user_id, (string) $from_step]);
+        return $stmt->rowCount() > 0;
+    }
+}
+
+if (!function_exists('vira_try_deduct_user_balance')) {
+    function vira_try_deduct_user_balance($user_id, $amount): bool
+    {
+        global $pdo;
+        $amount = (int) $amount;
+        if ($amount <= 0) {
+            return true;
+        }
+        $stmt = $pdo->prepare('UPDATE user SET Balance = Balance - :amt WHERE id = :id AND Balance >= :amt');
+        $stmt->bindValue(':amt', $amount, PDO::PARAM_INT);
+        $stmt->bindValue(':id', (string) $user_id, PDO::PARAM_STR);
+        $stmt->execute();
+        return $stmt->rowCount() > 0;
+    }
+}
+
+if (!function_exists('vira_refund_user_balance')) {
+    function vira_refund_user_balance($user_id, $amount): void
+    {
+        global $pdo;
+        $amount = (int) $amount;
+        if ($amount <= 0) {
+            return;
+        }
+        $stmt = $pdo->prepare('UPDATE user SET Balance = Balance + :amt WHERE id = :id');
+        $stmt->bindValue(':amt', $amount, PDO::PARAM_INT);
+        $stmt->bindValue(':id', (string) $user_id, PDO::PARAM_STR);
+        $stmt->execute();
     }
 }
 
@@ -2696,12 +2760,13 @@ function generateUsername($from_id, $Metode, $username, $randomString, $text, $n
 function outputlink($text)
 {
     global $request_exec_timeout;
-    $timeoutMs = ($request_exec_timeout !== null && (int) $request_exec_timeout > 0)
+    $configuredMs = ($request_exec_timeout !== null && (int) $request_exec_timeout > 0)
         ? (int) $request_exec_timeout
-        : 120000;
-    $connectMs = min(45000, (int) max(15000, $timeoutMs / 3));
+        : 0;
+    $timeoutMs = $configuredMs > 0 ? min($configuredMs, 25000) : 20000;
+    $connectMs = min(8000, (int) max(4000, $timeoutMs / 3));
     $userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-    for ($attempt = 1; $attempt <= 3; $attempt++) {
+    for ($attempt = 1; $attempt <= 2; $attempt++) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $text);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -2719,10 +2784,10 @@ function outputlink($text)
             return $response;
         }
         $retry = ($httpCode === 504 || $httpCode === 502 || $httpCode === 503 || $curlErr !== '');
-        if (!$retry || $attempt >= 3) {
+        if (!$retry || $attempt >= 2) {
             return null;
         }
-        usleep(2000000 * $attempt);
+        usleep(1000000 * $attempt);
     }
     return null;
 }
@@ -2882,7 +2947,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
             'type' => 'buy'
         );
         $dataoutput = $ManagePanel->createUser($marzban_list_get['name_panel'], $info_product['code_product'], $username_ac, $datac);
-        if ($dataoutput['username'] == null) {
+        if (vira_create_user_missing_username($dataoutput)) {
             $dataoutput['msg'] = json_encode($dataoutput['msg']);
             $balance = $Balance_id['Balance'] + $Payment_report['price'];
             update("user", "Balance", $balance, "id", $Balance_id['id']);
@@ -3451,12 +3516,11 @@ $textonebuy
             ]);
         }
     } else {
-        $Balance_confrim = intval($Balance_id['Balance']) + intval($Payment_report['price']);
-        update("user", "Balance", $Balance_confrim, "id", $Payment_report['id_user']);
-        $Payment_report['price'] = number_format($Payment_report['price'], 0);
-        $format_price_cart = $Payment_report['price'];
-        if ($Payment_report['Payment_Method'] == "cart to cart" or $Payment_report['Payment_Method'] == "arze digital offline") {
-            $textconfrom = "⭕️ یک پرداخت جدید انجام شده است
+        if (vira_wallet_credit_user((string) $Payment_report['id_user'], 'pay:' . $order_id, (int) $Payment_report['price'], 'direct_payment')) {
+            $Payment_report['price'] = number_format($Payment_report['price'], 0);
+            $format_price_cart = $Payment_report['price'];
+            if ($Payment_report['Payment_Method'] == "cart to cart" or $Payment_report['Payment_Method'] == "arze digital offline") {
+                $textconfrom = "⭕️ یک پرداخت جدید انجام شده است
         افزایش موجودی.
 👤 شناسه کاربر: <code>{$Balance_id['id']}</code>
 🛒 کد پیگیری پرداخت: {$Payment_report['id_order']}
@@ -3464,11 +3528,12 @@ $textonebuy
 💸 مبلغ پرداختی: $format_price_cart تومان
 💎 موجودی قبل ازافزایش موجودی : {$Balance_id['Balance']}
 ✍️ توضیحات : {$Payment_report['dec_not_confirmed']}";
-            vira_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
-        }
-        sendmessage($Payment_report['id_user'], "💎 کاربر گرامی مبلغ {$Payment_report['price']} تومان به کیف پول شما واریز گردید با تشکراز پرداخت شما.
+                vira_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
+            }
+            sendmessage($Payment_report['id_user'], "💎 کاربر گرامی مبلغ {$Payment_report['price']} تومان به کیف پول شما واریز گردید با تشکراز پرداخت شما.
                 
 🛒 کد پیگیری شما: {$Payment_report['id_order']}", null, 'HTML');
+        }
     }
     return true;
 }

@@ -295,8 +295,14 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     step('addadmin', $from_id);
 } elseif ($user['step'] == "addadmin") {
     $adminId = trim($text);
-    if ($adminId === '') {
+    if ($adminId === '' || !ctype_digit($adminId)) {
         sendmessage($from_id, $textbotlang['Admin']['manageadmin']['getid'], $backadmin, 'HTML');
+        return;
+    }
+    $existingAdmin = select("admin", "*", "id_admin", $adminId, "select");
+    if (is_array($existingAdmin) && !empty($existingAdmin['id_admin'])) {
+        sendmessage($from_id, "⚠️ این آیدی از قبل ادمین است.", $keyboardadmin, 'HTML');
+        step('home', $from_id);
         return;
     }
     update("user", "Processing_value", $adminId, "id", $from_id);
@@ -311,15 +317,31 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     sendmessage($from_id, $textbotlang['Admin']['manageadmin']['addadminset'], $keyboardadmin, 'HTML');
     sendmessage($user['Processing_value'], $textbotlang['Admin']['manageadmin']['adminedsenduser'], null, 'HTML');
     step('home', $from_id);
+    $targetAdminId = (string) $user['Processing_value'];
+    $existingAdmin = select("admin", "*", "id_admin", $targetAdminId, "select");
+    if (is_array($existingAdmin) && !empty($existingAdmin['id_admin'])) {
+        update("admin", "rule", $text, "id_admin", $targetAdminId);
+        sendmessage($from_id, "⚠️ این کاربر قبلاً ادمین بود؛ نقش به‌روزرسانی شد.", $keyboardadmin, 'HTML');
+        return;
+    }
     $usernamepanel = "root";
     $randomString = bin2hex(random_bytes(5));
-    $stmt = $pdo->prepare("INSERT INTO admin (id_admin, username, password, rule) VALUES (:id_admin, :username, :password, :rule)");
-    $stmt->bindParam(':id_admin', $user['Processing_value'], PDO::PARAM_STR);
-    $stmt->bindParam(':username', $usernamepanel, PDO::PARAM_STR);
-    $stmt->bindParam(':password', $randomString, PDO::PARAM_STR);
-    $stmt->bindParam(':rule', $text, PDO::PARAM_STR);
-    $stmt->execute();
-    $text_report = sprintf($textbotlang['Admin']['reportgroup']['adminadded'], $username, $from_id, $text, $user['Processing_value']);
+    try {
+        $stmt = $pdo->prepare("INSERT INTO admin (id_admin, username, password, rule) VALUES (:id_admin, :username, :password, :rule)");
+        $stmt->bindParam(':id_admin', $targetAdminId, PDO::PARAM_STR);
+        $stmt->bindParam(':username', $usernamepanel, PDO::PARAM_STR);
+        $stmt->bindParam(':password', $randomString, PDO::PARAM_STR);
+        $stmt->bindParam(':rule', $text, PDO::PARAM_STR);
+        $stmt->execute();
+    } catch (PDOException $e) {
+        if ((int) $e->getCode() === 23000) {
+            update("admin", "rule", $text, "id_admin", $targetAdminId);
+            sendmessage($from_id, "⚠️ این کاربر قبلاً ادمین بود؛ نقش به‌روزرسانی شد.", $keyboardadmin, 'HTML');
+            return;
+        }
+        throw $e;
+    }
+    $text_report = sprintf($textbotlang['Admin']['reportgroup']['adminadded'], $username, $from_id, $text, $targetAdminId);
     if (strlen($setting['Channel_Report']) > 0) {
         telegram('sendmessage', [
             'chat_id' => $setting['Channel_Report'],
@@ -5550,15 +5572,17 @@ $caption";
     $invoice = null;
     $stmt->bind_param("sssssss", $user['Processing_value'], $randomString, $dateacc, $text, $payment_Status, $Payment_Method, $invoice);
     $stmt->execute();
+    if (!vira_wallet_credit_user((string) $user['Processing_value'], 'adminpay:' . $randomString, (int) $text, 'admin')) {
+        sendmessage($from_id, "⚠️ این افزایش موجودی قبلاً ثبت شده است.", $keyboardadmin, 'HTML');
+        step('home', $from_id);
+        return;
+    }
     sendmessage($from_id, $textbotlang['Admin']['ManageUser']['addbalanced'], $keyboardadmin, 'html');
-    $Balance_user = select("user", "*", "id", $user['Processing_value'], "select");
-    $Balance_add_user = $Balance_user['Balance'] + $text;
-    update("user", "Balance", $Balance_add_user, "id", $user['Processing_value']);
     $heibalanceuser = number_format($text, 0);
     $textadd = "💎 کاربر عزیز مبلغ $heibalanceuser تومان به موجودی کیف پول تان اضافه گردید.";
     sendmessage($user['Processing_value'], $textadd, null, 'HTML');
     step('home', $from_id);
-    $Balance_user_after = number_format(select("user", "*", "id", $user['Processing_value'], "select")['Balance']);
+    $Balance_user_after = number_format((int) select("user", "Balance", "id", $user['Processing_value'], "select")['Balance']);
     $pricadd = number_format($text);
     if (strlen($setting['Channel_Report']) > 0) {
         $textaddbalance = "📌 یک ادمین موجودی کاربر را افزایش داده است :
@@ -6275,13 +6299,22 @@ n2", $backadmin, 'HTML');
         $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
         $stmt->bindParam(':notes', $usernameconfig, PDO::PARAM_STR);
     } elseif (preg_match('/manageinvoice_(\w+)/', (string) $datain, $datagetr)) {
-        $usernameconfig = select("invoice", "*", "id_invoice", $datagetr[1], "select")['username'];
+        $invoiceRow = select("invoice", "*", "id_invoice", $datagetr[1], "select");
+        if (!is_array($invoiceRow) || empty($invoiceRow['username'])) {
+            sendmessage($from_id, $textbotlang['Admin']['order']['notfound'], null, 'HTML');
+            return;
+        }
+        $usernameconfig = $invoiceRow['username'];
         $sql = "SELECT * FROM invoice WHERE username = :username OR note  = :notes";
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
         $stmt->bindParam(':notes', $usernameconfig, PDO::PARAM_STR);
-    } elseif (is_string($text) && $text !== '' && $text[0] === '/') {
-        $usernameconfig = explode(" ", $text)[1];
+    } elseif (is_string($text) && preg_match('~^/\S+\s+(.+)$~', trim($text), $configCmdMatch)) {
+        $usernameconfig = trim($configCmdMatch[1]);
+        if ($usernameconfig === '') {
+            sendmessage($from_id, $textbotlang['Admin']['order']['notfound'], null, 'HTML');
+            return;
+        }
         $sql = "SELECT * FROM invoice WHERE username LIKE CONCAT('%', :username, '%') OR note  LIKE CONCAT('%', :notes, '%')";
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(':username', $usernameconfig, PDO::PARAM_STR);
@@ -6302,18 +6335,19 @@ n2", $backadmin, 'HTML');
             ['text' => "نام کاربری", 'callback_data' => "username"],
         ];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $rowUsername = (string) ($row['username'] ?? '');
             $keyboardlists['inline_keyboard'][] = [
                 [
                     'text' => "مشاهده اطلاعات",
                     'callback_data' => "manageinvoice_" . $row['id_invoice']
                 ],
                 [
-                    'text' => $row['Status'],
+                    'text' => $row['Status'] ?? '-',
                     'callback_data' => "username"
                 ],
                 [
-                    'text' => $row['username'],
-                    'callback_data' => $row['username']
+                    'text' => $rowUsername !== '' ? $rowUsername : '-',
+                    'callback_data' => $rowUsername !== '' ? $rowUsername : 'username'
                 ],
             ];
         }
@@ -7810,7 +7844,7 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     for ($i = 0; $i < $userdata['count']; $i++) {
         $usernameconfig = $user['Processing_value_one'] . "_" . $i;
         $dataoutput = $ManagePanel->createUser($userdata['idpanel'], "usertest", $usernameconfig, $datac);
-        if ($dataoutput['username'] == null) {
+        if (vira_create_user_missing_username($dataoutput)) {
             $dataoutput['msg'] = json_encode($dataoutput['msg']);
             sendmessage($from_id, $textbotlang['users']['sell']['ErrorConfig'], null, 'HTML');
             $texterros = "
@@ -10673,8 +10707,8 @@ if (isset($update["inline_query"])) {
     sendmessage($from_id, $texbot, $backadmin, 'HTML');
     step("gettokenbot", $from_id);
 } elseif ($user['step'] == "gettokenbot") {
-    $getInfoToken = json_decode(file_get_contents("https://api.telegram.org/bot$text/getme"), true);
-    if ($getInfoToken == false or !$getInfoToken['ok']) {
+    $getInfoToken = telegram('getMe', [], $text);
+    if (!is_array($getInfoToken) || empty($getInfoToken['ok'])) {
         sendmessage($from_id, "❌ توکن نامعتبر است", $backadmin, 'HTML');
         return;
     }
@@ -10708,8 +10742,12 @@ if (isset($update["inline_query"])) {
     $contentconfig = file_get_contents($dirsource . "/config.php");
     $new_code = str_replace('BotTokenNew', $userdate['token'], $contentconfig);
     file_put_contents($dirsource . "/config.php", $new_code);
-    file_get_contents("https://api.telegram.org/bot{$userdate['token']}/setwebhook?url=https://$domainhosts/vpnbot/{$userdate['id_user']}{$userdate['username']}/index.php");
-    file_get_contents("https://api.telegram.org/bot{$userdate['token']}/sendmessage?chat_id={$userdate['id_user']}&text=✅ کاربر عزیز ربات شما با موفقیت نصب گردید.");
+    $webhookUrl = "https://$domainhosts/vpnbot/{$userdate['id_user']}{$userdate['username']}/index.php";
+    telegram('setWebhook', ['url' => $webhookUrl], $userdate['token']);
+    telegram('sendMessage', [
+        'chat_id' => $userdate['id_user'],
+        'text' => '✅ کاربر عزیز ربات شما با موفقیت نصب گردید.',
+    ], $userdate['token']);
     $datasetting = json_encode(array(
         "minpricetime" => 4000,
         "pricetime" => 4000,
@@ -10744,7 +10782,7 @@ if (isset($update["inline_query"])) {
         error_log('Failed to remove bot directory: ' . $dirsource);
     }
     if (!empty($contentbto['bot_token'])) {
-        file_get_contents("https://api.telegram.org/bot{$contentbto['bot_token']}/deletewebhook");
+        telegram('deleteWebhook', [], $contentbto['bot_token']);
     }
     $stmt = $pdo->prepare("DELETE FROM botsaz WHERE id_user = :id_user");
     $stmt->bindParam(':id_user', $id_user, PDO::PARAM_STR);
@@ -11816,7 +11854,9 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
     }
     sendmessage($from_id, "📌 در انجام وبهوک ...", null, 'HTML');
     foreach ($bots_agent as $bot) {
-        file_get_contents("https://api.telegram.org/bot{$bot['bot_token']}/setwebhook?url=https://$domainhosts/vpnbot/{$bot['id_user']}{$bot['username']}/index.php");
+        telegram('setWebhook', [
+            'url' => "https://$domainhosts/vpnbot/{$bot['id_user']}{$bot['username']}/index.php",
+        ], $bot['bot_token']);
     }
     sendmessage($from_id, "✅ وبهوک با موفقیت انجام شد.", null, 'HTML');
 } elseif ($text == "🔄 بروزرسانی فایل ربات های نماینده" && ($adminrulecheck['rule'] ?? '') == "administrator") {
@@ -11842,7 +11882,9 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
                     file_put_contents($cfg, str_replace('BotTokenNew', $bot['bot_token'], $c));
                 }
             }
-            file_get_contents("https://api.telegram.org/bot{$bot['bot_token']}/setwebhook?url=https://$domainhosts/vpnbot/{$bot['id_user']}{$bot['username']}/index.php");
+            telegram('setWebhook', [
+                'url' => "https://$domainhosts/vpnbot/{$bot['id_user']}{$bot['username']}/index.php",
+            ], $bot['bot_token']);
             $updated++;
         }
     }

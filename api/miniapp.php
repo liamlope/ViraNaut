@@ -835,7 +835,7 @@ switch ($data['actions']) {
             'type' => 'buy'
         );
         $dataoutput = $ManagePanel->createUser($panel['name_panel'], $product['code_product'], $username_ac, $datac);
-        if ($dataoutput['username'] == null) {
+        if (vira_create_user_missing_username($dataoutput)) {
             http_response_code(500);
             echo json_encode(array(
                 'status' => false,

@@ -60,7 +60,7 @@ function um_channel_report(string $text, string $topicReport = 'paymentreports')
     telegram('sendmessage', $payload);
 }
 
-function um_insert_payment_report(PDO $pdo, string $userId, int $amount, string $method): void
+function um_insert_payment_report(PDO $pdo, string $userId, int $amount, string $method): string
 {
     $orderId = bin2hex(random_bytes(5));
     $time = date('Y/m/d H:i:s');
@@ -70,6 +70,7 @@ function um_insert_payment_report(PDO $pdo, string $userId, int $amount, string 
          VALUES (?, ?, ?, ?, ?, ?, ?)',
         [$userId, $orderId, $time, (string) $amount, 'paid', $method, null]
     );
+    return $orderId;
 }
 
 function um_get_user(PDO $pdo, int $userId): ?array
@@ -95,9 +96,14 @@ function um_add_balance(PDO $pdo, int $userId, int $amount, string $adminUser): 
     if (!$user) {
         return ['ok' => false, 'msg' => 'کاربر یافت نشد.'];
     }
-    um_insert_payment_report($pdo, (string) $userId, $amount, 'add balance by admin');
-    $newBalance = (int) $user['Balance'] + $amount;
-    db_query($pdo, 'UPDATE user SET Balance = ? WHERE id = ?', [$newBalance, $userId]);
+    $orderId = um_insert_payment_report($pdo, (string) $userId, $amount, 'add balance by admin');
+    if (!function_exists('vira_wallet_credit_user')) {
+        require_once __DIR__ . '/../../inc/buy_guard.php';
+    }
+    if (!vira_wallet_credit_user((string) $userId, 'adminpay:' . $orderId, $amount, 'panel_admin')) {
+        return ['ok' => false, 'msg' => 'این افزایش موجودی قبلاً ثبت شده است.'];
+    }
+    $newBalance = (int) (um_get_user($pdo, $userId)['Balance'] ?? 0);
     um_notify_user((string) $userId, '💎 کاربر عزیز مبلغ ' . number_format($amount) . ' تومان به موجودی کیف پول تان اضافه گردید.');
     um_channel_report(
         "📌 یک ادمین از پنل وب موجودی کاربر را افزایش داده است:\n\n"

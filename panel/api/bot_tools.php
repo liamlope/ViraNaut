@@ -98,6 +98,11 @@ if ($action === 'admin_add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     try {
         $hash = password_hash($pass, PASSWORD_BCRYPT);
+        $existing = db_fetch($pdo, 'SELECT id_admin FROM admin WHERE id_admin = ? LIMIT 1', [$id]);
+        if ($existing) {
+            db_query($pdo, 'UPDATE admin SET username = ?, password = ?, rule = ? WHERE id_admin = ?', [$user, $hash, $rule, $id]);
+            bt_json(true, 'ادمین به‌روزرسانی شد');
+        }
         db_query($pdo, 'INSERT INTO admin (id_admin, username, password, rule) VALUES (?, ?, ?, ?)', [$id, $user, $hash, $rule]);
         bt_json(true, 'ادمین اضافه شد');
     } catch (Exception $e) {

@@ -12,6 +12,9 @@ require_once 'function.php';
 if (function_exists('vira_ensure_user_lang_column')) {
     vira_ensure_user_lang_column();
 }
+if (function_exists('vira_ensure_buy_guard')) {
+    vira_ensure_buy_guard();
+}
 require_once 'keyboard.php';
 require_once 'vendor/autoload.php';
 require_once 'panels.php';
@@ -2501,7 +2504,7 @@ $textconnect
         $dataoutput = $ManagePanel->createUser($marzban_list_get_new['name_panel'], "usertest", $DataUserOut['username'], $datac);
     } else {
         $dataoutput = $ManagePanel->createUser($marzban_list_get_new['name_panel'], "usertest", $DataUserOut['username'], $datac);
-        if ($dataoutput['username'] == null) {
+        if (vira_create_user_missing_username($dataoutput)) {
             $dataoutput['msg'] = json_encode($dataoutput['msg']);
             sendmessage($from_id, $textbotlang['users']['sell']['ErrorConfig'], $keyboard, 'HTML');
             $texterros = "خطا هنگام تغییر موقعیت سرویس
@@ -3244,7 +3247,7 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
     $stmt->execute();
     $stmt->close();
     $dataoutput = $ManagePanel->createUser($marzban_list_get['name_panel'], "usertest", $username_ac, $datac);
-    if ($dataoutput['username'] == null) {
+    if (vira_create_user_missing_username($dataoutput)) {
         $dataoutput['msg'] = json_encode($dataoutput['msg']);
         sendmessage($from_id, $textbotlang['users']['usertest']['errorcreat'], $keyboard, 'html');
         $texterros = "
@@ -3993,7 +3996,12 @@ $textinvite
     }
 } elseif ($user['step'] == "getvolumecustomusername" || preg_match('/^prodcutservices_(.*)/', $datain, $dataget)) {
     $prodcut = $dataget[1];
-    $userdate = json_decode($user['Processing_value'], true);
+    $userdate = vira_decode_processing_panel($user['Processing_value']);
+    if ($userdate === null) {
+        sendmessage($from_id, "❌ اطلاعات سفارش نامعتبر است. لطفاً دوباره از منوی خرید شروع کنید.", $backuser, 'HTML');
+        step('home', $from_id);
+        return;
+    }
     if ($user['step'] == "getvolumecustomusername") {
         if (!ctype_digit($text)) {
             sendmessage($from_id, $textbotlang['Admin']['Product']['Invalidtime'], $backuser, 'HTML');
@@ -4020,7 +4028,12 @@ $textinvite
     if (!empty($callback_query_id)) {
         telegram('answerCallbackQuery', array('callback_query_id' => $callback_query_id, 'text' => '⏳'));
     }
-    $userdate = json_decode($user['Processing_value'], true);
+    $userdate = vira_decode_processing_panel($user['Processing_value']);
+    if ($userdate === null) {
+        sendmessage($from_id, "❌ اطلاعات سفارش نامعتبر است. لطفاً دوباره از منوی خرید شروع کنید.", $backuser, 'HTML');
+        step('home', $from_id);
+        return;
+    }
     if ($user['step'] == "getvolumecustomuser") {
         if (!ctype_digit($text)) {
             sendmessage($from_id, $textbotlang['Admin']['customvolume']['invalidtime'], $backuser, 'HTML');
@@ -4041,6 +4054,11 @@ $textinvite
         $prodcut = $dataget[1];
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
+    if (!is_array($marzban_list_get)) {
+        sendmessage($from_id, "❌ پنل انتخاب‌شده یافت نشد. لطفاً دوباره تلاش کنید.", $backuser, 'html');
+        step('home', $from_id);
+        return;
+    }
     if (!vira_panel_is_active_status($marzban_list_get['status'] ?? '')) {
         sendmessage($from_id, "❌ این پنل در دسترس نیست لطفا از پنل دیگری خرید را انجام دهید.", $backuser, 'html');
         step("home", $from_id);
@@ -4115,13 +4133,23 @@ $textinvite
     if (!empty($callback_query_id)) {
         telegram('answerCallbackQuery', array('callback_query_id' => $callback_query_id, 'text' => '⏳ در حال ساخت...'));
     }
-    $userdate = json_decode($user['Processing_value'], true);
+    $userdate = vira_decode_processing_panel($user['Processing_value']);
+    if ($userdate === null) {
+        sendmessage($from_id, "❌ اطلاعات سفارش نامعتبر است. لطفاً دوباره از منوی خرید شروع کنید.", $backuser, 'HTML');
+        step('home', $from_id);
+        return;
+    }
     Editmessagetext($from_id, $message_id, $text_inline, json_encode(['inline_keyboard' => []]));
     // $pats for customm service
     $parts = explode("_", $user['Processing_value_one']);
     // $partsdic for discount value
     $partsdic = explode("_", $user['Processing_value_four']);
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
+    if (!is_array($marzban_list_get)) {
+        sendmessage($from_id, "❌ پنل انتخاب‌شده یافت نشد. لطفاً دوباره تلاش کنید.", $backuser, 'html');
+        step('home', $from_id);
+        return;
+    }
     if (!vira_panel_is_active_status($marzban_list_get['status'] ?? '')) {
         sendmessage($from_id, "❌ این پنل در دسترس نیست لطفا از پنل دیگری خرید را انجام دهید.", $backuser, 'html');
         step("home", $from_id);
@@ -4225,6 +4253,27 @@ $textinvite
     if (vira_maxbuyagent_payment_redirect($from_id, $user, $priceproduct, $step_payment, 'getconfigafterpay')) {
         return;
     }
+    if (!vira_try_begin_buy_lock($from_id, 'payment')) {
+        if (!empty($callback_query_id)) {
+            telegram('answerCallbackQuery', array(
+                'callback_query_id' => $callback_query_id,
+                'text' => '⏳ خرید قبلی هنوز در حال پردازش است',
+                'show_alert' => true,
+            ));
+        }
+        return;
+    }
+    $chargeAmount = (int) $priceproduct;
+    $balanceReserved = false;
+    $buyRefKey = 'buy:' . $randomString;
+    if ($chargeAmount > 0 && ($user['agent'] ?? 'f') !== 'n2') {
+        if (!vira_wallet_debit_user((string) $from_id, $buyRefKey, $chargeAmount, 'wallet_buy')) {
+            step('payment', $from_id);
+            sendmessage($from_id, $textbotlang['users']['sell']['None-credit'] ?? '❌ موجودی کافی نیست.', $backuser, 'HTML');
+            return;
+        }
+        $balanceReserved = true;
+    }
     Editmessagetext($from_id, $message_id, "♻️ در حال ساختن سرویس شما...", null);
     $createStartedAt = microtime(true);
     error_log('[vira-buy] createUser start user=' . $from_id . ' panel=' . $marzban_list_get['name_panel'] . ' cfg=' . $username_ac);
@@ -4274,7 +4323,7 @@ $textinvite
         $dataoutput = array('status' => 'Unsuccessful', 'msg' => $e->getMessage());
     }
     error_log('[vira-buy] createUser done in ' . round(microtime(true) - $createStartedAt, 2) . 's status=' . ($dataoutput['status'] ?? 'n/a'));
-    if (!isset($dataoutput['username']) || $dataoutput['username'] === null || $dataoutput['username'] === '') {
+    if (vira_create_user_missing_username($dataoutput)) {
         $errorMessage = $dataoutput['msg'] ?? 'unknown error';
         if (is_array($errorMessage) || is_object($errorMessage)) {
             $errorMessage = json_encode($errorMessage, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -4304,6 +4353,10 @@ $textinvite
                 'parse_mode' => "HTML"
             ]);
         }
+        if ($balanceReserved) {
+            vira_wallet_refund_debit((string) $from_id, $buyRefKey, $chargeAmount, 'buy_refund');
+        }
+        update("invoice", "Status", "Unsuccessful", "id_invoice", $randomString);
         step('home', $from_id);
         return;
     }
@@ -4342,10 +4395,7 @@ $textinvite
     Editmessagetext($from_id, $message_id, "✅ سرویس با موفقیت ساخته شد.", null, 'HTML');
     sendMessageService($marzban_list_get, $dataoutput['configs'], $output_config_link, $dataoutput['username'], $Shoppinginfo, $textcreatuser, $randomString);
     sendmessage($from_id, $textbotlang['users']['selectoption'], $keyboard, 'HTML');
-    if (intval($priceproduct) != 0) {
-        $Balance_prim = $user['Balance'] - $priceproduct;
-        update("user", "Balance", $Balance_prim, "id", $from_id);
-    }
+    step('home', $from_id);
     if ($marzban_list_get['MethodUsername'] == "متن دلخواه + عدد ترتیبی" || $marzban_list_get['MethodUsername'] == "نام کاربری + عدد به ترتیب" || $marzban_list_get['MethodUsername'] == "آیدی عددی+عدد ترتیبی" || $marzban_list_get['MethodUsername'] == "متن دلخواه نماینده + عدد ترتیبی") {
         $value = intval($user['number_username']) + 1;
         update("user", "number_username", $value, "id", $from_id);
@@ -4767,6 +4817,19 @@ $textonebuy
     sendmessage($from_id, $textin, $paymentom, 'HTML');
     step('payments', $from_id);
 } elseif ($user['step'] == "payments" && $datain == "confirmandgetservice") {
+    if (!empty($callback_query_id)) {
+        telegram('answerCallbackQuery', array('callback_query_id' => $callback_query_id, 'text' => '⏳ در حال ساخت...'));
+    }
+    if (!vira_try_begin_buy_lock($from_id, 'payments')) {
+        if (!empty($callback_query_id)) {
+            telegram('answerCallbackQuery', array(
+                'callback_query_id' => $callback_query_id,
+                'text' => '⏳ خرید قبلی هنوز در حال پردازش است',
+                'show_alert' => true,
+            ));
+        }
+        return;
+    }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
     $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
     $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
@@ -4819,6 +4882,13 @@ $textonebuy
         }
     }
     if (vira_maxbuyagent_payment_redirect($from_id, $user, $priceproduct, $step_payment, 'bulkbuy')) {
+        step('payments', $from_id);
+        return;
+    }
+    $bulkRefKey = 'bulk:' . bin2hex(random_bytes(4));
+    if (!vira_wallet_debit_user((string) $from_id, $bulkRefKey, (int) $priceproduct, 'bulk_buy')) {
+        step('payments', $from_id);
+        sendmessage($from_id, $textbotlang['users']['sell']['None-credit'] ?? '❌ موجودی کافی نیست.', $backuser, 'HTML');
         return;
     }
     $datep = strtotime("+" . $info_product['Service_time'] . "days");
@@ -4868,7 +4938,7 @@ $textonebuy
             $randomString = $random_number . $randomString;
         }
         $dataoutput = $ManagePanel->createUser($marzban_list_get['name_panel'], $info_product['code_product'], $username_acc, $datac);
-        if ($dataoutput['username'] == null) {
+        if (vira_create_user_missing_username($dataoutput)) {
             $dataoutput['msg'] = json_encode($dataoutput['msg']);
             sendmessage($from_id, $textbotlang['users']['sell']['ErrorConfig'], $keyboard, 'HTML');
             $texterros = "
@@ -4926,11 +4996,8 @@ $textonebuy
         sendMessageService($marzban_list_get, $dataoutput['configs'], $output_config_link, $dataoutput['username'], $Shoppinginfo, $textcreatuser, $randomString);
     }
     sendmessage($from_id, $textbotlang['users']['selectoption'], $keyboard, 'HTML');
-    $user_Balance = select("user", "*", "id", $from_id, "select");
-    $Balance_prim = $user_Balance['Balance'] - $priceproduct;
-    update("user", "Balance", $Balance_prim, "id", $from_id);
-    $balanceformatsell = number_format(select("user", "Balance", "id", $from_id, "select")['Balance'], 0);
-    $balanceformatsellbefore = number_format($user['Balance'], 0);
+    $balanceformatsell = number_format((int) select("user", "Balance", "id", $from_id, "select")['Balance'], 0);
+    $balanceformatsellbefore = number_format((int) $user['Balance'], 0);
     $pricebulk = $info_product['price_product'] * intval($user['Processing_value_four']);
     $count_service = $user['Processing_value_four'];
     $timejalali = jdate('Y/m/d H:i:s');

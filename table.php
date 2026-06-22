@@ -1518,6 +1518,9 @@ try {
 if ($check && $check->rowCount() != 0) {
     $pdo->exec("ALTER TABLE `user` DROP `ref_code`");
 }
+if (function_exists('vira_ensure_buy_guard')) {
+    vira_ensure_buy_guard();
+}
 if (!getenv('VIRA_SKIP_WEBHOOK')) {
     telegram('setwebhook', [
         'url' => "https://$domainhosts/index.php"
