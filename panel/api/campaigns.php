@@ -16,23 +16,70 @@ function camp_json(bool $ok, string $msg = '', array $extra = []): void
 }
 
 if ($action === 'targets') {
-    camp_json(true, '', ['targets' => vira_campaign_target_defs()]);
+    camp_json(true, '', ['items' => vira_campaign_targets_with_counts($pdo)]);
+}
+
+if ($action === 'search_users') {
+    $q = trim((string) ($_GET['q'] ?? $_POST['q'] ?? ''));
+    camp_json(true, '', ['users' => vira_campaign_search_users($pdo, $q)]);
 }
 
 if ($action === 'list') {
-    camp_json(true, '', ['items' => vira_campaign_list($pdo)]);
+    $filter = trim((string) ($_GET['filter'] ?? ''));
+    camp_json(true, '', ['items' => vira_campaign_list($pdo, 50, $filter)]);
+}
+
+if ($action === 'get') {
+    $id = (int) ($_GET['campaign_id'] ?? 0);
+    $campaign = vira_campaign_get($pdo, $id);
+    camp_json($campaign !== null, $campaign ? '' : 'یافت نشد', ['campaign' => $campaign]);
+}
+
+if ($action === 'progress') {
+    $id = (int) ($_GET['campaign_id'] ?? 0);
+    $campaign = vira_campaign_get($pdo, $id);
+    if (!$campaign) {
+        camp_json(false, 'یافت نشد');
+    }
+    camp_json(true, '', [
+        'progress' => [
+            'campaign_id' => $campaign['id'],
+            'status' => $campaign['status'],
+            'total' => $campaign['total_recipients'],
+            'sent' => $campaign['sent_count'],
+            'failed' => $campaign['failed_count'],
+            'processed' => $campaign['offset_cursor'],
+            'percent' => $campaign['progress'],
+            'paused' => $campaign['paused'],
+        ],
+    ]);
 }
 
 if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
     try {
+        $upload = null;
+        if (!empty($_FILES['media']) && is_array($_FILES['media']) && ($_FILES['media']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+            $upload = $_FILES['media'];
+        }
         $campaign = vira_campaign_create($pdo, [
-            'text_body' => $_POST['text_body'] ?? '',
-            'target_type' => $_POST['target_type'] ?? 'all_active',
-            'reply_markup_json' => $_POST['reply_markup_json'] ?? '',
+            'text_body' => $_POST['text'] ?? $_POST['text_body'] ?? '',
+            'message_type' => $_POST['message_type'] ?? 'text',
+            'target_type' => $_POST['target'] ?? $_POST['target_type'] ?? 'all',
+            'user_ids' => $_POST['user_ids'] ?? '',
+            'buttons_json' => $_POST['buttons_json'] ?? $_POST['reply_markup_json'] ?? '',
+            'parse_mode' => $_POST['parse_mode'] ?? 'HTML',
+            'disable_web_page_preview' => !empty($_POST['disable_web_page_preview']),
             'pin_after_send' => !empty($_POST['pin_after_send']),
+            'auto_send_new_users' => !empty($_POST['auto_send_new_users']),
+            'auto_send_delay_minutes' => (int) ($_POST['auto_send_delay_minutes'] ?? 5),
+        ], $upload);
+        camp_json(true, 'کمپین ایجاد شد', [
+            'campaign' => $campaign,
+            'campaign_id' => $campaign['id'],
+            'total' => $campaign['total_recipients'],
+            'status' => $campaign['status'],
         ]);
-        camp_json(true, 'کمپین ایجاد شد', ['campaign' => $campaign]);
     } catch (Throwable $e) {
         camp_json(false, $e->getMessage());
     }
