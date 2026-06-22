@@ -4439,7 +4439,7 @@ function vira_developer_donation_wallets_html(): string
         $addr = htmlspecialchars(vira_donation_wallet_address($key, $default), ENT_QUOTES, 'UTF-8');
         $lines .= "🔸 {$label}: <code>{$addr}</code>\n";
     }
-    $lines .= "\nاز حمایت شما برای توسعه ویرانات سپاسگزاریم 🙏";
+    $lines .= "\nاز حمایت شما برای توسعه ویرا سپاسگزاریم 🙏";
     return "<blockquote>{$lines}</blockquote>";
 }
 
@@ -4464,7 +4464,7 @@ function vira_bot_report_message_html(): string
         . "🔹 | اگر پیشنهادی برای <b>افزودن قابلیت جدید</b> دارید یا ایده‌ای برای بهبود عملکرد ربات در نظر دارید، خوشحال می‌شویم بشنویم.\n"
         . "➖➖➖➖➖➖➖➖➖➖➖\n"
         . "🔹 | همچنین اگر نیاز به <b>راهنمایی</b> یا کمک دارید، می‌توانید از طریق دایرکت با تیم پشتیبانی در ارتباط باشید.\n\n"
-        . "📩 | برای ارسال گزارش، پیشنهاد یا درخواست راهنمایی، در <b>گروه ویرانات</b> پیام بگذارید:\n"
+        . "📩 | برای ارسال گزارش، پیشنهاد یا درخواست راهنمایی، در <b>گروه ویرا</b> پیام بگذارید:\n"
         . "<a href=\"{$url}\" rel=\"nofollow\" target=\"_blank\">ViraNaut Group</a>";
 }
 
