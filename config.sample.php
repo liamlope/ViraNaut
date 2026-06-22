@@ -38,3 +38,9 @@ if (!function_exists('select')) {
 if (function_exists('vira_ensure_user_lang_column')) {
     vira_ensure_user_lang_column();
 }
+if (function_exists('vira_ensure_setting_schema')) {
+    vira_ensure_setting_schema();
+}
+if (function_exists('vira_setting_try_seed')) {
+    vira_setting_try_seed();
+}
