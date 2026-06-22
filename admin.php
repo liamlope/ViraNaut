@@ -7,16 +7,6 @@ require_once __DIR__ . '/admin_user_manage.php';
 #----------------[  admin section  ]------------------#
 $textbotlang = languagechange(null, 'fa');
 $textadmin = ["panel", "/panel", $textbotlang['Admin']['textpaneladmin']];
-$text_panel_admin_login_template = "💎 | نسخه ربات: %s
-📌 | نسخه مینی‌اپ: %s
-
-<blockquote>🔹 | <b>ویرا ViraNaut</b> — ربات VPN رایگان و متن‌باز</blockquote>
-
-<blockquote>🔹 | توسعه‌یافته توسط تیم ویرا · نسخه 2.0.1</blockquote>
-
-<blockquote>🔹 | هرگونه فروش یا دریافت وجه بابت این ربات تخلف محسوب می‌شود.</blockquote>
-
-<blockquote>🐞 | گزارش باگ: دکمهٔ <b>📬 گزارش ربات</b> در پنل ادمین</blockquote>";
 
 if (!in_array($from_id, $admin_ids))
     return;
@@ -50,7 +40,7 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     }
     $version_mini_app = file_get_contents('app/version');
     activecron();
-    $text_admin = sprintf($text_panel_admin_login_template, $version, $version_mini_app);
+    $text_admin = vira_admin_panel_login_message($version, $version_mini_app);
     sendmessage($from_id, $text_admin, $keyboardadmin, 'HTML');
     $miniAppInstructionHidden = isset($user['hide_mini_app_instruction']) ? (string) $user['hide_mini_app_instruction'] : '0';
     if ($miniAppInstructionHidden !== '1') {
@@ -69,7 +59,7 @@ if (in_array($text, $textadmin) || $datain == "admin") {
         return;
     }
     $version_mini_app = file_get_contents('app/version');
-    $text_admin = sprintf($text_panel_admin_login_template, $version, $version_mini_app);
+    $text_admin = vira_admin_panel_login_message($version, $version_mini_app);
     sendmessage($from_id, $text_admin, $keyboardadmin, 'HTML');
     step('home', $from_id);
     return;
@@ -7889,8 +7879,7 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     update("user", "Processing_value", $userdata['idpanel'], "id", $from_id);
     step("home", $from_id);
 } elseif ($text == "📬 گزارش ربات" && $adminrulecheck['rule'] == "administrator") {
-    $textupdate = "💬 | گزارش ربات\n\n🔹 | اگر در عملکرد ربات با <b>باگ یا مشکلی</b> روبه‌رو شدید، لطفاً مورد را برای بررسی به ما اطلاع دهید.\n➖➖➖➖➖➖➖➖➖➖➖\n🔹 | در صورتی که با <b>باگ جدی</b> یا رفتار غیرعادی مواجه شدید، سریع‌تر گزارش دهید تا رفع شود.\n➖➖➖➖➖➖➖➖➖➖➖\n🔹 | اگر پیشنهادی برای <b>افزودن قابلیت جدید</b> دارید یا ایده‌ای برای بهبود عملکرد ربات در نظر دارید، خوشحال می‌شویم بشنویم.\n➖➖➖➖➖➖➖➖➖➖➖\n🔹 | همچنین اگر نیاز به <b>راهنمایی</b> یا کمک دارید، می‌توانید از طریق دایرکت با تیم پشتیبانی در ارتباط باشید.\n\n📩 | برای ارسال گزارش، پیشنهاد یا درخواست راهنمایی، در <b>گروه ویرا</b> پیام بگذارید:\n<a href=\"https://github.com/liamlope/ViraNaut/issues\" rel=\"nofollow\" target=\"_blank\">ViraNaut Support</a>";
-    sendmessage($from_id, $textupdate, null, 'HTML');
+    sendmessage($from_id, vira_bot_report_message_html(), null, 'HTML');
     step('home', $from_id);
 } elseif ($text == "🛠 قابلیت های پنل") {
     sendmessage($from_id, "🪚 برای استفاده از این قابلیت یکی از پنل های زیر را انتخاب نمایید", $json_list_marzban_panel, 'HTML');

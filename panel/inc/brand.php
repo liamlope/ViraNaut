@@ -11,8 +11,8 @@ define('VIRA_PANEL_TITLE', 'پنل مدیریت ویرا');
 define('VIRA_PANEL_SHORT', 'ویرا · پنل');
 define('VIRA_BRAND_MARK', 'V');
 define('VIRA_GITHUB_URL', 'https://github.com/liamlope/ViraNaut');
-/** لینک گروه پشتیبانی — هنگام deploy عوض کنید (خالی = بدون لینک) */
-define('VIRA_SUPPORT_GROUP', '');
+/** لینک گروه پشتیبانی تلگرام */
+define('VIRA_SUPPORT_GROUP', 'https://t.me/ViraNautGroup');
 
 function vira_brand_version(): string
 {
