@@ -442,8 +442,11 @@ include __DIR__ . '/inc/layout_head.php';
                                 ];
                                 foreach ($invoices as $inv):
                                     [$tagClass, $label] = $statusMap[$inv['Status'] ?? ''] ?? ['tag-plain', $inv['Status'] ?? '—'];
+                                    $invUrl = !empty($inv['id_invoice'])
+                                        ? 'invoice_view.php?id=' . urlencode((string) $inv['id_invoice'])
+                                        : '';
                                     ?>
-                                    <tr>
+                                    <tr<?= $invUrl ? ' class="inv-row-link" onclick="window.location.href=\'' . htmlspecialchars($invUrl, ENT_QUOTES) . '\'" style="cursor:pointer"' : '' ?>>
                                         <td class="cs"
                                             style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                                             <?= htmlspecialchars($inv['name_product'] ?? '—') ?>

@@ -80,6 +80,7 @@ include __DIR__ . '/inc/layout_head.php';
         <tr>
           <th>#</th>
           <th>کاربر</th>
+          <th>یوزرنیم</th>
           <th>محصول</th>
           <th>قیمت</th>
           <th>تاریخ</th>
@@ -89,7 +90,7 @@ include __DIR__ . '/inc/layout_head.php';
       <tbody>
         <?php if (empty($invoices)): ?>
           <tr>
-            <td colspan="6">
+            <td colspan="7">
               <div class="empty">
                 <svg class="ill" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="30" y="15" width="100" height="90" rx="8" fill="var(--sf3)" />
@@ -107,10 +108,12 @@ include __DIR__ . '/inc/layout_head.php';
           foreach ($invoices as $inv):
             $st = $inv['Status'] ?? '';
             [$cls, $lbl] = $statusMap[$st] ?? ['tag-plain', $st ?: '—'];
+            $viewUrl = 'invoice_view.php?id=' . urlencode((string) ($inv['id_invoice'] ?? ''));
             ?>
-            <tr>
+            <tr class="inv-row-link" onclick="window.location.href='<?= htmlspecialchars($viewUrl, ENT_QUOTES) ?>'">
               <td class="cf"><?= $i++ ?></td>
               <td class="cm"><?= htmlspecialchars($inv['id_user'] ?? '—') ?></td>
+              <td class="cm" style="font-size:.78rem"><code><?= htmlspecialchars(trunc($inv['username'] ?? '—', 22)) ?></code></td>
               <td class="cs"><?= htmlspecialchars(trunc($inv['name_product'] ?? '—', 28)) ?></td>
               <td class="cn cs"><?= number_format((int) ($inv['price_product'] ?? 0)) ?> <span class="cf">ت</span></td>
               <td class="cf"><?= safe_date($inv['time_sell'] ?? null, 'Y/m/d') ?></td>
@@ -133,5 +136,10 @@ include __DIR__ . '/inc/layout_head.php';
     </div>
   </div>
 </div>
+
+<style>
+.inv-row-link { cursor: pointer; }
+.inv-row-link:hover td { background: var(--sf2); }
+</style>
 
 <?php include __DIR__ . '/inc/layout_foot.php'; ?>

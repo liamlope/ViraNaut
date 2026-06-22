@@ -131,7 +131,6 @@ function mirza_pay_general_defs(): array
         ['key' => 'chashbackcart', 'label' => 'کش‌بک کارت (درصد)', 'input' => 'number'],
         ['key' => 'minbalancebuybulk', 'label' => 'حداقل موجودی خرید عمده', 'input' => 'number'],
         ['key' => 'statuscopycart', 'label' => 'دکمه کپی کارت', 'input' => 'select', 'options' => ['1' => 'فعال', '0' => 'غیرفعال']],
-        ['key' => 'paymentstatussnotverify', 'label' => 'وضعیت پرداخت بدون تأیید', 'input' => 'text'],
     ];
 }
 
