@@ -8,13 +8,13 @@ set -e
 
 INSTALL_BOT_DIR="/var/www/html/viranaut"
 LEGACY_VIRANAUT_DIR="/var/www/html/viranautconfig"
-LEGACY_MIRZA_DIR="/var/www/html/mirzaprobotconfig"
-LEGACY_PROJECT_DIR="/var/www/mirza_pro"
-ALT_HTML_BOT_DIR="/var/www/html/mirzabotconfig"
+LEGACY_VIRA_DIR="/var/www/html/legacybotconfig"
+LEGACY_PROJECT_DIR="/var/www/vira_pro"
+ALT_HTML_BOT_DIR="/var/www/html/legacybotconfig"
 VIRANAUT_STATE_FILE="/root/.viranaut_manage_active_dir"
-MIRZA_STATE_FILE="/root/.mirza_manage_active_dir"
+VIRA_STATE_FILE="/root/.vira_manage_active_dir"
 VIRANAUT_MANAGE_VERSION="3.2.0-ViraNaut"
-MIRZA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
+VIRA_MANAGE_VERSION="$VIRANAUT_MANAGE_VERSION"
 VIRANAUT_GITHUB_REPO="${VIRANAUT_GITHUB_REPO:-https://github.com/liamlope/ViraNaut.git}"
 VIRANAUT_GITHUB_BRANCH="${VIRANAUT_GITHUB_BRANCH:-main}"
 VIRANAUT_GITHUB_PAGE="${VIRANAUT_GITHUB_PAGE:-https://github.com/liamlope/ViraNaut}"
@@ -22,14 +22,14 @@ VIRANAUT_BACKUP_PREFIX="viranaut_backup"
 VIRANAUT_PREUPDATE_PREFIX="viranaut_preupdate"
 VIRANAUT_PREUPDATE_KEEP=3
 VIRANAUT_VHOST_GENERIC="viranaut-pro.conf"
-VIRANAUT_VHOST_LEGACY="mirza-pro.conf"
+VIRANAUT_VHOST_LEGACY="legacy-pro.conf"
 VIRANAUT_LOG_ERROR="viranaut_error.log"
 VIRANAUT_LOG_ACCESS="viranaut_access.log"
 
 KNOWN_BOT_DIRS=(
   "$INSTALL_BOT_DIR"
   "$LEGACY_VIRANAUT_DIR"
-  "$LEGACY_MIRZA_DIR"
+  "$LEGACY_VIRA_DIR"
   "$ALT_HTML_BOT_DIR"
   "$LEGACY_PROJECT_DIR"
 )
@@ -37,7 +37,7 @@ KNOWN_BOT_DIRS=(
 # Active install — set by resolve_project_paths()
 PROJECT_DIR=""
 CONFIG_FILE=""
-MIRZA_ALL_INSTALLS=()
+VIRA_ALL_INSTALLS=()
 BACKUP_DIR="/root/viranaut_backups"
 CRON_MARKER="# viranaut_cron"
 
@@ -55,11 +55,11 @@ warn() { echo -e "${YELLOW}[!] $1${NC}"; }
 err()  { echo -e "${RED}[ERROR] $1${NC}"; }
 
 # a2ensite prints "Site X already enabled" on stdout — must not pollute $(...) captures
-mirza_a2ensite()  { a2ensite "$@" >/dev/null 2>&1 || true; }
-mirza_a2dissite() { a2dissite "$@" >/dev/null 2>&1 || true; }
+vira_a2ensite()  { a2ensite "$@" >/dev/null 2>&1 || true; }
+vira_a2dissite() { a2dissite "$@" >/dev/null 2>&1 || true; }
 
 # Strip accidental stdout (a2ensite / status lines) from command substitutions
-mirza_sanitize_bot_dir() {
+vira_sanitize_bot_dir() {
   local raw="$1" line best=""
   while IFS= read -r line || [ -n "$line" ]; do
     line="${line//$'\r'/}"
@@ -84,18 +84,18 @@ check_root() {
   fi
 }
 
-# Valid ViraNaut / legacy Mirza bot directory: config.php + index.php
-mirza_is_valid_bot_dir() {
+# Valid ViraNaut / legacy Vira bot directory: config.php + index.php
+vira_is_valid_bot_dir() {
   local d="${1%/}"
   [ -n "$d" ] && [ -f "$d/config.php" ] && [ -f "$d/index.php" ]
 }
 
 # List every detected installation (one path per line, priority order)
-mirza_discover_installations() {
+vira_discover_installations() {
   local seen="|" d
   for d in "${KNOWN_BOT_DIRS[@]}"; do
     d="${d%/}"
-    if mirza_is_valid_bot_dir "$d" && [[ "$seen" != *"|$d|"* ]]; then
+    if vira_is_valid_bot_dir "$d" && [[ "$seen" != *"|$d|"* ]]; then
       echo "$d"
       seen="${seen}${d}|"
     fi
@@ -103,7 +103,7 @@ mirza_discover_installations() {
   for d in /var/www/html/*/; do
     [ -d "$d" ] || continue
     d="${d%/}"
-    if mirza_is_valid_bot_dir "$d" && [[ "$seen" != *"|$d|"* ]]; then
+    if vira_is_valid_bot_dir "$d" && [[ "$seen" != *"|$d|"* ]]; then
       echo "$d"
       seen="${seen}${d}|"
     fi
@@ -112,41 +112,41 @@ mirza_discover_installations() {
     [ -d "$d" ] || continue
     d="${d%/}"
     [[ "$d" == "/var/www/html" ]] && continue
-    if mirza_is_valid_bot_dir "$d" && [[ "$seen" != *"|$d|"* ]]; then
+    if vira_is_valid_bot_dir "$d" && [[ "$seen" != *"|$d|"* ]]; then
       echo "$d"
       seen="${seen}${d}|"
     fi
   done
 }
 
-mirza_save_active_dir() {
+vira_save_active_dir() {
   local d="${1%/}"
   echo "$d" >"$VIRANAUT_STATE_FILE"
-  echo "$d" >"$MIRZA_STATE_FILE"
+  echo "$d" >"$VIRA_STATE_FILE"
 }
 
-mirza_load_saved_active_dir() {
+vira_load_saved_active_dir() {
   local state_file="$VIRANAUT_STATE_FILE"
-  [ -f "$state_file" ] || state_file="$MIRZA_STATE_FILE"
+  [ -f "$state_file" ] || state_file="$VIRA_STATE_FILE"
   if [ ! -f "$state_file" ]; then
     return 1
   fi
   local p
   p=$(tr -d '\r\n' <"$state_file")
   p="${p%/}"
-  if mirza_is_valid_bot_dir "$p"; then
+  if vira_is_valid_bot_dir "$p"; then
     echo "$p"
     return 0
   fi
   return 1
 }
 
-mirza_list_installations() {
+vira_list_installations() {
   local i=1 d
   line
-  echo -e "  ${CYAN}Detected ViraNaut / legacy Mirza installations:${NC}"
+  echo -e "  ${CYAN}Detected ViraNaut / legacy Vira installations:${NC}"
   echo ""
-  if [ ${#MIRZA_ALL_INSTALLS[@]} -eq 0 ]; then
+  if [ ${#VIRA_ALL_INSTALLS[@]} -eq 0 ]; then
     echo "    (none — no config.php + index.php found)"
     echo ""
     echo -e "  ${CYAN}Common paths checked:${NC}"
@@ -157,7 +157,7 @@ mirza_list_installations() {
     echo ""
     return 1
   fi
-  for d in "${MIRZA_ALL_INSTALLS[@]}"; do
+  for d in "${VIRA_ALL_INSTALLS[@]}"; do
     if [ "$d" = "$PROJECT_DIR" ]; then
       echo -e "    ${BOLD}${GREEN}$i)${NC} ${BOLD}$d${NC}  ${GREEN}(active)${NC}"
     else
@@ -171,16 +171,16 @@ mirza_list_installations() {
 
 # Pick active bot path from discovered installs (+ saved state file)
 resolve_project_paths() {
-  MIRZA_ALL_INSTALLS=()
+  VIRA_ALL_INSTALLS=()
   local d
   while IFS= read -r d; do
-    [ -n "$d" ] && MIRZA_ALL_INSTALLS+=("$d")
-  done < <(mirza_discover_installations)
+    [ -n "$d" ] && VIRA_ALL_INSTALLS+=("$d")
+  done < <(vira_discover_installations)
 
-  if d=$(mirza_load_saved_active_dir 2>/dev/null); then
+  if d=$(vira_load_saved_active_dir 2>/dev/null); then
     PROJECT_DIR="$d"
-  elif [ ${#MIRZA_ALL_INSTALLS[@]} -ge 1 ]; then
-    PROJECT_DIR="${MIRZA_ALL_INSTALLS[0]}"
+  elif [ ${#VIRA_ALL_INSTALLS[@]} -ge 1 ]; then
+    PROJECT_DIR="${VIRA_ALL_INSTALLS[0]}"
   else
     PROJECT_DIR="$INSTALL_BOT_DIR"
   fi
@@ -190,7 +190,7 @@ resolve_project_paths() {
 # True when a working bot install exists (canonical path or any discovered install)
 viranaut_is_installed() {
   resolve_project_paths
-  if mirza_is_valid_bot_dir "$INSTALL_BOT_DIR"; then
+  if vira_is_valid_bot_dir "$INSTALL_BOT_DIR"; then
     return 0
   fi
   if [ -f "$CONFIG_FILE" ] && [ -f "$PROJECT_DIR/index.php" ]; then
@@ -207,8 +207,8 @@ viranaut_already_installed_prompt() {
   if [ -f "$CONFIG_FILE" ]; then
     local _domain _bot
     _domain=$(read_php_var "domainhosts")
-    _domain=$(mirza_normalize_domainhosts "$_domain")
-    _bot=$(mirza_normalize_bot_username "$(read_php_var "usernamebot")")
+    _domain=$(vira_normalize_domainhosts "$_domain")
+    _bot=$(vira_normalize_bot_username "$(read_php_var "usernamebot")")
     echo -e "  ${GREEN}●${NC} @${_bot}  —  ${_domain}"
     echo -e "  ${CYAN}Path:${NC} $PROJECT_DIR"
   else
@@ -238,47 +238,47 @@ do_select_bot_path() {
   line
   msg "Select active bot installation path"
   resolve_project_paths
-  if ! mirza_list_installations; then
+  if ! vira_list_installations; then
     return 1
   fi
-  if [ ${#MIRZA_ALL_INSTALLS[@]} -eq 1 ]; then
-    mirza_save_active_dir "${MIRZA_ALL_INSTALLS[0]}"
-    PROJECT_DIR="${MIRZA_ALL_INSTALLS[0]}"
+  if [ ${#VIRA_ALL_INSTALLS[@]} -eq 1 ]; then
+    vira_save_active_dir "${VIRA_ALL_INSTALLS[0]}"
+    PROJECT_DIR="${VIRA_ALL_INSTALLS[0]}"
     CONFIG_FILE="$PROJECT_DIR/config.php"
     msg "Only one install found — set active: $PROJECT_DIR"
     return 0
   fi
   echo -e "  ${CYAN}Enter number to manage (backup/update/configure use this path):${NC}"
   read -p "  Choice: " _pick
-  if ! [[ "$_pick" =~ ^[0-9]+$ ]] || [ "$_pick" -lt 1 ] || [ "$_pick" -gt "${#MIRZA_ALL_INSTALLS[@]}" ]; then
+  if ! [[ "$_pick" =~ ^[0-9]+$ ]] || [ "$_pick" -lt 1 ] || [ "$_pick" -gt "${#VIRA_ALL_INSTALLS[@]}" ]; then
     err "Invalid choice."
     return 1
   fi
-  PROJECT_DIR="${MIRZA_ALL_INSTALLS[$((_pick - 1))]}"
+  PROJECT_DIR="${VIRA_ALL_INSTALLS[$((_pick - 1))]}"
   CONFIG_FILE="$PROJECT_DIR/config.php"
-  mirza_save_active_dir "$PROJECT_DIR"
+  vira_save_active_dir "$PROJECT_DIR"
   echo -e "  ${GREEN}✓${NC} Active path: ${BOLD}$PROJECT_DIR${NC}"
   echo ""
   return 0
 }
 
-mirza_vhost_use_domain_conf() {
+vira_vhost_use_domain_conf() {
   [[ "${PROJECT_DIR%/}" == /var/www/html/* ]]
 }
 
-# Fix Apache vhosts still pointing at legacy paths (mirza_pro, …)
+# Fix Apache vhosts still pointing at legacy paths (vira_pro, …)
 viranaut_ensure_apache_documentroot() {
   local bot_dir="${1%/}"
   local domain="${2:-}"
   local cfg="$bot_dir/config.php"
 
   [ -f "$cfg" ] || return 0
-  [ -z "$domain" ] && domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg")")
+  [ -z "$domain" ] && domain=$(vira_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg")")
 
   local legacy_paths=(
-    "/var/www/mirza_pro"
-    "/var/www/html/mirzaprobotconfig"
-    "/var/www/html/mirzabotconfig"
+    "/var/www/vira_pro"
+    "/var/www/html/legacybotconfig"
+    "/var/www/html/legacybotconfig"
     "/var/www/html/viranautconfig"
   )
   local f old fixed=0
@@ -289,7 +289,7 @@ viranaut_ensure_apache_documentroot() {
       [ "$old" = "$bot_dir" ] && continue
       if grep -qF "$old" "$f" 2>/dev/null; then
         sed -i "s|${old}|${bot_dir}|g" "$f"
-        mirza_sanitize_vhost_conf "$f"
+        vira_sanitize_vhost_conf "$f"
         fixed=1
         echo -e "  ${GREEN}✓${NC} Patched vhost $(basename "$f"): ${old} → ${bot_dir}" >&2
       fi
@@ -297,7 +297,7 @@ viranaut_ensure_apache_documentroot() {
     if [ -n "$domain" ] && grep -qiE "ServerName[[:space:]]+${domain}([[:space:]]|$)" "$f" 2>/dev/null; then
       if ! grep -qF "DocumentRoot $bot_dir" "$f" 2>/dev/null; then
         sed -i "s|^[[:space:]]*DocumentRoot.*|    DocumentRoot ${bot_dir}|" "$f"
-        mirza_sanitize_vhost_conf "$f"
+        vira_sanitize_vhost_conf "$f"
         fixed=1
         echo -e "  ${GREEN}✓${NC} DocumentRoot → $bot_dir in $(basename "$f")" >&2
       fi
@@ -305,38 +305,38 @@ viranaut_ensure_apache_documentroot() {
   done
 
   if [ -n "$domain" ]; then
-    mirza_write_http_vhost "$domain" "$bot_dir" >/dev/null
-    mirza_a2ensite "${domain}.conf"
-    mirza_rewrite_vhost_documentroot "$domain" "$bot_dir"
-    mirza_ensure_ssl_vhost "$domain" "$bot_dir"
+    vira_write_http_vhost "$domain" "$bot_dir" >/dev/null
+    vira_a2ensite "${domain}.conf"
+    vira_rewrite_vhost_documentroot "$domain" "$bot_dir"
+    vira_ensure_ssl_vhost "$domain" "$bot_dir"
     fixed=1
   fi
 
   viranaut_disable_stale_vhosts "$bot_dir" "$domain"
   if [ "$fixed" -eq 1 ]; then
-    apache2ctl configtest >/dev/null 2>&1 && systemctl reload apache2 2>/dev/null || mirza_restart_apache || true
+    apache2ctl configtest >/dev/null 2>&1 && systemctl reload apache2 2>/dev/null || vira_restart_apache || true
   fi
 }
 
-# Disable Apache sites still pointing at deleted legacy folders (mirza_pro, …)
+# Disable Apache sites still pointing at deleted legacy folders (vira_pro, …)
 viranaut_disable_stale_vhosts() {
   local bot_dir="${1%/}"
   local domain="${2:-}"
   local f base docroot
   local legacy_names=(
-    mirza-pro.conf
-    mirza-pro-le-ssl.conf
+    legacy-pro.conf
+    vira-pro-le-ssl.conf
   )
   local stale_roots=(
-    "/var/www/mirza_pro"
-    "/var/www/html/mirzaprobotconfig"
-    "/var/www/html/mirzabotconfig"
+    "/var/www/vira_pro"
+    "/var/www/html/legacybotconfig"
+    "/var/www/html/legacybotconfig"
     "/var/www/html/viranautconfig"
   )
 
   for base in "${legacy_names[@]}"; do
     if [ -e "/etc/apache2/sites-enabled/$base" ]; then
-      mirza_a2dissite "$base" 2>/dev/null || true
+      vira_a2dissite "$base" 2>/dev/null || true
       rm -f "/etc/apache2/sites-enabled/$base"
       echo -e "  ${YELLOW}●${NC} Disabled legacy vhost: $base" >&2
     fi
@@ -352,7 +352,7 @@ viranaut_disable_stale_vhosts() {
           ;;
       esac
       if grep -qiE "ServerName[[:space:]]+${domain}" "$f" 2>/dev/null; then
-        mirza_a2dissite "$base" 2>/dev/null || true
+        vira_a2dissite "$base" 2>/dev/null || true
         rm -f "/etc/apache2/sites-enabled/$base"
         echo -e "  ${YELLOW}●${NC} Disabled duplicate vhost: $base" >&2
       fi
@@ -369,7 +369,7 @@ viranaut_disable_stale_vhosts() {
     for stale in "${stale_roots[@]}"; do
       if [ "$docroot" = "$stale" ] || grep -qF "$stale" "$f" 2>/dev/null; then
         base=$(basename "$f")
-        mirza_a2dissite "$base" 2>/dev/null || true
+        vira_a2dissite "$base" 2>/dev/null || true
         rm -f "/etc/apache2/sites-enabled/$base"
         echo -e "  ${YELLOW}●${NC} Disabled stale vhost: $base (was $docroot)" >&2
         break
@@ -385,10 +385,10 @@ viranaut_apache_log_file() {
 
   if [ "$kind" = error ]; then
     [ -n "$domain" ] && candidates+=("/var/log/apache2/${domain}-error.log")
-    candidates+=("/var/log/apache2/$VIRANAUT_LOG_ERROR" "/var/log/apache2/mirza_error.log" "/var/log/apache2/error.log")
+    candidates+=("/var/log/apache2/$VIRANAUT_LOG_ERROR" "/var/log/apache2/vira_error.log" "/var/log/apache2/error.log")
   else
     [ -n "$domain" ] && candidates+=("/var/log/apache2/${domain}-access.log")
-    candidates+=("/var/log/apache2/$VIRANAUT_LOG_ACCESS" "/var/log/apache2/mirza_access.log" "/var/log/apache2/access.log")
+    candidates+=("/var/log/apache2/$VIRANAUT_LOG_ACCESS" "/var/log/apache2/vira_access.log" "/var/log/apache2/access.log")
   fi
 
   local p
@@ -398,7 +398,7 @@ viranaut_apache_log_file() {
   return 1
 }
 
-# Move bot to /var/www/html/viranaut when installed elsewhere (mirza_pro, viranautconfig, …)
+# Move bot to /var/www/html/viranaut when installed elsewhere (vira_pro, viranautconfig, …)
 viranaut_relocate_to_canonical_path() {
   local src="${1%/}"
   local dest="${INSTALL_BOT_DIR%/}"
@@ -406,13 +406,13 @@ viranaut_relocate_to_canonical_path() {
 
   if [ "$src" = "$dest" ]; then
     cfg="$dest/config.php"
-    domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg")")
+    domain=$(vira_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg")")
     viranaut_ensure_apache_documentroot "$dest" "$domain" >&2
     printf '%s' "$dest"
     return 0
   fi
 
-  if ! mirza_is_valid_bot_dir "$src"; then
+  if ! vira_is_valid_bot_dir "$src"; then
     warn "Skip relocate: invalid bot dir $src" >&2
     printf '%s' "$src"
     return 1
@@ -433,7 +433,7 @@ viranaut_relocate_to_canonical_path() {
   [ -f "$dest/config.php" ] && chmod 640 "$dest/config.php"
 
   cfg="$dest/config.php"
-  domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg")")
+  domain=$(vira_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg")")
   viranaut_ensure_apache_documentroot "$dest" "$domain" >&2
 
   local f
@@ -442,7 +442,7 @@ viranaut_relocate_to_canonical_path() {
     [ -f "$f" ] || continue
     if grep -qF "$src" "$f" 2>/dev/null; then
       sed -i "s|${src}|${dest}|g" "$f"
-      mirza_sanitize_vhost_conf "$f"
+      vira_sanitize_vhost_conf "$f"
     fi
   done
 
@@ -452,7 +452,7 @@ viranaut_relocate_to_canonical_path() {
   crontab "$TMP_CRON" 2>/dev/null || true
   rm -f "$TMP_CRON"
 
-  mirza_save_active_dir "$dest"
+  vira_save_active_dir "$dest"
 
   if [ -d "$src" ] && [ "$src" != "$dest" ]; then
     rm -rf "$src"
@@ -464,21 +464,21 @@ viranaut_relocate_to_canonical_path() {
   return 0
 }
 
-# --- Local package (mirzabot-0.1.5.zip / .tar.gz next to this script) ---
-mirza_manage_script_dir() {
+# --- Local package (legacybot-0.1.5.zip / .tar.gz next to this script) ---
+vira_manage_script_dir() {
   cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd
 }
 
 # Telegram bot username: trim spaces, strip leading @ (user may type @bot or bot)
-mirza_normalize_bot_username() {
+vira_normalize_bot_username() {
   local u="${1//[[:space:]]/}"
   u="${u#@}"
   printf '%s' "$u"
 }
 
-# install.sh / mirza_pro expect $domainhosts = hostname only (no scheme). PHP builds "https://$domainhosts/..."
+# install.sh / vira_pro expect $domainhosts = hostname only (no scheme). PHP builds "https://$domainhosts/..."
 # Strips leading/trailing whitespace, CR (Windows paste), and all internal whitespace (domains should not contain spaces)
-mirza_normalize_domainhosts() {
+vira_normalize_domainhosts() {
   local h="$1"
   h="${h//$'\r'/}"
   h="${h//[[:space:]]/}"
@@ -488,53 +488,53 @@ mirza_normalize_domainhosts() {
   printf '%s' "$h"
 }
 
-# Same file can match mirzabot*.zip and *.zip — dedupe by canonical path
-mirza_find_local_packages() {
+# Same file can match legacybot*.zip and *.zip — dedupe by canonical path
+vira_find_local_packages() {
   local dir="$1"
   local f base canon
-  local -A _mirza_pkg_seen=()
+  local -A _vira_pkg_seen=()
   shopt -s nullglob
   for f in \
     "$dir"/ViraNaut*.zip "$dir"/ViraNaut*.tar.gz "$dir"/viranaut*.zip "$dir"/viranaut*.tar.gz \
-    "$dir"/mirzabot*.zip "$dir"/mirzabot*.tar.gz "$dir"/mirzabot*.tgz \
-    "$dir"/mirza_pro*.zip "$dir"/mirza_pro*.tar.gz \
-    "$dir"/mirzaprobot*.zip "$dir"/mirzaprobot*.tar.gz \
+    "$dir"/legacybot*.zip "$dir"/legacybot*.tar.gz "$dir"/legacybot*.tgz \
+    "$dir"/vira_pro*.zip "$dir"/vira_pro*.tar.gz \
+    "$dir"/legacyprobot*.zip "$dir"/legacyprobot*.tar.gz \
     "$dir"/*.zip "$dir"/*.tar.gz "$dir"/*.tgz; do
     [ -f "$f" ] || continue
     base=$(basename "$f" | tr '[:upper:]' '[:lower:]')
-    if [[ "$base" == viranaut_manage* ]] || [[ "$base" == mirza_manage* ]] || [[ "$base" == *backup* ]]; then
+    if [[ "$base" == viranaut_manage* ]] || [[ "$base" == vira_manage* ]] || [[ "$base" == *backup* ]]; then
       continue
     fi
-    if [[ "$base" =~ viranaut|mirzabot|mirza.pro|mirza_pro|mirzapanel|mirzapro ]]; then
+    if [[ "$base" =~ viranaut|legacybot|legacy.pro|vira_pro|legacypanel|legacypro ]]; then
       canon=$(readlink -f "$f" 2>/dev/null || printf '%s' "$f")
-      if [[ -n "${_mirza_pkg_seen[$canon]:-}" ]]; then
+      if [[ -n "${_vira_pkg_seen[$canon]:-}" ]]; then
         continue
       fi
-      _mirza_pkg_seen[$canon]=1
+      _vira_pkg_seen[$canon]=1
       echo "$f"
     fi
   done
   shopt -u nullglob
 }
 
-mirza_guess_install_dir_from_package() {
+vira_guess_install_dir_from_package() {
   local pkg="$1"
   local base
   base=$(basename "$pkg" | tr '[:upper:]' '[:lower:]')
   if [[ "$base" =~ viranaut ]]; then
     echo "$INSTALL_BOT_DIR"
-  elif [[ "$base" =~ mirzaprobotconfig|mirzapro ]]; then
-    echo "$LEGACY_MIRZA_DIR"
-  elif [[ "$base" =~ mirzabotconfig ]]; then
+  elif [[ "$base" =~ legacybotconfig|legacypro ]]; then
+    echo "$LEGACY_VIRA_DIR"
+  elif [[ "$base" =~ legacybotconfig ]]; then
     echo "$ALT_HTML_BOT_DIR"
-  elif [[ "$base" =~ mirza.pro|mirza_pro ]]; then
+  elif [[ "$base" =~ legacy.pro|vira_pro ]]; then
     echo "$LEGACY_PROJECT_DIR"
   else
     echo "$ALT_HTML_BOT_DIR"
   fi
 }
 
-mirza_extract_package() {
+vira_extract_package() {
   local archive="$1" dest="$2"
   mkdir -p "$dest"
   case "$archive" in
@@ -555,7 +555,7 @@ mirza_extract_package() {
     err "Archive is empty or invalid."
     return 1
   fi
-  # Single top folder (e.g. mirzabot-0.1.5/) → use its contents
+  # Single top folder (e.g. legacybot-0.1.5/) → use its contents
   if [ "$(find "$dest" -mindepth 1 -maxdepth 1 | wc -l)" -eq 1 ] && [ -f "$inner/index.php" ]; then
     echo "$inner"
   elif [ -f "$dest/index.php" ]; then
@@ -634,7 +634,7 @@ viranaut_link_cli() {
   chmod +x "$src" 2>/dev/null || true
   ln -sf "$src" /root/ViraNaut_manage.sh 2>/dev/null || true
   ln -sf "$src" /usr/local/bin/viranaut 2>/dev/null || true
-  ln -sf "$src" /usr/local/bin/mirza 2>/dev/null || true
+  ln -sf "$src" /usr/local/bin/viranaut 2>/dev/null || true
   ln -sf "$src" /usr/local/bin/ViraNaut_manage.sh 2>/dev/null || true
 }
 
@@ -743,8 +743,8 @@ viranaut_github_staging_cleanup() {
 viranaut_swap_bot_files_preserve_config() {
   local BOT_DIR="${1%/}" SRC_DIR="${2%/}"
   local CONFIG_PATH="$BOT_DIR/config.php"
-  local TEMP_CONFIG="/root/mirza_local_update_config_backup.php"
-  local TEMP_VENDOR="/root/mirza_local_update_vendor_backup"
+  local TEMP_CONFIG="/root/vira_local_update_config_backup.php"
+  local TEMP_VENDOR="/root/vira_local_update_vendor_backup"
   local TEMP_PANEL_INC="/root/viranaut_panel_inc_backup"
 
   [ -f "$CONFIG_PATH" ] || { err "config.php missing at $CONFIG_PATH"; return 1; }
@@ -896,7 +896,7 @@ viranaut_panel_smoke_test() {
   fi
 
   if [ -z "$domain" ] && [ -f "$BOT_DIR/config.php" ]; then
-    domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$BOT_DIR/config.php")")
+    domain=$(vira_normalize_domainhosts "$(read_php_var "domainhosts" "$BOT_DIR/config.php")")
   fi
   if [ -n "$domain" ]; then
     local login_code check_body
@@ -930,10 +930,10 @@ viranaut_panel_fix() {
   line
 
   [ -f "$BOT_DIR/config.php" ] || { err "No config.php"; return 1; }
-  domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$BOT_DIR/config.php")")
+  domain=$(vira_normalize_domainhosts "$(read_php_var "domainhosts" "$BOT_DIR/config.php")")
 
   viranaut_ensure_panel_integrity "$BOT_DIR" || true
-  mirza_ensure_bot_permissions "$BOT_DIR"
+  vira_ensure_bot_permissions "$BOT_DIR"
   systemctl reload apache2 2>/dev/null || true
 
   viranaut_panel_smoke_test "$BOT_DIR" "$domain"
@@ -943,8 +943,8 @@ viranaut_finish_bot_update() {
   local BOT_DIR="${1%/}"
   local CONFIG_PATH="$BOT_DIR/config.php"
 
-  mirza_apply_php_core_fixes "$BOT_DIR"
-  mirza_sync_config_domainhosts_file "$CONFIG_PATH"
+  vira_apply_php_core_fixes "$BOT_DIR"
+  vira_sync_config_domainhosts_file "$CONFIG_PATH"
   chown -R www-data:www-data "$BOT_DIR"
   find "$BOT_DIR" -type d -exec chmod 755 {} \;
   find "$BOT_DIR" -type f -exec chmod 644 {} \;
@@ -952,30 +952,30 @@ viranaut_finish_bot_update() {
 
   if [ -f "$BOT_DIR/table.php" ]; then
     msg "Running table.php (database migrations) ..."
-    (cd "$BOT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php >/dev/null 2>&1) || warn "table.php had warnings (often OK)."
+    (cd "$BOT_DIR" && VIRA_SKIP_WEBHOOK=1 php table.php >/dev/null 2>&1) || warn "table.php had warnings (often OK)."
   fi
 
   viranaut_db_migrate "$BOT_DIR"
   viranaut_ensure_panel_integrity "$BOT_DIR" 2>/dev/null || true
-  mirza_ensure_bot_permissions "$BOT_DIR"
+  vira_ensure_bot_permissions "$BOT_DIR"
   viranaut_sync_manage_script_from_bot "$BOT_DIR"
   setup_cron_jobs 2>/dev/null || true
   systemctl reload apache2 2>/dev/null || true
 
   msg "Panel check ..."
   local _panel_domain=""
-  _panel_domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$CONFIG_PATH")" 2>/dev/null || true)
+  _panel_domain=$(vira_normalize_domainhosts "$(read_php_var "domainhosts" "$CONFIG_PATH")" 2>/dev/null || true)
   viranaut_panel_smoke_test "$BOT_DIR" "$_panel_domain" || warn "Panel issue — run: /root/ViraNaut_manage.sh panel-fix"
 }
 
-mirza_ssl_cert_exists() {
+vira_ssl_cert_exists() {
   local domain="$1"
   [ -n "$domain" ] && [ -f "/etc/letsencrypt/live/${domain}/fullchain.pem" ]
 }
 
-mirza_ssl_days_remaining() {
+vira_ssl_days_remaining() {
   local domain="$1"
-  if ! mirza_ssl_cert_exists "$domain"; then
+  if ! vira_ssl_cert_exists "$domain"; then
     echo "-1"
     return
   fi
@@ -986,15 +986,15 @@ mirza_ssl_days_remaining() {
   echo $(( (exp - now) / 86400 ))
 }
 
-mirza_setup_ssl() {
+vira_setup_ssl() {
   local domain="$1"
   local force_renew="${2:-0}"
 
   apt-get install -y certbot python3-certbot-apache >/dev/null 2>&1 || true
 
-  if mirza_ssl_cert_exists "$domain"; then
+  if vira_ssl_cert_exists "$domain"; then
     local days
-    days=$(mirza_ssl_days_remaining "$domain")
+    days=$(vira_ssl_days_remaining "$domain")
     echo ""
     echo -e "  ${YELLOW}SSL certificate already exists for ${BOLD}$domain${NC} (~${days} days left)."
     if [ "$force_renew" = "1" ]; then
@@ -1028,7 +1028,7 @@ mirza_setup_ssl() {
   return 0
 }
 
-mirza_apply_php_core_fixes() {
+vira_apply_php_core_fixes() {
   local BOT_DIR="${1%/}"
   local cfg="$BOT_DIR/config.php"
   [ -f "$cfg" ] || return 0
@@ -1051,13 +1051,13 @@ PHP
 }
 
 # Rewrite $domainhosts in config.php if it has leading/trailing spaces, CR, or https:// prefix (matches install.sh)
-mirza_sync_config_domainhosts_file() {
+vira_sync_config_domainhosts_file() {
   local cfg="$1"
   local cur norm tmp
   [ -f "$cfg" ] || return 0
   cur=$(grep -E '^[[:space:]]*\$domainhosts[[:space:]]*=' "$cfg" 2>/dev/null | head -1 | sed -E "s/^[[:space:]]*\\\$domainhosts[[:space:]]*=[[:space:]]*['\"]([^'\"]*)['\"].*/\1/")
   [ -z "$cur" ] && return 0
-  norm=$(mirza_normalize_domainhosts "$cur")
+  norm=$(vira_normalize_domainhosts "$cur")
   [ -z "$norm" ] && return 0
   [ "$cur" = "$norm" ] && return 0
   msg "Fixing \$domainhosts in config.php (trim / normalize)"
@@ -1071,11 +1071,11 @@ mirza_sync_config_domainhosts_file() {
   ' "$cfg" >"$tmp" && mv "$tmp" "$cfg"
 }
 
-mirza_write_fresh_config() {
+vira_write_fresh_config() {
   local cfg="$1" dbname="$2" dbuser="$3" dbpass="$4" token="$5" admin="$6" userbot="$7" _proto="$8" domain_raw="$9"
   local dbpass_php="${dbpass//\'/\\\'}"
   local domain
-  domain=$(mirza_normalize_domainhosts "$domain_raw")
+  domain=$(vira_normalize_domainhosts "$domain_raw")
   cat >"$cfg" <<PHP
 <?php
 \$request_exec_timeout = 30000;
@@ -1104,12 +1104,12 @@ try { \$pdo = new PDO(\$dsn, \$usernamedb, \$passworddb, \$options); } catch (\P
 \$usernamebot = '$userbot';
 
 PHP
-  mirza_apply_php_core_fixes "$(dirname "$cfg")"
+  vira_apply_php_core_fixes "$(dirname "$cfg")"
   chown www-data:www-data "$cfg"
   chmod 640 "$cfg"
 }
 
-mirza_restart_apache() {
+vira_restart_apache() {
   msg "Restarting Apache ..."
   if systemctl restart apache2 2>/dev/null; then
     echo -e "  ${GREEN}✓${NC} Apache restarted"
@@ -1121,9 +1121,9 @@ mirza_restart_apache() {
 }
 
 # Restart Apache and refresh Telegram webhook after install/update
-mirza_reload_services() {
+vira_reload_services() {
   local BOT_DIR="${1%/}"
-  mirza_restart_apache || true
+  vira_restart_apache || true
 
   local cfg="$BOT_DIR/config.php"
   [ -f "$cfg" ] || return 0
@@ -1144,18 +1144,18 @@ mirza_reload_services() {
   fi
   domain="${domain%/}"
   webhook="${proto}://${domain}/index.php"
-  if [ -n "${MIRZA_SKIP_WEBHOOK_REFRESH:-}" ]; then
+  if [ -n "${VIRA_SKIP_WEBHOOK_REFRESH:-}" ]; then
     return 0
   fi
   msg "Refreshing Telegram webhook ..."
-  if [ -n "${MIRZA_DROP_PENDING_WEBHOOK:-}" ]; then
+  if [ -n "${VIRA_DROP_PENDING_WEBHOOK:-}" ]; then
     curl -s "https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=true" >/dev/null 2>&1 || true
     sleep 2
   fi
   local wh_info wh_current
   wh_info=$(curl -s "https://api.telegram.org/bot${token}/getWebhookInfo")
   wh_current=$(echo "$wh_info" | sed -n 's/.*"url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-  if [ "$wh_current" = "$webhook" ] && [ -z "${MIRZA_DROP_PENDING_WEBHOOK:-}" ]; then
+  if [ "$wh_current" = "$webhook" ] && [ -z "${VIRA_DROP_PENDING_WEBHOOK:-}" ]; then
     echo -e "  ${GREEN}✓${NC} Webhook already set: $webhook"
     return 0
   fi
@@ -1215,7 +1215,7 @@ do_github_update() {
       chmod +x "$_ms_tmp"
       mv -f "$_ms_tmp" /root/ViraNaut_manage.sh
       ln -sf /root/ViraNaut_manage.sh /usr/local/bin/viranaut 2>/dev/null || true
-      ln -sf /root/ViraNaut_manage.sh /usr/local/bin/mirza 2>/dev/null || true
+      ln -sf /root/ViraNaut_manage.sh /usr/local/bin/viranaut 2>/dev/null || true
       ln -sf /root/ViraNaut_manage.sh /usr/local/bin/ViraNaut_manage.sh 2>/dev/null || true
       msg "Manage script updated from GitHub — continuing ..."
       export VIRANAUT_SKIP_SCRIPT_BOOTSTRAP=1
@@ -1274,7 +1274,7 @@ do_github_update() {
   echo -e "  ${GREEN}${BOLD}✓ ViraNaut update complete.${NC}  Source: ${UPDATE_SRC}"
   echo -e "  ${CYAN}Bot:${NC} $BOT_DIR"
   local _upd_domain _upd_login
-  _upd_domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$CONFIG_PATH")" 2>/dev/null || true)
+  _upd_domain=$(vira_normalize_domainhosts "$(read_php_var "domainhosts" "$CONFIG_PATH")" 2>/dev/null || true)
   if [ -n "$_upd_domain" ]; then
     _upd_login=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 "https://${_upd_domain}/panel/login.php" 2>/dev/null)
     _upd_login=${_upd_login:-000}
@@ -1283,7 +1283,7 @@ do_github_update() {
       || warn "Panel not HTTP 200 — run: /root/ViraNaut_manage.sh panel-fix"
   fi
   echo -e "  ${CYAN}Restore if needed:${NC} ${BACKUP_DIR}/${VIRANAUT_PREUPDATE_PREFIX}_*.zip"
-  echo -e "  ${CYAN}Tip:${NC} Panel → Migration if DB was on older ViraNaut/Mirza"
+  echo -e "  ${CYAN}Tip:${NC} Panel → Migration if DB was on older ViraNaut/Vira"
   echo -e "  ${CYAN}New:${NC} agent-panel https://${_upd_domain:-YOUR_DOMAIN}/agent-panel/ · card cron = croncard.php (SMS + auto-confirm)"
   viranaut_list_preupdate_backups 2>/dev/null || true
   echo ""
@@ -1294,9 +1294,9 @@ do_update_bot() {
   resolve_project_paths
   if [ ! -f "$CONFIG_FILE" ]; then
     local legacy
-    legacy=$(mirza_find_legacy_mirza_dir 2>/dev/null) || legacy=""
+    legacy=$(vira_find_legacy_vira_dir 2>/dev/null) || legacy=""
     if [ -n "$legacy" ]; then
-      warn "Mirza found at $legacy — run Install (menu 1) to migrate to ViraNaut."
+      warn "Vira found at $legacy — run Install (menu 1) to migrate to ViraNaut."
     else
       err "No installation found — use menu 1 (Install) first."
     fi
@@ -1306,13 +1306,13 @@ do_update_bot() {
   do_github_update "$PROJECT_DIR" "${VIRANAUT_AUTO_YES:-0}"
 }
 
-# Legacy Mirza path (not ViraNaut)
-mirza_find_legacy_mirza_dir() {
+# Legacy Vira path (not ViraNaut)
+vira_find_legacy_vira_dir() {
   local d
-  for d in "$ALT_HTML_BOT_DIR" "$LEGACY_MIRZA_DIR" "$LEGACY_PROJECT_DIR" "$LEGACY_VIRANAUT_DIR"; do
+  for d in "$ALT_HTML_BOT_DIR" "$LEGACY_VIRA_DIR" "$LEGACY_PROJECT_DIR" "$LEGACY_VIRANAUT_DIR"; do
     d="${d%/}"
     [ "${d}" = "${INSTALL_BOT_DIR%/}" ] && continue
-    if mirza_is_valid_bot_dir "$d"; then
+    if vira_is_valid_bot_dir "$d"; then
       echo "$d"
       return 0
     fi
@@ -1339,13 +1339,13 @@ viranaut_clone_github_into() {
   return 0
 }
 
-# Mirza → ViraNaut: keep DB + bot credentials, deploy from GitHub
-do_migrate_mirza_to_viranaut() {
+# Vira → ViraNaut: keep DB + bot credentials, deploy from GitHub
+do_migrate_vira_to_viranaut() {
   local OLD_DIR="${1%/}"
   local BOT_DIR="${INSTALL_BOT_DIR%/}"
   local OLD_CFG="$OLD_DIR/config.php"
 
-  msg "Mirza detected: ${BOLD}$OLD_DIR${NC} → migrating to ViraNaut"
+  msg "Vira detected: ${BOLD}$OLD_DIR${NC} → migrating to ViraNaut"
   viranaut_preupdate_backup "$OLD_DIR" 2>/dev/null || warn "Pre-migration backup skipped."
 
   local DB_NAME DB_USER DB_PASS BOT_TOKEN ADMIN_ID BOT_USERNAME DOMAIN
@@ -1354,45 +1354,45 @@ do_migrate_mirza_to_viranaut() {
   DB_PASS=$(read_php_var "passworddb" "$OLD_CFG")
   BOT_TOKEN=$(read_php_var "APIKEY" "$OLD_CFG")
   ADMIN_ID=$(read_php_var "adminnumber" "$OLD_CFG")
-  BOT_USERNAME=$(mirza_normalize_bot_username "$(read_php_var "usernamebot" "$OLD_CFG")")
-  DOMAIN=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$OLD_CFG")")
+  BOT_USERNAME=$(vira_normalize_bot_username "$(read_php_var "usernamebot" "$OLD_CFG")")
+  DOMAIN=$(vira_normalize_domainhosts "$(read_php_var "domainhosts" "$OLD_CFG")")
 
   [ -n "$BOT_TOKEN" ] && [ -n "$DOMAIN" ] && [ -n "$DB_NAME" ] || {
-    err "Could not read Mirza config.php"
+    err "Could not read Vira config.php"
     return 1
   }
 
   viranaut_clone_github_into "$BOT_DIR" || return 1
-  mirza_apply_php_core_fixes "$BOT_DIR"
+  vira_apply_php_core_fixes "$BOT_DIR"
 
   PROTOCOL="https"
-  mirza_write_fresh_config "$BOT_DIR/config.php" "$DB_NAME" "$DB_USER" "$DB_PASS" \
+  vira_write_fresh_config "$BOT_DIR/config.php" "$DB_NAME" "$DB_USER" "$DB_PASS" \
     "$BOT_TOKEN" "$ADMIN_ID" "$BOT_USERNAME" "$PROTOCOL" "$DOMAIN"
 
   PROJECT_DIR="$BOT_DIR"
   CONFIG_FILE="$BOT_DIR/config.php"
 
   msg "Apache VirtualHost → $BOT_DIR ..."
-  mirza_rewrite_vhost_documentroot "$DOMAIN" "$BOT_DIR" 2>/dev/null || true
+  vira_rewrite_vhost_documentroot "$DOMAIN" "$BOT_DIR" 2>/dev/null || true
   if [ -f "$BOT_DIR/table.php" ]; then
-    (cd "$BOT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php >/dev/null 2>&1) || true
+    (cd "$BOT_DIR" && VIRA_SKIP_WEBHOOK=1 php table.php >/dev/null 2>&1) || true
   fi
   viranaut_db_migrate "$BOT_DIR"
   setup_cron_jobs
-  mirza_save_active_dir "$BOT_DIR"
-  MIRZA_DROP_PENDING_WEBHOOK=1 mirza_fix_webhook_complete "$BOT_TOKEN" "$DOMAIN" || mirza_reload_services "$BOT_DIR"
+  vira_save_active_dir "$BOT_DIR"
+  VIRA_DROP_PENDING_WEBHOOK=1 vira_fix_webhook_complete "$BOT_TOKEN" "$DOMAIN" || vira_reload_services "$BOT_DIR"
   viranaut_sync_manage_script_from_bot "$BOT_DIR"
 
-  warn "Old Mirza files remain at: $OLD_DIR (remove manually after testing /start)"
+  warn "Old Vira files remain at: $OLD_DIR (remove manually after testing /start)"
   line
-  echo -e "  ${GREEN}${BOLD}✓ Mirza → ViraNaut migration complete${NC}"
+  echo -e "  ${GREEN}${BOLD}✓ Vira → ViraNaut migration complete${NC}"
   echo -e "  ${CYAN}Path:${NC}   $BOT_DIR"
   echo -e "  ${CYAN}URL:${NC}    https://${DOMAIN}"
   echo -e "  ${CYAN}Panel:${NC}  https://${DOMAIN}/panel/"
   echo ""
 }
 
-# Install: detect Mirza → migrate | else fresh GitHub install
+# Install: detect Vira → migrate | else fresh GitHub install
 do_install() {
   line
   msg "ViraNaut Install — source: ${VIRANAUT_GITHUB_PAGE}"
@@ -1406,18 +1406,18 @@ do_install() {
   fi
 
   local legacy=""
-  legacy=$(mirza_find_legacy_mirza_dir 2>/dev/null) || legacy=""
+  legacy=$(vira_find_legacy_vira_dir 2>/dev/null) || legacy=""
   if [ -n "$legacy" ]; then
-    echo -e "  ${YELLOW}●${NC} Legacy Mirza bot found: ${BOLD}$legacy${NC}"
+    echo -e "  ${YELLOW}●${NC} Legacy Vira bot found: ${BOLD}$legacy${NC}"
     if [ "${VIRANAUT_AUTO_YES:-0}" = "1" ]; then
-      do_migrate_mirza_to_viranaut "$legacy"
+      do_migrate_vira_to_viranaut "$legacy"
       return $?
     fi
-    read -p "  Migrate Mirza → ViraNaut automatically? (y/n) [y]: " _mig
+    read -p "  Migrate Vira → ViraNaut automatically? (y/n) [y]: " _mig
     _mig=${_mig:-y}
     _mig=${_mig,,}
     if [ "$_mig" = "y" ]; then
-      do_migrate_mirza_to_viranaut "$legacy"
+      do_migrate_vira_to_viranaut "$legacy"
       return $?
     fi
     warn "Migration declined — continuing with fresh install."
@@ -1432,7 +1432,7 @@ do_install() {
   if [ -z "$DOMAIN" ] && [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
     read -p "  Domain (e.g. bot.example.com): " DOMAIN
   fi
-  DOMAIN=$(mirza_normalize_domainhosts "$DOMAIN")
+  DOMAIN=$(vira_normalize_domainhosts "$DOMAIN")
   [[ "$DOMAIN" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$ ]] || { err "Invalid domain."; return 1; }
 
   if [ -z "$BOT_TOKEN" ] && [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
@@ -1441,6 +1441,7 @@ do_install() {
   [[ "$BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]] || { err "Invalid bot token."; return 1; }
 
   if [ -z "$ADMIN_ID" ] && [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
+    echo "  آیدی عددی تلگرام را از @IDFindeerBot بگیرید: https://t.me/IDFindeerBot"
     read -p "  Admin Telegram ID: " ADMIN_ID
   fi
   [[ "$ADMIN_ID" =~ ^-?[0-9]+$ ]] || { err "Invalid admin ID."; return 1; }
@@ -1448,7 +1449,7 @@ do_install() {
   if [ -z "$BOT_USERNAME" ] && [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
     read -p "  Bot username (with or without @): " BOT_USERNAME
   fi
-  BOT_USERNAME=$(mirza_normalize_bot_username "$BOT_USERNAME")
+  BOT_USERNAME=$(vira_normalize_bot_username "$BOT_USERNAME")
 
   local DB_NAME="viranaut_$(openssl rand -hex 3)"
   local DB_USER="viranaut_$(openssl rand -hex 3)"
@@ -1464,7 +1465,7 @@ do_install() {
   fi
 
   viranaut_clone_github_into "$BOT_DIR" || return 1
-  mirza_apply_php_core_fixes "$BOT_DIR"
+  vira_apply_php_core_fixes "$BOT_DIR"
 
   msg "Creating database ..."
   local DB_PASS_SQL="${DB_PASS//\'/\'\'}"
@@ -1477,16 +1478,16 @@ FLUSH PRIVILEGES;
 SQL
 
   local PROTOCOL="http"
-  mirza_write_fresh_config "$BOT_DIR/config.php" "$DB_NAME" "$DB_USER" "$DB_PASS" \
+  vira_write_fresh_config "$BOT_DIR/config.php" "$DB_NAME" "$DB_USER" "$DB_PASS" \
     "$BOT_TOKEN" "$ADMIN_ID" "$BOT_USERNAME" "$PROTOCOL" "$DOMAIN"
 
   PROJECT_DIR="$BOT_DIR"
   CONFIG_FILE="$BOT_DIR/config.php"
 
   msg "Apache VirtualHost ..."
-  if mirza_vhost_use_domain_conf; then
+  if vira_vhost_use_domain_conf; then
     VHOST_FILE="/etc/apache2/sites-available/${DOMAIN}.conf"
-    mirza_a2dissite "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
+    vira_a2dissite "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
   else
     VHOST_FILE="/etc/apache2/sites-available/$VIRANAUT_VHOST_GENERIC"
   fi
@@ -1502,32 +1503,32 @@ SQL
     CustomLog \${APACHE_LOG_DIR}/${VIRANAUT_LOG_ACCESS} combined
 </VirtualHost>
 VHOST
-  mirza_a2ensite "$(basename "$VHOST_FILE")" 2>/dev/null || true
-  mirza_a2dissite 000-default.conf 2>/dev/null || true
+  vira_a2ensite "$(basename "$VHOST_FILE")" 2>/dev/null || true
+  vira_a2dissite 000-default.conf 2>/dev/null || true
   a2enmod rewrite 2>/dev/null || true
   systemctl enable apache2 2>/dev/null || true
   systemctl restart apache2
 
-  if mirza_setup_ssl "$DOMAIN"; then
+  if vira_setup_ssl "$DOMAIN"; then
     PROTOCOL="https"
-    mirza_write_fresh_config "$BOT_DIR/config.php" "$DB_NAME" "$DB_USER" "$DB_PASS" \
+    vira_write_fresh_config "$BOT_DIR/config.php" "$DB_NAME" "$DB_USER" "$DB_PASS" \
       "$BOT_TOKEN" "$ADMIN_ID" "$BOT_USERNAME" "$PROTOCOL" "$DOMAIN"
   fi
 
   if [ -f "$BOT_DIR/table.php" ]; then
-    (cd "$BOT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php >/dev/null 2>&1) || true
+    (cd "$BOT_DIR" && VIRA_SKIP_WEBHOOK=1 php table.php >/dev/null 2>&1) || true
   fi
   viranaut_db_migrate "$BOT_DIR"
 
   BOT_DIR=$(viranaut_relocate_to_canonical_path "$BOT_DIR")
-  BOT_DIR=$(mirza_sanitize_bot_dir "$BOT_DIR")
+  BOT_DIR=$(vira_sanitize_bot_dir "$BOT_DIR")
   PROJECT_DIR="$BOT_DIR"
   CONFIG_FILE="$BOT_DIR/config.php"
 
   setup_cron_jobs
-  mirza_save_active_dir "$BOT_DIR"
+  vira_save_active_dir "$BOT_DIR"
   resolve_project_paths
-  mirza_reload_services "$BOT_DIR"
+  vira_reload_services "$BOT_DIR"
   ufw allow 80/tcp 2>/dev/null || true
   ufw allow 443/tcp 2>/dev/null || true
   viranaut_sync_manage_script_from_bot "$BOT_DIR"
@@ -1655,7 +1656,7 @@ install_dependencies() {
 
   echo ""
   warn "Required packages (Apache / PHP / MySQL) are not fully installed."
-  msg "Installing dependencies (same as install_mirza.sh) ..."
+  msg "Installing dependencies (same as install_vira.sh) ..."
   line
 
   export DEBIAN_FRONTEND=noninteractive
@@ -1728,13 +1729,13 @@ read_php_var() {
   [ -n "$val" ] && printf '%s' "$val"
 }
 
-mirza_config_mysql_ok() {
+vira_config_mysql_ok() {
   local dbname="$1" dbuser="$2" dbpass="$3"
   [ -n "$dbname" ] && [ -n "$dbuser" ] || return 1
   mysql -u "$dbuser" ${dbpass:+-p"$dbpass"} -e "USE \`$dbname\`; SELECT 1;" 2>/dev/null
 }
 
-# Merge legacy Mirza DB branding → ViraNaut + run migration SQL
+# Merge legacy Vira DB branding → ViraNaut + run migration SQL
 viranaut_db_migrate() {
   local BOT_DIR="${1%/}"
   local CONFIG_PATH="$BOT_DIR/config.php"
@@ -1775,23 +1776,23 @@ EOSQL
   if [ -n "$has_textbot" ]; then
     mysql -u "$dbuser" -p"$dbpass" "$dbname" 2>/dev/null <<'EOSQL' || true
 UPDATE textbot SET text = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(text,
-  'تیم میرزا', 'تیم ویرانات'),
-  'گروه میرزا', 'گروه ویرانات'),
-  'میرزا', 'ویرانات'),
-  'mirzapanelgroup', ''),
-  'Mirza Group', 'ViraNaut Support'),
-  'Mirza', 'ViraNaut')
-WHERE text LIKE '%میرزا%' OR text LIKE '%Mirza%' OR text LIKE '%mirzapanel%';
+  'تیم میرزا', 'تیم ویرا'),
+  'گروه میرزا', 'گروه ویرا'),
+  'میرزا', 'ویرا'),
+  'viranaut', ''),
+  'Vira Group', 'ViraNaut Support'),
+  'Vira', 'ViraNaut')
+WHERE text LIKE '%میرزا%' OR text LIKE '%Vira%' OR text LIKE '%legacypanel%';
 EOSQL
   fi
 
   mysql -u "$dbuser" -p"$dbpass" "$dbname" 2>/dev/null <<'EOSQL' || true
 UPDATE PaySetting SET ValuePay = REPLACE(REPLACE(REPLACE(ValuePay,
-  'تیم میرزا', 'تیم ویرانات'), 'میرزا', 'ویرانات'), 'Mirza', 'ViraNaut')
-WHERE ValuePay LIKE '%میرزا%' OR ValuePay LIKE '%Mirza%';
+  'تیم میرزا', 'تیم ویرا'), 'میرزا', 'ویرا'), 'Vira', 'ViraNaut')
+WHERE ValuePay LIKE '%میرزا%' OR ValuePay LIKE '%Vira%';
 UPDATE shopSetting SET value = REPLACE(REPLACE(REPLACE(value,
-  'تیم میرزا', 'تیم ویرانات'), 'میرزا', 'ویرانات'), 'Mirza', 'ViraNaut')
-WHERE value LIKE '%میرزا%' OR value LIKE '%Mirza%';
+  'تیم میرزا', 'تیم ویرا'), 'میرزا', 'ویرا'), 'Vira', 'ViraNaut')
+WHERE value LIKE '%میرزا%' OR value LIKE '%Vira%';
 INSERT INTO shopSetting (Namevalue, value) VALUES ('viranaut_version', '3.0.0-ViraNaut')
 ON DUPLICATE KEY UPDATE value='3.0.0-ViraNaut';
 EOSQL
@@ -1804,7 +1805,7 @@ load_config() {
   if [ ! -f "$CONFIG_FILE" ]; then
     err "config.php not found at $CONFIG_FILE"
     err "Is ViraNaut installed? Use menu 1 (Install)."
-    mirza_list_installations || true
+    vira_list_installations || true
     exit 1
   fi
   DB_NAME=$(read_php_var "dbname")
@@ -1812,9 +1813,9 @@ load_config() {
   DB_PASS=$(read_php_var "passworddb")
   BOT_TOKEN=$(read_php_var "APIKEY")
   ADMIN_ID=$(read_php_var "adminnumber")
-  BOT_USERNAME=$(mirza_normalize_bot_username "$(read_php_var "usernamebot")")
+  BOT_USERNAME=$(vira_normalize_bot_username "$(read_php_var "usernamebot")")
   DOMAIN_RAW=$(read_php_var "domainhosts")
-  DOMAIN=$(mirza_normalize_domainhosts "$DOMAIN_RAW")
+  DOMAIN=$(vira_normalize_domainhosts "$DOMAIN_RAW")
 
   if [ -z "$DB_NAME" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ]; then
     err "Could not read database credentials from config.php"
@@ -1823,7 +1824,7 @@ load_config() {
 }
 
 # --- Auto-repair helpers ---
-mirza_latest_backup_zip() {
+vira_latest_backup_zip() {
   local f latest=""
   [ -d "$BACKUP_DIR" ] || return 1
   for f in "$BACKUP_DIR"/*.zip; do
@@ -1835,7 +1836,7 @@ mirza_latest_backup_zip() {
   [ -n "$latest" ] && printf '%s' "$latest"
 }
 
-mirza_sanitize_vhost_conf() {
+vira_sanitize_vhost_conf() {
   local f="$1"
   [ -f "$f" ] || return 0
   if [ ! -f /etc/apache2/conf-available/phpmyadmin.conf ]; then
@@ -1843,11 +1844,11 @@ mirza_sanitize_vhost_conf() {
   fi
 }
 
-# After restore, vhost in ZIP may point at old path (e.g. mirzaprobotconfig) — force current bot dir
-mirza_rewrite_vhost_documentroot() {
+# After restore, vhost in ZIP may point at old path (e.g. legacybotconfig) — force current bot dir
+vira_rewrite_vhost_documentroot() {
   local domain="$1"
   local bot_dir
-  bot_dir=$(mirza_sanitize_bot_dir "${2%/}")
+  bot_dir=$(vira_sanitize_bot_dir "${2%/}")
   [ -d "$bot_dir" ] || {
     warn "Invalid bot path for vhost rewrite: ${2:-empty}"
     return 1
@@ -1860,15 +1861,15 @@ mirza_rewrite_vhost_documentroot() {
     sed -i "s|^[[:space:]]*DocumentRoot.*|    DocumentRoot $bot_dir|" "$f"
     sed -i "s|/var/www/html/viranautconfig|$bot_dir|g" "$f"
     sed -i "s|/var/www/html/viranaut|$bot_dir|g" "$f"
-    sed -i "s|/var/www/html/mirzaprobotconfig|$bot_dir|g" "$f"
-    sed -i "s|/var/www/html/mirzabotconfig|$bot_dir|g" "$f"
-    sed -i "s|/var/www/mirza_pro|$bot_dir|g" "$f"
-    mirza_sanitize_vhost_conf "$f"
+    sed -i "s|/var/www/html/legacybotconfig|$bot_dir|g" "$f"
+    sed -i "s|/var/www/html/legacybotconfig|$bot_dir|g" "$f"
+    sed -i "s|/var/www/vira_pro|$bot_dir|g" "$f"
+    vira_sanitize_vhost_conf "$f"
   done
   echo -e "  ${GREEN}✓${NC} Apache DocumentRoot → $bot_dir (all vhosts for $domain)" >&2
 }
 
-mirza_write_http_vhost() {
+vira_write_http_vhost() {
   local domain="$1"
   local bot_dir="${2%/}"
   local vhost="/etc/apache2/sites-available/${domain}.conf"
@@ -1886,16 +1887,16 @@ mirza_write_http_vhost() {
     CustomLog \${APACHE_LOG_DIR}/${domain}-access.log combined
 </VirtualHost>
 VHOST
-  mirza_sanitize_vhost_conf "$vhost"
+  vira_sanitize_vhost_conf "$vhost"
 }
 
-mirza_ensure_ssl_vhost() {
+vira_ensure_ssl_vhost() {
   local domain="$1"
   local bot_dir
-  bot_dir=$(mirza_sanitize_bot_dir "${2%/}")
+  bot_dir=$(vira_sanitize_bot_dir "${2%/}")
   local ssl_conf="" f
 
-  if ! mirza_ssl_cert_exists "$domain"; then
+  if ! vira_ssl_cert_exists "$domain"; then
     return 0
   fi
 
@@ -1932,14 +1933,14 @@ VHOST
     if grep -q DocumentRoot "$f" 2>/dev/null; then
       sed -i "s|^[[:space:]]*DocumentRoot.*|    DocumentRoot $bot_dir|" "$f"
     fi
-    mirza_sanitize_vhost_conf "$f"
-    mirza_a2ensite "$(basename "$f")" 2>/dev/null || true
+    vira_sanitize_vhost_conf "$f"
+    vira_a2ensite "$(basename "$f")" 2>/dev/null || true
   done
-  mirza_sanitize_vhost_conf "$ssl_conf"
-  mirza_a2ensite "$(basename "$ssl_conf")" 2>/dev/null || true
+  vira_sanitize_vhost_conf "$ssl_conf"
+  vira_a2ensite "$(basename "$ssl_conf")" 2>/dev/null || true
 }
 
-mirza_ufw_allow_telegram() {
+vira_ufw_allow_telegram() {
   if ! command -v ufw >/dev/null 2>&1; then
     return 0
   fi
@@ -1953,7 +1954,7 @@ mirza_ufw_allow_telegram() {
   echo -e "  ${GREEN}✓${NC} UFW rules for Telegram subnets (also check VPS cloud firewall panel)"
 }
 
-mirza_show_webhook_access_recent() {
+vira_show_webhook_access_recent() {
   local domain="$1"
   local acc lines
   acc=$(viranaut_apache_log_file access "$domain") || acc=""
@@ -1968,7 +1969,7 @@ mirza_show_webhook_access_recent() {
   fi
 }
 
-mirza_test_https_post_speed() {
+vira_test_https_post_speed() {
   local domain="$1"
   local url="https://${domain}/index.php"
   local code time_total
@@ -1984,19 +1985,19 @@ mirza_test_https_post_speed() {
   return 0
 }
 
-mirza_enable_apache_for_bot() {
+vira_enable_apache_for_bot() {
   local domain="$1"
   local bot_dir="${2%/}"
   a2enmod rewrite ssl 2>/dev/null || true
-  mirza_write_http_vhost "$domain" "$bot_dir" >/dev/null
-  mirza_a2ensite "${domain}.conf"
-  if mirza_ssl_cert_exists "$domain"; then
-    mirza_ensure_ssl_vhost "$domain" "$bot_dir"
+  vira_write_http_vhost "$domain" "$bot_dir" >/dev/null
+  vira_a2ensite "${domain}.conf"
+  if vira_ssl_cert_exists "$domain"; then
+    vira_ensure_ssl_vhost "$domain" "$bot_dir"
   else
-    mirza_a2dissite "${domain}-ssl.conf" "${domain}-le-ssl.conf" 2>/dev/null || true
+    vira_a2dissite "${domain}-ssl.conf" "${domain}-le-ssl.conf" 2>/dev/null || true
     warn "No SSL cert yet — HTTP only until certbot succeeds"
   fi
-  mirza_a2dissite 000-default.conf "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
+  vira_a2dissite 000-default.conf "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
   apache2ctl configtest >/dev/null 2>&1 || {
     err "Apache configtest failed"
     apache2ctl configtest
@@ -2005,7 +2006,7 @@ mirza_enable_apache_for_bot() {
   systemctl reload apache2 2>/dev/null || systemctl restart apache2
 }
 
-mirza_ensure_mysql_from_config() {
+vira_ensure_mysql_from_config() {
   local dbname="$1" dbuser="$2" dbpass="$3"
   local dbpass_sql="${dbpass//\'/\'\'}"
   mysql -u root <<SQL
@@ -2017,12 +2018,12 @@ FLUSH PRIVILEGES;
 SQL
 }
 
-mirza_db_user_count() {
+vira_db_user_count() {
   local dbname="$1" dbuser="$2" dbpass="$3"
   mysql -u "$dbuser" -p"$dbpass" -N -e "USE \`$dbname\`; SELECT COUNT(*) FROM user;" 2>/dev/null || echo "-1"
 }
 
-mirza_import_database_from_zip() {
+vira_import_database_from_zip() {
   local zip="$1" dbname="$2" dbuser="$3" dbpass="$4"
   local tmp sql
   [ -f "$zip" ] || return 1
@@ -2038,16 +2039,16 @@ mirza_import_database_from_zip() {
   rm -rf "$tmp"
 }
 
-# panel ZIP (manifest mirza-full-backup) or manage ZIP
-mirza_backup_zip_is_panel() {
+# panel ZIP (manifest vira-full-backup) or manage ZIP
+vira_backup_zip_is_panel() {
   local tmp="$1"
-  [ -f "$tmp/manifest.json" ] && grep -q 'mirza-full-backup' "$tmp/manifest.json" 2>/dev/null
+  [ -f "$tmp/manifest.json" ] && grep -q 'vira-full-backup' "$tmp/manifest.json" 2>/dev/null
 }
 
-mirza_write_meta_cron_jobs() {
+vira_write_meta_cron_jobs() {
   local out="$1" domain="$2"
   [ -n "$domain" ] || domain="YOUR_DOMAIN"
-  domain=$(mirza_normalize_domainhosts "$domain")
+  domain=$(vira_normalize_domainhosts "$domain")
   mkdir -p "$(dirname "$out")"
   cat >"$out" <<CRON
 */15 * * * * curl -fsS https://${domain}/cronbot/statusday.php
@@ -2071,7 +2072,7 @@ CRON
 }
 
 # cronbot queue files, text.json — same idea as panel backup
-mirza_restore_bot_data_files() {
+vira_restore_bot_data_files() {
   local bot_dir="${1%/}" tmp="$2"
   local n=0 f base
 
@@ -2099,7 +2100,7 @@ mirza_restore_bot_data_files() {
   fi
 }
 
-mirza_import_database_from_dir() {
+vira_import_database_from_dir() {
   local tmp="$1" dbname="$2" dbuser="$3" dbpass="$4"
   local sql
   sql=$(find "$tmp" -maxdepth 2 -name 'database.sql' -type f | head -1)
@@ -2108,7 +2109,7 @@ mirza_import_database_from_dir() {
   mysql -u "$dbuser" -p"$dbpass" "$dbname" <"$sql"
 }
 
-mirza_ensure_bot_permissions() {
+vira_ensure_bot_permissions() {
   local bot_dir="${1%/}"
   chown -R www-data:www-data "$bot_dir"
   find "$bot_dir" -type d -exec chmod 755 {} \;
@@ -2119,7 +2120,7 @@ mirza_ensure_bot_permissions() {
   chmod -R 775 "$bot_dir/storage" 2>/dev/null || true
 }
 
-mirza_server_public_ip() {
+vira_server_public_ip() {
   local ip
   ip=$(hostname -I 2>/dev/null | awk '{print $1}')
   if [ -z "$ip" ]; then
@@ -2128,17 +2129,17 @@ mirza_server_public_ip() {
   printf '%s' "$ip"
 }
 
-mirza_dns_a_record() {
+vira_dns_a_record() {
   local domain="$1"
   dig +short "$domain" A 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1
 }
 
 # 0 = DNS A matches this server; 1 = mismatch or unknown
-mirza_check_dns_matches_server() {
+vira_check_dns_matches_server() {
   local domain="$1"
   local srv_ip dns_a
-  srv_ip=$(mirza_server_public_ip)
-  dns_a=$(mirza_dns_a_record "$domain")
+  srv_ip=$(vira_server_public_ip)
+  dns_a=$(vira_dns_a_record "$domain")
   echo -e "    Server IP:   ${srv_ip:-unknown}"
   echo -e "    DNS A:       ${dns_a:-not set}"
   if [ -z "$srv_ip" ] || [ -z "$dns_a" ]; then
@@ -2154,7 +2155,7 @@ mirza_check_dns_matches_server() {
   return 1
 }
 
-mirza_wait_https_ready() {
+vira_wait_https_ready() {
   local domain="$1"
   local url="https://${domain}/index.php"
   local code attempt=1
@@ -2172,19 +2173,19 @@ mirza_wait_https_ready() {
 }
 
 # drop pending updates, set webhook, verify getWebhookInfo (for menu 8)
-mirza_fix_webhook_complete() {
+vira_fix_webhook_complete() {
   local token="$1"
   local domain="$2"
   local webhook="https://${domain}/index.php"
   local res wh_info pending last_err attempt=1
 
-  if ! mirza_check_dns_matches_server "$domain"; then
+  if ! vira_check_dns_matches_server "$domain"; then
     warn "Skipping webhook fix until DNS is correct"
     return 1
   fi
 
   local https_code
-  https_code=$(mirza_wait_https_ready "$domain") || true
+  https_code=$(vira_wait_https_ready "$domain") || true
   if [ "$https_code" = "200" ] || [ "$https_code" = "405" ] || [ "$https_code" = "403" ]; then
     echo -e "  ${GREEN}✓${NC} HTTPS reachable (HTTP $https_code)"
   else
@@ -2231,30 +2232,30 @@ mirza_fix_webhook_complete() {
     last_err=$(echo "$wh_info" | sed -n 's/.*"last_error_message"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
     pending=$(echo "$wh_info" | sed -n 's/.*"pending_update_count"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -1)
   fi
-  mirza_ufw_allow_telegram
+  vira_ufw_allow_telegram
 
   if [ -z "$last_err" ] && [ "${pending:-0}" = "0" ]; then
     echo -e "  ${GREEN}✓${NC} Webhook healthy — send /start in Telegram"
-    mirza_show_webhook_access_recent "$domain"
+    vira_show_webhook_access_recent "$domain"
     return 0
   fi
   if echo "$last_err" | grep -qi 'timed out\|timeout'; then
     warn "Connection timed out — usually VPS/cloud firewall blocks Telegram IPs (not UFW on server)"
     echo "    Open inbound TCP 443 (and 80) in your hosting panel for ALL IPs or Telegram ranges"
-    mirza_test_https_post_speed "$domain" || true
+    vira_test_https_post_speed "$domain" || true
   fi
   if echo "$last_err" | grep -qi 'SSL error\|record layer\|packet length'; then
     warn "SSL/TLS broken on :443 — run menu 8 again; keep ${domain}-le-ssl.conf enabled"
     echo "    Quick check: openssl s_client -connect ${domain}:443 -servername ${domain} </dev/null | head -5"
-    mirza_test_ssl_handshake "$domain" || warn "TLS handshake still failing after fix attempt"
+    vira_test_ssl_handshake "$domain" || warn "TLS handshake still failing after fix attempt"
   fi
   [ -n "$last_err" ] && warn "Telegram last_error: $last_err"
   [ "${pending:-0}" != "0" ] && warn "pending_update_count=$pending"
-  mirza_show_webhook_access_recent "$domain"
+  vira_show_webhook_access_recent "$domain"
   return 0
 }
 
-mirza_test_ssl_handshake() {
+vira_test_ssl_handshake() {
   local domain="$1"
   local out
   out=$(echo | timeout 12 openssl s_client -connect "${domain}:443" -servername "$domain" 2>/dev/null | head -20)
@@ -2263,7 +2264,7 @@ mirza_test_ssl_handshake() {
   return 1
 }
 
-mirza_restore_apache_vhosts_from_zip() {
+vira_restore_apache_vhosts_from_zip() {
   local zip="$1" domain="$2" bot_dir="${3%/}"
   local tmp restored=0 f base
   [ -f "$zip" ] || return 1
@@ -2277,19 +2278,19 @@ mirza_restore_apache_vhosts_from_zip() {
     [ -f "$f" ] || continue
     base=$(basename "$f")
     cp "$f" "/etc/apache2/sites-available/$base"
-    mirza_sanitize_vhost_conf "/etc/apache2/sites-available/$base"
-    mirza_a2ensite "$base" 2>/dev/null || true
+    vira_sanitize_vhost_conf "/etc/apache2/sites-available/$base"
+    vira_a2ensite "$base" 2>/dev/null || true
     restored=1
     echo -e "  ${GREEN}✓${NC} Restored vhost from backup: $base"
   done
   rm -rf "$tmp"
   if [ "$restored" -eq 1 ]; then
-    mirza_rewrite_vhost_documentroot "$domain" "$bot_dir"
+    vira_rewrite_vhost_documentroot "$domain" "$bot_dir"
   fi
   return 0
 }
 
-mirza_restore_vendor_from_zip_if_missing() {
+vira_restore_vendor_from_zip_if_missing() {
   local zip="$1" bot_dir="${2%/}"
   [ -f "$bot_dir/vendor/autoload.php" ] && return 0
   [ -f "$zip" ] || return 1
@@ -2308,22 +2309,22 @@ mirza_restore_vendor_from_zip_if_missing() {
   rm -rf "$tmp"
 }
 
-mirza_fix_ssl_and_firewall() {
+vira_fix_ssl_and_firewall() {
   local domain="$1"
   local bot_dir="${2:-}"
   ufw allow 80/tcp 2>/dev/null || true
   ufw allow 443/tcp 2>/dev/null || true
   apt-get install -y certbot python3-certbot-apache openssl >/dev/null 2>&1 || true
-  if ! mirza_check_dns_matches_server "$domain"; then
+  if ! vira_check_dns_matches_server "$domain"; then
     warn "Skipping certbot until DNS A record matches this server"
     return 1
   fi
   a2enmod ssl 2>/dev/null || true
   if [ -n "$bot_dir" ]; then
-    mirza_ensure_ssl_vhost "$domain" "$bot_dir"
+    vira_ensure_ssl_vhost "$domain" "$bot_dir"
   fi
-  if mirza_ssl_cert_exists "$domain"; then
-    if mirza_test_ssl_handshake "$domain"; then
+  if vira_ssl_cert_exists "$domain"; then
+    if vira_test_ssl_handshake "$domain"; then
       echo -e "  ${GREEN}✓${NC} SSL certificate + TLS handshake OK for $domain"
       return 0
     fi
@@ -2331,8 +2332,8 @@ mirza_fix_ssl_and_firewall() {
     certbot --apache -d "$domain" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>/dev/null \
       || certbot install --cert-name "$domain" 2>/dev/null \
       || certbot renew --cert-name "$domain" --force-renewal 2>/dev/null || true
-    [ -n "$bot_dir" ] && mirza_ensure_ssl_vhost "$domain" "$bot_dir"
-    if mirza_test_ssl_handshake "$domain"; then
+    [ -n "$bot_dir" ] && vira_ensure_ssl_vhost "$domain" "$bot_dir"
+    if vira_test_ssl_handshake "$domain"; then
       echo -e "  ${GREEN}✓${NC} SSL repaired"
       return 0
     fi
@@ -2341,7 +2342,7 @@ mirza_fix_ssl_and_firewall() {
   fi
   msg "Requesting SSL certificate (DNS OK, port 80 open) ..."
   if certbot --apache -d "$domain" --non-interactive --agree-tos --register-unsafely-without-email --redirect; then
-    [ -n "$bot_dir" ] && mirza_ensure_ssl_vhost "$domain" "$bot_dir"
+    [ -n "$bot_dir" ] && vira_ensure_ssl_vhost "$domain" "$bot_dir"
     echo -e "  ${GREEN}✓${NC} SSL installed"
     return 0
   fi
@@ -2364,12 +2365,12 @@ do_fix_all_bot() {
   local cfg_path="$CONFIG_FILE"
 
   # اول config را بخوان — قبل از relocate (باگ v1.9: relocate خروجی stdout را داخل PROJECT_DIR می‌ریخت)
-  domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg_path")")
+  domain=$(vira_normalize_domainhosts "$(read_php_var "domainhosts" "$cfg_path")")
   token=$(read_php_var "APIKEY" "$cfg_path")
   dbname=$(read_php_var "dbname" "$cfg_path")
   dbuser=$(read_php_var "usernamedb" "$cfg_path")
   dbpass=$(read_php_var "passworddb" "$cfg_path")
-  bot_user=$(mirza_normalize_bot_username "$(read_php_var "usernamebot" "$cfg_path")")
+  bot_user=$(vira_normalize_bot_username "$(read_php_var "usernamebot" "$cfg_path")")
 
   if [ -z "$domain" ] || [ -z "$token" ] || [ -z "$dbname" ] || [ -z "$dbuser" ]; then
     err "config.php incomplete — missing:"
@@ -2384,11 +2385,11 @@ do_fix_all_bot() {
   fi
 
   PROJECT_DIR=$(viranaut_relocate_to_canonical_path "$PROJECT_DIR")
-  PROJECT_DIR=$(mirza_sanitize_bot_dir "$PROJECT_DIR")
+  PROJECT_DIR=$(vira_sanitize_bot_dir "$PROJECT_DIR")
   CONFIG_FILE="$PROJECT_DIR/config.php"
   viranaut_ensure_apache_documentroot "$PROJECT_DIR" "$domain"
 
-  if ! mirza_config_mysql_ok "$dbname" "$dbuser" "$dbpass"; then
+  if ! vira_config_mysql_ok "$dbname" "$dbuser" "$dbpass"; then
     err "MySQL connection failed with credentials from config.php"
     return 1
   fi
@@ -2404,19 +2405,19 @@ do_fix_all_bot() {
   [ "$_go" = "y" ] || { msg "Cancelled."; return 0; }
 
   msg "Step 1/8 — MySQL ..."
-  mirza_ensure_mysql_from_config "$dbname" "$dbuser" "$dbpass" || {
+  vira_ensure_mysql_from_config "$dbname" "$dbuser" "$dbpass" || {
     err "MySQL failed (need root access)"
     return 1
   }
   echo -e "  ${GREEN}✓${NC} MySQL user/password from config.php"
 
-  user_count=$(mirza_db_user_count "$dbname" "$dbuser" "$dbpass")
+  user_count=$(vira_db_user_count "$dbname" "$dbuser" "$dbpass")
   if [ "$user_count" = "-1" ] || [ "$user_count" = "0" ]; then
-    backup_zip=$(mirza_latest_backup_zip)
+    backup_zip=$(vira_latest_backup_zip)
     if [ -n "$backup_zip" ]; then
       warn "DB empty — importing $(basename "$backup_zip")"
-      mirza_import_database_from_zip "$backup_zip" "$dbname" "$dbuser" "$dbpass" || warn "Import failed"
-      user_count=$(mirza_db_user_count "$dbname" "$dbuser" "$dbpass")
+      vira_import_database_from_zip "$backup_zip" "$dbname" "$dbuser" "$dbpass" || warn "Import failed"
+      user_count=$(vira_db_user_count "$dbname" "$dbuser" "$dbpass")
     else
       warn "No ZIP in $BACKUP_DIR — import database.sql manually"
     fi
@@ -2424,32 +2425,32 @@ do_fix_all_bot() {
   [ "$user_count" != "-1" ] && echo -e "  ${GREEN}✓${NC} Users in DB: $user_count"
 
   msg "Step 2/8 — DNS (domain must point to THIS server) ..."
-  mirza_check_dns_matches_server "$domain" || warn "Fix DNS first — certbot/webhook will fail until A record is correct"
+  vira_check_dns_matches_server "$domain" || warn "Fix DNS first — certbot/webhook will fail until A record is correct"
 
-  backup_zip=$(mirza_latest_backup_zip)
+  backup_zip=$(vira_latest_backup_zip)
   msg "Step 3/8 — Apache vhost (backup restore + SSL sites) ..."
   if [ -n "$backup_zip" ]; then
     echo -e "  ${CYAN}Backup:${NC} $(basename "$backup_zip")"
-    mirza_restore_apache_vhosts_from_zip "$backup_zip" "$domain" "$PROJECT_DIR" || true
-    mirza_restore_vendor_from_zip_if_missing "$backup_zip" "$PROJECT_DIR" || true
+    vira_restore_apache_vhosts_from_zip "$backup_zip" "$domain" "$PROJECT_DIR" || true
+    vira_restore_vendor_from_zip_if_missing "$backup_zip" "$PROJECT_DIR" || true
   fi
   viranaut_disable_stale_vhosts "$PROJECT_DIR" "$domain"
-  mirza_enable_apache_for_bot "$domain" "$PROJECT_DIR" || return 1
+  vira_enable_apache_for_bot "$domain" "$PROJECT_DIR" || return 1
   viranaut_ensure_apache_documentroot "$PROJECT_DIR" "$domain"
-  mirza_rewrite_vhost_documentroot "$domain" "$PROJECT_DIR"
+  vira_rewrite_vhost_documentroot "$domain" "$PROJECT_DIR"
   local http_test
   http_test=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: ${domain}" "http://127.0.0.1/index.php" 2>/dev/null || echo "000")
   [ "$http_test" != "404" ] && echo -e "  ${GREEN}✓${NC} HTTP test: $http_test" || err "Still 404 — check Apache"
 
   msg "Step 4/8 — SSL & firewall ..."
-  mirza_fix_ssl_and_firewall "$domain" "$PROJECT_DIR" || true
-  mirza_ensure_ssl_vhost "$domain" "$PROJECT_DIR"
-  mirza_ufw_allow_telegram
+  vira_fix_ssl_and_firewall "$domain" "$PROJECT_DIR" || true
+  vira_ensure_ssl_vhost "$domain" "$PROJECT_DIR"
+  vira_ufw_allow_telegram
   systemctl reload apache2 2>/dev/null || true
 
   msg "Step 5/8 — table.php + ViraNaut DB merge ..."
   if [ -f "$PROJECT_DIR/table.php" ]; then
-    (cd "$PROJECT_DIR" && MIRZA_SKIP_WEBHOOK=1 php table.php 2>/dev/null) && echo -e "  ${GREEN}✓${NC} table.php"
+    (cd "$PROJECT_DIR" && VIRA_SKIP_WEBHOOK=1 php table.php 2>/dev/null) && echo -e "  ${GREEN}✓${NC} table.php"
     viranaut_db_migrate "$PROJECT_DIR"
   fi
   viranaut_ensure_panel_integrity "$PROJECT_DIR" 2>/dev/null || true
@@ -2458,11 +2459,11 @@ do_fix_all_bot() {
   setup_cron_jobs && echo -e "  ${GREEN}✓${NC} Cron"
 
   msg "Step 7/8 — Permissions ..."
-  mirza_ensure_bot_permissions "$PROJECT_DIR" && echo -e "  ${GREEN}✓${NC} Permissions"
+  vira_ensure_bot_permissions "$PROJECT_DIR" && echo -e "  ${GREEN}✓${NC} Permissions"
 
   msg "Step 8/8 — Webhook (drop pending + verify) ..."
-  mirza_restart_apache || true
-  mirza_fix_webhook_complete "$token" "$domain" || warn "Webhook fix incomplete — check DNS/HTTPS then retry menu 8"
+  vira_restart_apache || true
+  vira_fix_webhook_complete "$token" "$domain" || warn "Webhook fix incomplete — check DNS/HTTPS then retry menu 8"
 
   line
   echo ""
@@ -2472,14 +2473,14 @@ do_fix_all_bot() {
 }
 
 # --- Backup ZIP helpers ---
-mirza_has_backup_zips() {
+vira_has_backup_zips() {
   [ -d "$BACKUP_DIR" ] && ls "$BACKUP_DIR"/*.zip >/dev/null 2>&1
 }
 
 # Sets ZIP_PATH; returns 0 on success
-mirza_select_backup_zip() {
+vira_select_backup_zip() {
   ZIP_PATH=""
-  if mirza_has_backup_zips; then
+  if vira_has_backup_zips; then
     echo -e "  ${CYAN}Available backups in $BACKUP_DIR:${NC}"
     echo ""
     local i=1
@@ -2506,13 +2507,13 @@ mirza_select_backup_zip() {
   return 0
 }
 
-mirza_install_files_from_package() {
+vira_install_files_from_package() {
   local PACKAGE="$1"
   local BOT_DIR="${2%/}"
   local TMP_EXTRACT SRC_DIR
   TMP_EXTRACT=$(mktemp -d)
   msg "Extracting $(basename "$PACKAGE") ..."
-  SRC_DIR=$(mirza_extract_package "$PACKAGE" "$TMP_EXTRACT") || {
+  SRC_DIR=$(vira_extract_package "$PACKAGE" "$TMP_EXTRACT") || {
     rm -rf "$TMP_EXTRACT"
     return 1
   }
@@ -2547,7 +2548,7 @@ do_restore_existing_bot() {
   echo -e "  ${CYAN}Target:${NC} $PROJECT_DIR"
   echo -e "  ${CYAN}DB:${NC} $DB_NAME / $DB_USER"
   echo ""
-  mirza_select_backup_zip || return 1
+  vira_select_backup_zip || return 1
   echo ""
   echo -e "  ${YELLOW}This will:${NC}"
   echo "    • Import database.sql from ZIP (overwrites DB data)"
@@ -2562,7 +2563,7 @@ do_restore_existing_bot() {
   TMP_DIR=$(mktemp -d)
   unzip -q "$ZIP_PATH" -d "$TMP_DIR" || { err "Bad ZIP"; rm -rf "$TMP_DIR"; return 1; }
 
-  if mirza_import_database_from_dir "$TMP_DIR" "$DB_NAME" "$DB_USER" "$DB_PASS"; then
+  if vira_import_database_from_dir "$TMP_DIR" "$DB_NAME" "$DB_USER" "$DB_PASS"; then
     echo -e "  ${GREEN}✓${NC} Database imported"
   else
     err "database.sql not found in ZIP"
@@ -2570,7 +2571,7 @@ do_restore_existing_bot() {
     return 1
   fi
 
-  mirza_restore_bot_data_files "$PROJECT_DIR" "$TMP_DIR"
+  vira_restore_bot_data_files "$PROJECT_DIR" "$TMP_DIR"
 
   if [ -f "$TMP_DIR/config.php" ]; then
     read -p "  Overwrite config.php from backup? (y/n) [n]: " _oc
@@ -2598,16 +2599,16 @@ do_restore_existing_bot() {
   if [ -f "$PROJECT_DIR/table.php" ]; then
     msg "Running table.php ..."
     cd "$PROJECT_DIR"
-    MIRZA_SKIP_WEBHOOK=1 php table.php 2>/dev/null || true
+    VIRA_SKIP_WEBHOOK=1 php table.php 2>/dev/null || true
     viranaut_db_migrate "$PROJECT_DIR"
   fi
 
   PROJECT_DIR=$(viranaut_relocate_to_canonical_path "$PROJECT_DIR")
-  PROJECT_DIR=$(mirza_sanitize_bot_dir "$PROJECT_DIR")
+  PROJECT_DIR=$(vira_sanitize_bot_dir "$PROJECT_DIR")
   CONFIG_FILE="$PROJECT_DIR/config.php"
 
   rm -rf "$TMP_DIR"
-  MIRZA_DROP_PENDING_WEBHOOK=1 mirza_fix_webhook_complete "$BOT_TOKEN" "$DOMAIN" || mirza_reload_services "$PROJECT_DIR"
+  VIRA_DROP_PENDING_WEBHOOK=1 vira_fix_webhook_complete "$BOT_TOKEN" "$DOMAIN" || vira_reload_services "$PROJECT_DIR"
   line
   echo -e "  ${GREEN}${BOLD}✓ Restore on existing install complete${NC}"
   echo -e "  ${CYAN}Tip:${NC} Panel ZIP from backup.php works here (uses mysql on server)."
@@ -2633,9 +2634,9 @@ viranaut_create_backup_zip() {
   dbname=$(read_php_var "dbname" "$CONFIG_PATH")
   dbuser=$(read_php_var "usernamedb" "$CONFIG_PATH")
   dbpass=$(read_php_var "passworddb" "$CONFIG_PATH")
-  domain=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts" "$CONFIG_PATH")")
+  domain=$(vira_normalize_domainhosts "$(read_php_var "domainhosts" "$CONFIG_PATH")")
   admin_id=$(read_php_var "adminnumber" "$CONFIG_PATH")
-  bot_user=$(mirza_normalize_bot_username "$(read_php_var "usernamebot" "$CONFIG_PATH")")
+  bot_user=$(vira_normalize_bot_username "$(read_php_var "usernamebot" "$CONFIG_PATH")")
 
   if [ -z "$dbname" ] || [ -z "$dbuser" ] || [ -z "$dbpass" ]; then
     err "Could not read database credentials from config.php"
@@ -2711,7 +2712,7 @@ viranaut_create_backup_zip() {
   [ -f "$BOT_DIR/text.json" ] && cp "$BOT_DIR/text.json" "$TMP_DIR/text.json"
   [ "$VERBOSE" = "1" ] && [ -f "$BOT_DIR/text.json" ] && echo -e "  ${GREEN}✓${NC} text.json saved"
   [ -f "$BOT_DIR/version" ] && cp "$BOT_DIR/version" "$TMP_DIR/version"
-  mirza_write_meta_cron_jobs "$TMP_DIR/meta/cron_jobs.txt" "$domain"
+  vira_write_meta_cron_jobs "$TMP_DIR/meta/cron_jobs.txt" "$domain"
 
   cat > "$TMP_DIR/backup_info.txt" <<INFO
 ViraNaut Backup
@@ -2834,7 +2835,7 @@ do_restore_from_backup() {
     ZIP_PATH="$PRESET_ZIP"
   else
     echo ""
-    mirza_select_backup_zip || return 1
+    vira_select_backup_zip || return 1
   fi
 
   echo ""
@@ -2852,13 +2853,13 @@ do_restore_from_backup() {
   BK_INFO_DOMAIN=""
   if [ -f "$TMP_DIR/backup_info.txt" ]; then
     BK_INFO_DOMAIN=$(grep -E '^Domain:[[:space:]]*' "$TMP_DIR/backup_info.txt" 2>/dev/null | head -1 | sed 's/^Domain:[[:space:]]*//')
-    BK_INFO_DOMAIN=$(mirza_normalize_domainhosts "$BK_INFO_DOMAIN")
+    BK_INFO_DOMAIN=$(vira_normalize_domainhosts "$BK_INFO_DOMAIN")
   fi
 
   local PANEL_ZIP=0
-  if mirza_backup_zip_is_panel "$TMP_DIR"; then
+  if vira_backup_zip_is_panel "$TMP_DIR"; then
     PANEL_ZIP=1
-    echo -e "  ${CYAN}●${NC} Panel backup (mirza-full-backup) detected"
+    echo -e "  ${CYAN}●${NC} Panel backup (vira-full-backup) detected"
   fi
 
   # --- Read config from backup ---
@@ -2870,9 +2871,9 @@ do_restore_from_backup() {
     BK_BOT_TOKEN=$(read_php_var "APIKEY" "$BACKUP_CONFIG")
     BK_ADMIN_ID=$(read_php_var "adminnumber" "$BACKUP_CONFIG")
     BK_BOT_USERNAME=$(read_php_var "usernamebot" "$BACKUP_CONFIG")
-    BK_BOT_USERNAME=$(mirza_normalize_bot_username "$BK_BOT_USERNAME")
+    BK_BOT_USERNAME=$(vira_normalize_bot_username "$BK_BOT_USERNAME")
     BK_DOMAIN_RAW=$(read_php_var "domainhosts" "$BACKUP_CONFIG")
-    BK_DOMAIN=$(mirza_normalize_domainhosts "$BK_DOMAIN_RAW")
+    BK_DOMAIN=$(vira_normalize_domainhosts "$BK_DOMAIN_RAW")
     if [ -z "$BK_DOMAIN" ] && [ -n "$BK_INFO_DOMAIN" ]; then
       BK_DOMAIN="$BK_INFO_DOMAIN"
     fi
@@ -2893,11 +2894,11 @@ do_restore_from_backup() {
     read -sp "  Database password: " BK_DB_PASS
     echo ""
     read -p "  Domain (e.g. bot.example.com): " BK_DOMAIN
-    BK_DOMAIN=$(mirza_normalize_domainhosts "$BK_DOMAIN")
+    BK_DOMAIN=$(vira_normalize_domainhosts "$BK_DOMAIN")
     read -p "  Bot token: " BK_BOT_TOKEN
     read -p "  Admin ID: " BK_ADMIN_ID
     read -p "  Bot username (with or without @): " BK_BOT_USERNAME
-    BK_BOT_USERNAME=$(mirza_normalize_bot_username "$BK_BOT_USERNAME")
+    BK_BOT_USERNAME=$(vira_normalize_bot_username "$BK_BOT_USERNAME")
   fi
 
   if [ -z "$BK_DB_NAME" ] || [ -z "$BK_DB_USER" ] || [ -z "$BK_DB_PASS" ]; then
@@ -2944,7 +2945,7 @@ do_restore_from_backup() {
     msg "Project files not found. Cloning from GitHub ..."
     mkdir -p /var/www
     if command -v git >/dev/null 2>&1; then
-      git clone https://github.com/mahdiMGF2/mirza_pro.git "$PROJECT_DIR" 2>/dev/null || true
+      git clone https://github.com/mahdiMGF2/vira_pro.git "$PROJECT_DIR" 2>/dev/null || true
     fi
     if [ ! -d "$PROJECT_DIR" ]; then
       mkdir -p "$PROJECT_DIR"
@@ -2952,7 +2953,7 @@ do_restore_from_backup() {
     chown -R www-data:www-data "$PROJECT_DIR"
     echo -e "  ${GREEN}✓${NC} Project files ready"
   fi
-  mirza_apply_php_core_fixes "$PROJECT_DIR"
+  vira_apply_php_core_fixes "$PROJECT_DIR"
 
   # --- Step 2: Create DB & user ---
   msg "Creating database and user ..."
@@ -2966,14 +2967,14 @@ SQL
   echo -e "  ${GREEN}✓${NC} Database & user ready"
 
   # --- Step 3: Import database ---
-  if mirza_import_database_from_dir "$TMP_DIR" "$BK_DB_NAME" "$BK_DB_USER" "$BK_DB_PASS"; then
+  if vira_import_database_from_dir "$TMP_DIR" "$BK_DB_NAME" "$BK_DB_USER" "$BK_DB_PASS"; then
     echo -e "  ${GREEN}✓${NC} Database imported"
   else
     warn "No database.sql in backup. Skipping DB import."
   fi
 
   # --- Panel / manage extra files (cronbot queue, text.json) ---
-  mirza_restore_bot_data_files "$PROJECT_DIR" "$TMP_DIR"
+  vira_restore_bot_data_files "$PROJECT_DIR" "$TMP_DIR"
 
   # --- Step 4: Restore config.php ---
   if [ -f "$TMP_DIR/config.php" ]; then
@@ -2991,7 +2992,7 @@ SQL
   if [ -f "$PROJECT_DIR/table.php" ]; then
     msg "Running table.php (create/update database tables) ..."
     cd "$PROJECT_DIR"
-    MIRZA_SKIP_WEBHOOK=1 php table.php 2>/dev/null || warn "table.php had some warnings (usually OK)."
+    VIRA_SKIP_WEBHOOK=1 php table.php 2>/dev/null || warn "table.php had some warnings (usually OK)."
     echo -e "  ${GREEN}✓${NC} Database tables ready"
     viranaut_db_migrate "$PROJECT_DIR"
   fi
@@ -3000,27 +3001,27 @@ SQL
   if [ -n "$BK_DOMAIN" ] && [ -f "$TMP_DIR/${BK_DOMAIN}.conf" ]; then
     msg "Restoring Apache VirtualHost (${BK_DOMAIN}.conf, same as official install.sh) ..."
     cp "$TMP_DIR/${BK_DOMAIN}.conf" "/etc/apache2/sites-available/${BK_DOMAIN}.conf"
-    mirza_sanitize_vhost_conf "/etc/apache2/sites-available/${BK_DOMAIN}.conf"
+    vira_sanitize_vhost_conf "/etc/apache2/sites-available/${BK_DOMAIN}.conf"
     if [ -f "$TMP_DIR/${BK_DOMAIN}-ssl.conf" ]; then
       cp "$TMP_DIR/${BK_DOMAIN}-ssl.conf" "/etc/apache2/sites-available/${BK_DOMAIN}-ssl.conf"
-      mirza_sanitize_vhost_conf "/etc/apache2/sites-available/${BK_DOMAIN}-ssl.conf"
-      if mirza_ssl_cert_exists "$BK_DOMAIN"; then
-        mirza_a2ensite "${BK_DOMAIN}-ssl.conf" 2>/dev/null || true
+      vira_sanitize_vhost_conf "/etc/apache2/sites-available/${BK_DOMAIN}-ssl.conf"
+      if vira_ssl_cert_exists "$BK_DOMAIN"; then
+        vira_a2ensite "${BK_DOMAIN}-ssl.conf" 2>/dev/null || true
       else
-        mirza_a2dissite "${BK_DOMAIN}-ssl.conf" 2>/dev/null || true
+        vira_a2dissite "${BK_DOMAIN}-ssl.conf" 2>/dev/null || true
       fi
     fi
-    mirza_a2ensite "${BK_DOMAIN}.conf" 2>/dev/null || true
+    vira_a2ensite "${BK_DOMAIN}.conf" 2>/dev/null || true
   elif [ -f "$TMP_DIR/$VIRANAUT_VHOST_GENERIC" ]; then
     msg "Restoring Apache VirtualHost ($VIRANAUT_VHOST_GENERIC) ..."
     cp "$TMP_DIR/$VIRANAUT_VHOST_GENERIC" "/etc/apache2/sites-available/$VIRANAUT_VHOST_GENERIC"
-    mirza_a2ensite "$VIRANAUT_VHOST_GENERIC" 2>/dev/null || true
+    vira_a2ensite "$VIRANAUT_VHOST_GENERIC" 2>/dev/null || true
   elif [ -f "$TMP_DIR/$VIRANAUT_VHOST_LEGACY" ]; then
     msg "Restoring Apache VirtualHost ($VIRANAUT_VHOST_LEGACY, legacy) ..."
     cp "$TMP_DIR/$VIRANAUT_VHOST_LEGACY" "/etc/apache2/sites-available/$VIRANAUT_VHOST_LEGACY"
-    mirza_a2ensite "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
+    vira_a2ensite "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
   elif [ -n "$BK_DOMAIN" ]; then
-    if mirza_vhost_use_domain_conf; then
+    if vira_vhost_use_domain_conf; then
       msg "Creating Apache VirtualHost for $BK_DOMAIN ($BK_DOMAIN.conf) ..."
       VHOST_BASENAME="${BK_DOMAIN}.conf"
     else
@@ -3041,13 +3042,13 @@ SQL
     CustomLog \${APACHE_LOG_DIR}/${VIRANAUT_LOG_ACCESS} combined
 </VirtualHost>
 VHOST
-    mirza_a2ensite "$VHOST_BASENAME" 2>/dev/null || true
+    vira_a2ensite "$VHOST_BASENAME" 2>/dev/null || true
   fi
-  mirza_a2dissite 000-default.conf 2>/dev/null || true
+  vira_a2dissite 000-default.conf 2>/dev/null || true
   a2enmod rewrite 2>/dev/null || true
   if [ -n "$BK_DOMAIN" ]; then
-    mirza_rewrite_vhost_documentroot "$BK_DOMAIN" "$PROJECT_DIR"
-    mirza_ensure_ssl_vhost "$BK_DOMAIN" "$PROJECT_DIR"
+    vira_rewrite_vhost_documentroot "$BK_DOMAIN" "$PROJECT_DIR"
+    vira_ensure_ssl_vhost "$BK_DOMAIN" "$PROJECT_DIR"
   fi
   systemctl restart apache2
   echo -e "  ${GREEN}✓${NC} Apache configured"
@@ -3086,17 +3087,17 @@ VHOST
         warn "SSL failed. Check DNS and port 80."
         warn "Retry later: certbot --apache -d $BK_DOMAIN"
       fi
-      mirza_rewrite_vhost_documentroot "$BK_DOMAIN" "$PROJECT_DIR"
-      mirza_ensure_ssl_vhost "$BK_DOMAIN" "$PROJECT_DIR"
+      vira_rewrite_vhost_documentroot "$BK_DOMAIN" "$PROJECT_DIR"
+      vira_ensure_ssl_vhost "$BK_DOMAIN" "$PROJECT_DIR"
       systemctl reload apache2 2>/dev/null || true
     fi
   fi
 
   rm -rf "$TMP_DIR"
-  mirza_save_active_dir "$PROJECT_DIR"
+  vira_save_active_dir "$PROJECT_DIR"
 
   if [ -z "$PRESET_BOT_DIR" ]; then
-    mirza_reload_services "$PROJECT_DIR"
+    vira_reload_services "$PROJECT_DIR"
     line
     echo ""
     echo -e "  ${GREEN}${BOLD}✓ Restore completed!${NC}"
@@ -3146,7 +3147,7 @@ do_start_apache() {
 #  RESTART APACHE
 # ============================================================
 do_restart_apache() {
-  mirza_restart_apache
+  vira_restart_apache
   echo ""
 }
 
@@ -3154,19 +3155,19 @@ do_restart_full() {
   line
   msg "Full restart — MySQL + Apache + bot webhook refresh"
   systemctl restart mysql 2>/dev/null || service mysql restart 2>/dev/null || warn "MySQL restart skipped"
-  mirza_restart_apache
+  vira_restart_apache
   resolve_project_paths
   if [ -f "$CONFIG_FILE" ]; then
     local _dom _tok
-    _dom=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts")")
+    _dom=$(vira_normalize_domainhosts "$(read_php_var "domainhosts")")
     _tok=$(read_php_var "APIKEY")
-    [ -n "$_tok" ] && [ -n "$_dom" ] && mirza_fix_webhook_complete "$_tok" "$_dom" || true
+    [ -n "$_tok" ] && [ -n "$_dom" ] && vira_fix_webhook_complete "$_tok" "$_dom" || true
   fi
   echo -e "  ${GREEN}✓${NC} Full restart complete"
   echo ""
 }
 
-mirza_remove_cron_for_project() {
+vira_remove_cron_for_project() {
   local BOT_DIR="${1%/}"
   local TMP_CRON
   TMP_CRON=$(mktemp)
@@ -3175,14 +3176,14 @@ mirza_remove_cron_for_project() {
   rm -f "$TMP_CRON"
 }
 
-mirza_remove_apache_vhosts_for_bot() {
+vira_remove_apache_vhosts_for_bot() {
   local BOT_DIR="${1%/}"
   local domain="$2"
   local _vf
   for _vf in "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY"; do
     if [ -f "/etc/apache2/sites-available/$_vf" ]; then
       if grep -qF "$BOT_DIR" "/etc/apache2/sites-available/$_vf" 2>/dev/null; then
-        mirza_a2dissite "$_vf" 2>/dev/null || true
+        vira_a2dissite "$_vf" 2>/dev/null || true
         rm -f "/etc/apache2/sites-enabled/$_vf"
         rm -f "/etc/apache2/sites-available/$_vf"
         echo -e "  ${GREEN}✓${NC} Removed $_vf"
@@ -3190,8 +3191,8 @@ mirza_remove_apache_vhosts_for_bot() {
     fi
   done
   if [ -n "$domain" ]; then
-    mirza_a2dissite "${domain}.conf" 2>/dev/null || true
-    mirza_a2dissite "${domain}-ssl.conf" 2>/dev/null || true
+    vira_a2dissite "${domain}.conf" 2>/dev/null || true
+    vira_a2dissite "${domain}-ssl.conf" 2>/dev/null || true
     rm -f "/etc/apache2/sites-enabled/${domain}.conf"
     rm -f "/etc/apache2/sites-enabled/${domain}-ssl.conf"
     rm -f "/etc/apache2/sites-available/${domain}.conf"
@@ -3200,7 +3201,7 @@ mirza_remove_apache_vhosts_for_bot() {
   fi
 }
 
-mirza_drop_bot_database() {
+vira_drop_bot_database() {
   local db="$1" dbuser="$2"
   [ -n "$db" ] || return 0
   msg "Dropping database: $db"
@@ -3225,18 +3226,18 @@ do_full_remove_bot() {
   resolve_project_paths
   local REMOVE_DIR="$PROJECT_DIR"
 
-  if [ ${#MIRZA_ALL_INSTALLS[@]} -gt 1 ]; then
-    mirza_list_installations
+  if [ ${#VIRA_ALL_INSTALLS[@]} -gt 1 ]; then
+    vira_list_installations
     echo -e "  ${CYAN}Which installation to remove?${NC}"
     read -p "  Number [active=1]: " _pick
     _pick=${_pick:-1}
-    if ! [[ "$_pick" =~ ^[0-9]+$ ]] || [ "$_pick" -lt 1 ] || [ "$_pick" -gt "${#MIRZA_ALL_INSTALLS[@]}" ]; then
+    if ! [[ "$_pick" =~ ^[0-9]+$ ]] || [ "$_pick" -lt 1 ] || [ "$_pick" -gt "${#VIRA_ALL_INSTALLS[@]}" ]; then
       err "Invalid choice."
       return 1
     fi
-    REMOVE_DIR="${MIRZA_ALL_INSTALLS[$((_pick - 1))]}"
-  elif [ ${#MIRZA_ALL_INSTALLS[@]} -eq 1 ]; then
-    REMOVE_DIR="${MIRZA_ALL_INSTALLS[0]}"
+    REMOVE_DIR="${VIRA_ALL_INSTALLS[$((_pick - 1))]}"
+  elif [ ${#VIRA_ALL_INSTALLS[@]} -eq 1 ]; then
+    REMOVE_DIR="${VIRA_ALL_INSTALLS[0]}"
   fi
 
   REMOVE_DIR="${REMOVE_DIR%/}"
@@ -3255,7 +3256,7 @@ do_full_remove_bot() {
     DB_PASS=$(read_php_var "passworddb")
     BOT_TOKEN=$(read_php_var "APIKEY")
     DOMAIN=$(read_php_var "domainhosts")
-    DOMAIN=$(mirza_normalize_domainhosts "$DOMAIN")
+    DOMAIN=$(vira_normalize_domainhosts "$DOMAIN")
   fi
 
   echo -e "  ${CYAN}Target:${NC}  ${BOLD}$REMOVE_DIR${NC}"
@@ -3267,7 +3268,7 @@ do_full_remove_bot() {
   _want_bk=${_want_bk:-y}
   _want_bk=${_want_bk,,}
   if [ "$_want_bk" = "y" ]; then
-    mirza_save_active_dir "$REMOVE_DIR"
+    vira_save_active_dir "$REMOVE_DIR"
     PROJECT_DIR="$REMOVE_DIR"
     CONFIG_FILE="$REMOVE_DIR/config.php"
     if do_backup; then
@@ -3304,13 +3305,13 @@ do_full_remove_bot() {
   fi
 
   msg "Removing cron jobs ..."
-  mirza_remove_cron_for_project "$REMOVE_DIR"
+  vira_remove_cron_for_project "$REMOVE_DIR"
 
   msg "Removing Apache site config ..."
-  mirza_remove_apache_vhosts_for_bot "$REMOVE_DIR" "$DOMAIN"
+  vira_remove_apache_vhosts_for_bot "$REMOVE_DIR" "$DOMAIN"
 
   if [ -n "$DB_NAME" ]; then
-    mirza_drop_bot_database "$DB_NAME" "$DB_USER"
+    vira_drop_bot_database "$DB_NAME" "$DB_USER"
   else
     warn "No database name in config — skipping DB drop."
   fi
@@ -3319,16 +3320,16 @@ do_full_remove_bot() {
   rm -rf "$REMOVE_DIR"
   echo -e "  ${GREEN}✓${NC} Removed $REMOVE_DIR"
 
-  if [ -f "$MIRZA_STATE_FILE" ]; then
+  if [ -f "$VIRA_STATE_FILE" ]; then
     local _saved
-    _saved=$(tr -d '\r\n' <"$MIRZA_STATE_FILE")
+    _saved=$(tr -d '\r\n' <"$VIRA_STATE_FILE")
     _saved="${_saved%/}"
     if [ "$_saved" = "$REMOVE_DIR" ]; then
-      rm -f "$MIRZA_STATE_FILE"
+      rm -f "$VIRA_STATE_FILE"
     fi
   fi
 
-  mirza_restart_apache || true
+  vira_restart_apache || true
 
   line
   echo ""
@@ -3359,9 +3360,9 @@ do_configure() {
     CUR_DB_PASS=$(read_php_var "passworddb")
     CUR_BOT_TOKEN=$(read_php_var "APIKEY")
     CUR_ADMIN_ID=$(read_php_var "adminnumber")
-    CUR_BOT_USERNAME=$(mirza_normalize_bot_username "$(read_php_var "usernamebot")")
+    CUR_BOT_USERNAME=$(vira_normalize_bot_username "$(read_php_var "usernamebot")")
     CUR_DOMAIN_RAW=$(read_php_var "domainhosts")
-    CUR_DOMAIN=$(mirza_normalize_domainhosts "$CUR_DOMAIN_RAW")
+    CUR_DOMAIN=$(vira_normalize_domainhosts "$CUR_DOMAIN_RAW")
   fi
 
   echo ""
@@ -3370,7 +3371,7 @@ do_configure() {
 
   read -p "  Domain [$CUR_DOMAIN]: " NEW_DOMAIN
   NEW_DOMAIN=${NEW_DOMAIN:-$CUR_DOMAIN}
-  NEW_DOMAIN=$(mirza_normalize_domainhosts "$NEW_DOMAIN")
+  NEW_DOMAIN=$(vira_normalize_domainhosts "$NEW_DOMAIN")
 
   read -p "  Database name [$CUR_DB_NAME]: " NEW_DB_NAME
   NEW_DB_NAME=${NEW_DB_NAME:-$CUR_DB_NAME}
@@ -3390,7 +3391,7 @@ do_configure() {
 
   read -p "  Bot username (with or without @) [$CUR_BOT_USERNAME]: " NEW_BOT_USERNAME
   NEW_BOT_USERNAME=${NEW_BOT_USERNAME:-$CUR_BOT_USERNAME}
-  NEW_BOT_USERNAME=$(mirza_normalize_bot_username "$NEW_BOT_USERNAME")
+  NEW_BOT_USERNAME=$(vira_normalize_bot_username "$NEW_BOT_USERNAME")
 
   read -p "  Install SSL? (y/n) [n]: " DO_SSL
   DO_SSL=${DO_SSL:-n}
@@ -3470,9 +3471,9 @@ SQL
 
   # --- Apache VirtualHost ---
   msg "Updating Apache VirtualHost ..."
-  if mirza_vhost_use_domain_conf; then
+  if vira_vhost_use_domain_conf; then
     VHOST_FILE="/etc/apache2/sites-available/${NEW_DOMAIN}.conf"
-    mirza_a2dissite "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
+    vira_a2dissite "$VIRANAUT_VHOST_GENERIC" "$VIRANAUT_VHOST_LEGACY" 2>/dev/null || true
   else
     VHOST_FILE="/etc/apache2/sites-available/$VIRANAUT_VHOST_GENERIC"
   fi
@@ -3490,8 +3491,8 @@ SQL
     CustomLog \${APACHE_LOG_DIR}/${VIRANAUT_LOG_ACCESS} combined
 </VirtualHost>
 VHOST
-  mirza_a2ensite "$(basename "$VHOST_FILE")" 2>/dev/null || true
-  mirza_a2dissite 000-default.conf 2>/dev/null || true
+  vira_a2ensite "$(basename "$VHOST_FILE")" 2>/dev/null || true
+  vira_a2dissite 000-default.conf 2>/dev/null || true
   a2enmod rewrite 2>/dev/null || true
   systemctl reload apache2
   echo -e "  ${GREEN}✓${NC} Apache configured for $NEW_DOMAIN"
@@ -3553,7 +3554,7 @@ do_diagnose_bot() {
   echo -e "    panel:       $([ -f "$PROJECT_DIR/panel/login.php" ] && echo OK || echo MISSING)"
   echo -e "    vendor:      $([ -f "$PROJECT_DIR/vendor/autoload.php" ] && echo OK || echo MISSING)"
   echo -e "    lang/fa:     $([ -f "$PROJECT_DIR/lang/fa.php" ] && echo OK || echo MISSING)"
-  echo -e "    mirza_agent: $([ -f "$PROJECT_DIR/mirza_agent.php" ] && echo OK || echo MISSING)"
+  echo -e "    vira_agent: $([ -f "$PROJECT_DIR/vira_agent.php" ] && echo OK || echo MISSING)"
   echo -e "    ilan.php:    $([ -f "$PROJECT_DIR/ilan.php" ] && echo OK || echo MISSING)"
   echo -e "    croncard:    $(crontab -l 2>/dev/null | grep -F 'cronbot/croncard.php' >/dev/null && echo OK || echo 'MISSING — run menu 5 Restart or fix')"
   echo -e "    site-admin:  $([ -f "$PROJECT_DIR/site-admin/index.php" ] && echo OK || echo MISSING)"
@@ -3563,7 +3564,7 @@ do_diagnose_bot() {
   echo ""
 
   domain=$(read_php_var "domainhosts")
-  domain=$(mirza_normalize_domainhosts "$domain")
+  domain=$(vira_normalize_domainhosts "$domain")
   token=$(read_php_var "APIKEY")
   dbname=$(read_php_var "dbname")
   dbuser=$(read_php_var "usernamedb")
@@ -3599,7 +3600,7 @@ do_diagnose_bot() {
     echo -e "  ${GREEN}✓${NC} Connected to database \`$dbname\`"
   else
     err "MySQL failed — wrong dbname/user/pass or DB missing"
-    echo "    Backup used: mirzaprobot / yalda — fix config.php if you see yalda/yalda as dbname"
+    echo "    Backup used: legacyprobot / yalda — fix config.php if you see yalda/yalda as dbname"
   fi
   echo ""
 
@@ -3616,7 +3617,7 @@ do_diagnose_bot() {
   echo -e "    DocumentRoot: ${docroot:-unknown}"
   echo -e "    ${CYAN}apache2ctl -S (443):${NC}"
   apache2ctl -S 2>/dev/null | grep -E ":443|${domain}" | sed 's/^/      /' | head -8
-  for f in mirza-pro.conf mirza-pro-le-ssl.conf; do
+  for f in legacy-pro.conf vira-pro-le-ssl.conf; do
     if [ -e "/etc/apache2/sites-enabled/$f" ]; then
       err "Legacy vhost still ENABLED: $f — run menu 8 to disable"
     fi
@@ -3624,8 +3625,8 @@ do_diagnose_bot() {
   local _bad_vhost
   for _bad_vhost in /etc/apache2/sites-available/*.conf; do
     [ -f "$_bad_vhost" ] || continue
-    if grep -qF "/var/www/mirza_pro" "$_bad_vhost" 2>/dev/null; then
-      err "STALE path in $(basename "$_bad_vhost") — still references /var/www/mirza_pro → run menu 8"
+    if grep -qF "/var/www/vira_pro" "$_bad_vhost" 2>/dev/null; then
+      err "STALE path in $(basename "$_bad_vhost") — still references /var/www/vira_pro → run menu 8"
     fi
   done
   local ssl_doc f
@@ -3682,7 +3683,7 @@ do_diagnose_bot() {
     else
       echo -e "  ${GREEN}✓${NC} No recent webhook delivery error from Telegram"
     fi
-    mirza_show_webhook_access_recent "$domain"
+    vira_show_webhook_access_recent "$domain"
     echo ""
   fi
 
@@ -3708,7 +3709,7 @@ do_diagnose_bot() {
         warn "Unexpected HTTP $http_code — check vhost/SSL"
         ;;
     esac
-    mirza_test_https_post_speed "$domain" || warn "HTTPS POST problem — Telegram may get 404/timeout"
+    vira_test_https_post_speed "$domain" || warn "HTTPS POST problem — Telegram may get 404/timeout"
     echo ""
 
     echo -e "  ${CYAN}8b) Web admin panel (/panel/)${NC}"
@@ -3812,7 +3813,7 @@ do_diagnose_bot() {
   echo "    1) Open another SSH window:"
   echo "       tail -f $acc_log"
   local _diag_bot
-  _diag_bot=$(mirza_normalize_bot_username "$(read_php_var "usernamebot")")
+  _diag_bot=$(vira_normalize_bot_username "$(read_php_var "usernamebot")")
   echo "    2) In Telegram send /start to @${_diag_bot:-YOUR_BOT}"
   echo "    3) If NO line POST /index.php appears → Telegram never reaches server (DNS/SSL/firewall/webhook)"
   echo "    4) If POST appears but bot silent → DB/config or panel code; check error_log after POST"
@@ -3827,7 +3828,7 @@ do_logs() {
   resolve_project_paths
   local DOMAIN=""
   local LOG_DOMAIN LOG_ERR LOG_ACC
-  [ -f "$CONFIG_FILE" ] && DOMAIN=$(mirza_normalize_domainhosts "$(read_php_var "domainhosts")")
+  [ -f "$CONFIG_FILE" ] && DOMAIN=$(vira_normalize_domainhosts "$(read_php_var "domainhosts")")
   LOG_ERR=$(viranaut_apache_log_file error "$DOMAIN") || LOG_ERR=""
   LOG_ACC=$(viranaut_apache_log_file access "$DOMAIN") || LOG_ACC=""
   echo ""
@@ -3851,7 +3852,7 @@ do_logs() {
       msg "Apache Error Log (last 100 lines):"
       line
       if [ -n "$LOG_ERR" ]; then
-        [[ "$LOG_ERR" == *mirza_error* ]] && warn "Showing legacy mirza_error.log — run menu 8 to fix Apache paths"
+        [[ "$LOG_ERR" == *vira_error* ]] && warn "Showing legacy vira_error.log — run menu 8 to fix Apache paths"
         tail -n 100 "$LOG_ERR"
       else
         warn "Log file not found."
@@ -3862,7 +3863,7 @@ do_logs() {
       msg "Apache Access Log (last 50 lines):"
       line
       if [ -n "$LOG_ACC" ]; then
-        [[ "$LOG_ACC" == *mirza_access* ]] && warn "Showing legacy mirza_access.log — run menu 8 to fix Apache paths"
+        [[ "$LOG_ACC" == *vira_access* ]] && warn "Showing legacy vira_access.log — run menu 8 to fix Apache paths"
         tail -n 50 "$LOG_ACC"
       else
         warn "Log file not found."
@@ -3912,7 +3913,7 @@ do_logs() {
 #  Helper: Setup cron jobs (non-destructive)
 # ============================================================
 setup_cron_jobs() {
-  MIRZA_CRON_LINES=(
+  VIRA_CRON_LINES=(
     "* * * * * php $PROJECT_DIR/cronbot/NoticationsService.php >/dev/null 2>&1"
     "*/1 * * * * php $PROJECT_DIR/cronbot/croncard.php >/dev/null 2>&1"
     "*/5 * * * * php $PROJECT_DIR/cronbot/uptime_panel.php >/dev/null 2>&1"
@@ -3926,7 +3927,7 @@ setup_cron_jobs() {
   )
   TMP_CRON=$(mktemp)
   crontab -l 2>/dev/null | grep -Fv 'cronbot/croncard.php' | grep -Fv 'cronbot/card_receipt_prompt.php' > "$TMP_CRON" || true
-  for cron_line in "${MIRZA_CRON_LINES[@]}"; do
+  for cron_line in "${VIRA_CRON_LINES[@]}"; do
     if ! grep -Fqx "$cron_line" "$TMP_CRON"; then
       echo "$cron_line" >> "$TMP_CRON"
     fi
@@ -3947,21 +3948,21 @@ show_menu() {
   echo -e "${BOLD}${CYAN}╚════════════════════════════════════════╝${NC}"
   echo -e "  ${CYAN}Version:${NC} v${VIRANAUT_MANAGE_VERSION}"
   echo -e "  ${CYAN}Product:${NC} Telegram VPN Bot + Web Admin Panel"
-  echo -e "  ${CYAN}Script:${NC}  $(mirza_manage_script_dir)/ViraNaut_manage.sh"
+  echo -e "  ${CYAN}Script:${NC}  $(vira_manage_script_dir)/ViraNaut_manage.sh"
   echo ""
 
   # Show status
   if [ -f "$CONFIG_FILE" ]; then
     _domain=$(read_php_var "domainhosts")
-    _domain=$(mirza_normalize_domainhosts "$_domain")
-    _bot=$(mirza_normalize_bot_username "$(read_php_var "usernamebot")")
+    _domain=$(vira_normalize_domainhosts "$_domain")
+    _bot=$(vira_normalize_bot_username "$(read_php_var "usernamebot")")
     echo -e "  ${GREEN}●${NC} Bot  —  ${BOLD}@${_bot}${NC}  —  ${_domain}"
     echo -e "  ${CYAN}Path:${NC} $PROJECT_DIR"
   else
     local _legacy=""
-    _legacy=$(mirza_find_legacy_mirza_dir 2>/dev/null) || _legacy=""
+    _legacy=$(vira_find_legacy_vira_dir 2>/dev/null) || _legacy=""
     if [ -n "$_legacy" ]; then
-      echo -e "  ${YELLOW}●${NC} Mirza detected: ${BOLD}$_legacy${NC} — menu ${BOLD}1${NC} Install to migrate"
+      echo -e "  ${YELLOW}●${NC} Vira detected: ${BOLD}$_legacy${NC} — menu ${BOLD}1${NC} Install to migrate"
     else
       echo -e "  ${RED}●${NC} Not installed — menu ${BOLD}1${NC} Install (GitHub)"
     fi
@@ -3976,7 +3977,7 @@ show_menu() {
   echo ""
   line
   echo ""
-  echo -e "  ${GREEN}${BOLD}1)${NC} Install        ${GREEN}(GitHub — auto-detect Mirza → ViraNaut)${NC}"
+  echo -e "  ${GREEN}${BOLD}1)${NC} Install        ${GREEN}(GitHub — auto-detect Vira → ViraNaut)${NC}"
   echo -e "  ${GREEN}${BOLD}2)${NC} Update         ${GREEN}(GitHub — auto backup before update)${NC}"
   echo -e "  ${BOLD}3)${NC} Stop Apache"
   echo -e "  ${BOLD}4)${NC} Start Apache"

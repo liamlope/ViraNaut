@@ -58,8 +58,8 @@ $depositLimits = [
     ],
 ];
 
-$template = mirza_miniapp_get_template($pdo ?? null);
-$templates = mirza_miniapp_templates();
+$template = vira_miniapp_get_template($pdo ?? null);
+$templates = vira_miniapp_templates();
 $tplMeta = $templates[$template] ?? $templates['midnight'];
 
 echo json_encode([
@@ -74,7 +74,7 @@ echo json_encode([
     'template' => $template,
     'template_label' => $tplMeta['label'] ?? $template,
     'template_layout' => $tplMeta['layout'] ?? '',
-    'template_features' => mirza_miniapp_all_features_list(),
+    'template_features' => vira_miniapp_all_features_list(),
     'shell_ui' => true,
     'banners' => [],
     'features' => [

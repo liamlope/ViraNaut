@@ -5,4 +5,4 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../botapi.php';
 require_once __DIR__ . '/../function.php';
 
-mirza_card_receipt_prompt_run();
+vira_card_receipt_prompt_run();

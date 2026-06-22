@@ -1,72 +1,72 @@
 /* متغیرهای مشترک — هر قالب در فایل خود override می‌کند */
-body.mirza-miniapp[class*='mirza-tpl-'] {
-  --mirza-accent: #22d3ee;
-  --mirza-accent-2: #6366f1;
-  --mirza-surface: rgba(15, 23, 42, 0.92);
-  --mirza-surface-2: rgba(30, 41, 59, 0.85);
-  --mirza-border: rgba(148, 163, 184, 0.2);
-  --mirza-glow: rgba(34, 211, 238, 0.25);
-  --mirza-text: #f8fafc;
-  --mirza-muted: #94a3b8;
-  --mirza-success: #34d399;
-  --mirza-radius: 14px;
-  --mirza-radius-lg: 20px;
+body.vira-miniapp[class*='vira-tpl-'] {
+  --vira-accent: #22d3ee;
+  --vira-accent-2: #6366f1;
+  --vira-surface: rgba(15, 23, 42, 0.92);
+  --vira-surface-2: rgba(30, 41, 59, 0.85);
+  --vira-border: rgba(148, 163, 184, 0.2);
+  --vira-glow: rgba(34, 211, 238, 0.25);
+  --vira-text: #f8fafc;
+  --vira-muted: #94a3b8;
+  --vira-success: #34d399;
+  --vira-radius: 14px;
+  --vira-radius-lg: 20px;
 }
 
-body[class*='mirza-tpl-'] .mirza-mini-topbar {
-  background: linear-gradient(180deg, var(--mirza-surface) 0%, transparent 100%);
+body[class*='vira-tpl-'] .vira-mini-topbar {
+  background: linear-gradient(180deg, var(--vira-surface) 0%, transparent 100%);
 }
 
-body[class*='mirza-tpl-'] .mirza-mini-topbar .mirza-brand {
-  color: var(--mirza-text);
+body[class*='vira-tpl-'] .vira-mini-topbar .vira-brand {
+  color: var(--vira-text);
   letter-spacing: -0.02em;
 }
 
-body[class*='mirza-tpl-'] .mirza-mini-topbar .mirza-balance {
-  border-color: var(--mirza-border);
-  background: var(--mirza-surface-2);
+body[class*='vira-tpl-'] .vira-mini-topbar .vira-balance {
+  border-color: var(--vira-border);
+  background: var(--vira-surface-2);
 }
 
-body[class*='mirza-tpl-'] .mirza-mini-topbar .mirza-balance strong {
-  color: var(--mirza-success);
+body[class*='vira-tpl-'] .vira-mini-topbar .vira-balance strong {
+  color: var(--vira-success);
 }
 
-body[class*='mirza-tpl-'] .mirza-mini-dock {
-  background: var(--mirza-surface);
-  border-top-color: var(--mirza-border);
-  box-shadow: 0 -8px 32px var(--mirza-glow);
+body[class*='vira-tpl-'] .vira-mini-dock {
+  background: var(--vira-surface);
+  border-top-color: var(--vira-border);
+  box-shadow: 0 -8px 32px var(--vira-glow);
 }
 
-body[class*='mirza-tpl-'] .mirza-dock-btn.active,
-body[class*='mirza-tpl-'] .mirza-dock-btn:active {
-  background: color-mix(in srgb, var(--mirza-accent) 18%, transparent);
-  color: var(--mirza-accent);
+body[class*='vira-tpl-'] .vira-dock-btn.active,
+body[class*='vira-tpl-'] .vira-dock-btn:active {
+  background: color-mix(in srgb, var(--vira-accent) 18%, transparent);
+  color: var(--vira-accent);
 }
 
-body[class*='mirza-tpl-'] .mirza-mini-hint-card {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--mirza-accent) 14%, transparent), color-mix(in srgb, var(--mirza-accent-2) 12%, transparent));
-  border-color: color-mix(in srgb, var(--mirza-accent) 35%, transparent);
-  color: var(--mirza-text);
-  border-radius: var(--mirza-radius-lg);
+body[class*='vira-tpl-'] .vira-mini-hint-card {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--vira-accent) 14%, transparent), color-mix(in srgb, var(--vira-accent-2) 12%, transparent));
+  border-color: color-mix(in srgb, var(--vira-accent) 35%, transparent);
+  color: var(--vira-text);
+  border-radius: var(--vira-radius-lg);
 }
 
-body[class*='mirza-tpl-'] .mirza-app-loader-ring {
-  border-top-color: var(--mirza-accent);
+body[class*='vira-tpl-'] .vira-app-loader-ring {
+  border-top-color: var(--vira-accent);
 }
 
-body[class*='mirza-tpl-'] .mirza-mini-toast {
-  background: var(--mirza-surface-2);
-  border: 1px solid var(--mirza-border);
-  color: var(--mirza-text);
+body[class*='vira-tpl-'] .vira-mini-toast {
+  background: var(--vira-surface-2);
+  border: 1px solid var(--vira-border);
+  color: var(--vira-text);
 }
 
-body[class*='mirza-tpl-'] .mirza-miniapp [class*='card'],
-body[class*='mirza-tpl-'] .mirza-miniapp [class*='Card'] {
-  border-radius: var(--mirza-radius) !important;
-  box-shadow: 0 4px 24px var(--mirza-glow);
+body[class*='vira-tpl-'] .vira-miniapp [class*='card'],
+body[class*='vira-tpl-'] .vira-miniapp [class*='Card'] {
+  border-radius: var(--vira-radius) !important;
+  box-shadow: 0 4px 24px var(--vira-glow);
 }
 
-body[class*='mirza-tpl-'] .mirza-miniapp button[class*='primary'],
-body[class*='mirza-tpl-'] .mirza-miniapp [class*='btn-primary'] {
-  background: linear-gradient(135deg, var(--mirza-accent), var(--mirza-accent-2)) !important;
+body[class*='vira-tpl-'] .vira-miniapp button[class*='primary'],
+body[class*='vira-tpl-'] .vira-miniapp [class*='btn-primary'] {
+  background: linear-gradient(135deg, var(--vira-accent), var(--vira-accent-2)) !important;
 }

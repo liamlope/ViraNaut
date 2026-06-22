@@ -320,7 +320,7 @@ function um_send_message(PDO $pdo, int $userId, string $message, bool $allowRepl
         global $textbotlang;
         if (!is_array($textbotlang ?? null)) {
             $textbotlang = languagechange(__DIR__ . '/../../text.json') ?: [];
-            mirza_apply_textbotlang_compat($textbotlang);
+            vira_apply_textbotlang_compat($textbotlang);
         }
         $btnText = $textbotlang['users']['support']['answermessage'] ?? 'پاسخ به پیام';
         $keyboard = json_encode([

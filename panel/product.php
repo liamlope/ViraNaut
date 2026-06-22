@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add')
     exit;
   }
   $category = trim((string) ($_POST['cetegory_product'] ?? ''));
-  if (mirza_product_name_taken($pdo, $name, $category)) {
+  if (vira_product_name_taken($pdo, $name, $category)) {
     $catHint = $category !== '' ? ' در دسته «' . $category . '»' : ' بدون دسته';
     flash('error', 'محصولی با این نام' . $catHint . ' قبلاً ثبت شده. در دستهٔ دیگر می‌توانید همین نام را استفاده کنید.');
     header('Location: product.php');
@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit'
   $name = trim($_POST['name_product'] ?? '');
   if ($pid && $name !== '') {
     $category = trim((string) ($_POST['cetegory_product'] ?? ''));
-    if (mirza_product_name_taken($pdo, $name, $category, $pid)) {
+    if (vira_product_name_taken($pdo, $name, $category, $pid)) {
       $catHint = $category !== '' ? ' در دسته «' . $category . '»' : ' بدون دسته';
       flash('error', 'محصولی با این نام' . $catHint . ' قبلاً ثبت شده.');
       header('Location: product.php');

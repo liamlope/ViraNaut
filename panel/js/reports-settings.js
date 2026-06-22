@@ -1,7 +1,7 @@
 (function () {
-    if (!window.mirzaBotTools) return;
+    if (!window.viraBotTools) return;
     var topics = {};
-    window.mirzaBotTools.get('topics_list').then(function (d) {
+    window.viraBotTools.get('topics_list').then(function (d) {
         if (!d.ok) return;
         document.getElementById('channelReport').value = d.channel_report || '';
         var html = '';
@@ -17,7 +17,7 @@
         document.querySelectorAll('.topic-inp').forEach(function (inp) {
             data[inp.getAttribute('data-report')] = inp.value;
         });
-        window.mirzaBotTools.post('topics_save', {
+        window.viraBotTools.post('topics_save', {
             channel_report: document.getElementById('channelReport').value,
             topics: JSON.stringify(data),
         }).then(function (r) {

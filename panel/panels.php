@@ -4,8 +4,8 @@ require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/panel_type_defs.php';
 require_auth();
 
-if (function_exists('mirza_ensure_marzban_panel_columns')) {
-    mirza_ensure_marzban_panel_columns();
+if (function_exists('vira_ensure_marzban_panel_columns')) {
+    vira_ensure_marzban_panel_columns();
 }
 
 $panels = [];
@@ -84,7 +84,7 @@ include __DIR__ . '/inc/layout_head.php';
                     foreach ($panels as $p):
                         $type = $p['type'] ?? '';
                         $typeLabel = panel_page_type_label($p);
-                        $active = mirza_panel_is_active_status($p['status'] ?? '');
+                        $active = vira_panel_is_active_status($p['status'] ?? '');
                         $url = $p['url_panel'] ?? '';
                         $ib = $p['inbounds'] ?? '';
                         if ($ib === '' || $ib === 'null') {

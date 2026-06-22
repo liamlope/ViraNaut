@@ -4,7 +4,7 @@
  * کاتالوگ متن‌های قابل ویرایش ربات (textbot.id_text).
  * هر آیتم: label, hint?, vars?, rows?
  */
-function mirza_panel_textbot_global_vars(): array
+function vira_panel_textbot_global_vars(): array
 {
     return [
         ['{username}', 'نام کاربری تلگرام (@…)'],
@@ -26,7 +26,7 @@ function mirza_panel_textbot_global_vars(): array
     ];
 }
 
-function mirza_panel_textbot_catalog(): array
+function vira_panel_textbot_catalog(): array
 {
     return [
         'منوی اصلی و استارت' => [
@@ -160,10 +160,10 @@ function mirza_panel_textbot_catalog(): array
     ];
 }
 
-function mirza_panel_textbot_groups(): array
+function vira_panel_textbot_groups(): array
 {
     $out = [];
-    foreach (mirza_panel_textbot_catalog() as $group => $items) {
+    foreach (vira_panel_textbot_catalog() as $group => $items) {
         foreach ($items as $id => $meta) {
             $out[$group][$id] = $meta['label'];
         }
@@ -171,9 +171,9 @@ function mirza_panel_textbot_groups(): array
     return $out;
 }
 
-function mirza_panel_textbot_meta(string $id): array
+function vira_panel_textbot_meta(string $id): array
 {
-    foreach (mirza_panel_textbot_catalog() as $items) {
+    foreach (vira_panel_textbot_catalog() as $items) {
         if (isset($items[$id])) {
             return $items[$id];
         }
@@ -181,7 +181,7 @@ function mirza_panel_textbot_meta(string $id): array
     return ['label' => $id, 'rows' => 4];
 }
 
-function mirza_panel_textbot_defaults_extra(): array
+function vira_panel_textbot_defaults_extra(): array
 {
     return [
         ['text_select_category', '📌 دسته بندی خود را انتخاب نمایید!'],

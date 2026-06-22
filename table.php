@@ -1518,7 +1518,7 @@ try {
 if ($check && $check->rowCount() != 0) {
     $pdo->exec("ALTER TABLE `user` DROP `ref_code`");
 }
-if (!getenv('MIRZA_SKIP_WEBHOOK')) {
+if (!getenv('VIRA_SKIP_WEBHOOK')) {
     telegram('setwebhook', [
         'url' => "https://$domainhosts/index.php"
     ]);

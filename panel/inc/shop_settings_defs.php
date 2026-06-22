@@ -1,6 +1,6 @@
 <?php
 
-function mirza_shop_toggle_options(): array
+function vira_shop_toggle_options(): array
 {
     return [
         'statusextra' => ['onextra' => 'فعال', 'offextra' => 'غیرفعال'],
@@ -16,9 +16,9 @@ function mirza_shop_toggle_options(): array
     ];
 }
 
-function mirza_shop_settings_groups(): array
+function vira_shop_settings_groups(): array
 {
-    $t = mirza_shop_toggle_options();
+    $t = vira_shop_toggle_options();
     return [
         'قابلیت‌های فروشگاه' => [
             'desc' => 'همان گزینه‌های «وضعیت قابلیت‌های فروشگاه» در ادمین تلگرام',
@@ -53,7 +53,7 @@ function mirza_shop_settings_groups(): array
     ];
 }
 
-function mirza_shop_load_values(PDO $pdo): array
+function vira_shop_load_values(PDO $pdo): array
 {
     $shop = [];
     try {

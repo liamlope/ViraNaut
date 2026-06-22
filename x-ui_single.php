@@ -4,61 +4,61 @@ require_once __DIR__ . '/request.php';
 ini_set('error_log', 'error_log');
 
 /** تایم‌اوت اتصال پنل ثنایی — برای پنل‌های دور و پاسخ کند پروکسی. */
-define('MIRZA_XUI_TIMEOUT_MS', 120000);
-define('MIRZA_XUI_CONNECT_TIMEOUT_MS', 45000);
-define('MIRZA_XUI_CSRF_TIMEOUT_MS', 90000);
-define('MIRZA_XUI_QUICK_TIMEOUT_MS', 30000);
-define('MIRZA_XUI_QUICK_CONNECT_MS', 15000);
-define('MIRZA_XUI_QUICK_CSRF_MS', 25000);
-define('MIRZA_XUI_API_RETRY_MAX', 2);
-define('MIRZA_XUI_API_RETRY_WRITE_MAX', 2);
-define('MIRZA_XUI_API_RETRY_DELAY_MS', 1500);
-define('MIRZA_XUI_PANEL_BUDGET_SEC', 90);
+define('VIRA_XUI_TIMEOUT_MS', 120000);
+define('VIRA_XUI_CONNECT_TIMEOUT_MS', 45000);
+define('VIRA_XUI_CSRF_TIMEOUT_MS', 90000);
+define('VIRA_XUI_QUICK_TIMEOUT_MS', 30000);
+define('VIRA_XUI_QUICK_CONNECT_MS', 15000);
+define('VIRA_XUI_QUICK_CSRF_MS', 25000);
+define('VIRA_XUI_API_RETRY_MAX', 2);
+define('VIRA_XUI_API_RETRY_WRITE_MAX', 2);
+define('VIRA_XUI_API_RETRY_DELAY_MS', 1500);
+define('VIRA_XUI_PANEL_BUDGET_SEC', 90);
 
-function mirza_xui_panel_budget_start($seconds = MIRZA_XUI_PANEL_BUDGET_SEC)
+function vira_xui_panel_budget_start($seconds = VIRA_XUI_PANEL_BUDGET_SEC)
 {
-    $GLOBALS['mirza_xui_panel_budget_end'] = microtime(true) + max(10, (int) $seconds);
+    $GLOBALS['vira_xui_panel_budget_end'] = microtime(true) + max(10, (int) $seconds);
 }
 
-function mirza_xui_panel_budget_exceeded()
+function vira_xui_panel_budget_exceeded()
 {
-    return !empty($GLOBALS['mirza_xui_panel_budget_end'])
-        && microtime(true) >= $GLOBALS['mirza_xui_panel_budget_end'];
+    return !empty($GLOBALS['vira_xui_panel_budget_end'])
+        && microtime(true) >= $GLOBALS['vira_xui_panel_budget_end'];
 }
 
-function mirza_xui_panel_budget_left_ms()
+function vira_xui_panel_budget_left_ms()
 {
-    if (empty($GLOBALS['mirza_xui_panel_budget_end'])) {
-        return MIRZA_XUI_TIMEOUT_MS;
+    if (empty($GLOBALS['vira_xui_panel_budget_end'])) {
+        return VIRA_XUI_TIMEOUT_MS;
     }
-    $left = (int) (($GLOBALS['mirza_xui_panel_budget_end'] - microtime(true)) * 1000);
-    return max(8000, min(MIRZA_XUI_TIMEOUT_MS, $left));
+    $left = (int) (($GLOBALS['vira_xui_panel_budget_end'] - microtime(true)) * 1000);
+    return max(8000, min(VIRA_XUI_TIMEOUT_MS, $left));
 }
 
-function mirza_xui_panel_log($message)
+function vira_xui_panel_log($message)
 {
-    error_log('[mirza-xui] ' . $message);
+    error_log('[vira-xui] ' . $message);
 }
 
-function mirza_xui_curl_timeout_ms($quick = false)
+function vira_xui_curl_timeout_ms($quick = false)
 {
     if ($quick) {
-        return MIRZA_XUI_QUICK_TIMEOUT_MS;
+        return VIRA_XUI_QUICK_TIMEOUT_MS;
     }
     global $request_exec_timeout;
-    $base = MIRZA_XUI_TIMEOUT_MS;
+    $base = VIRA_XUI_TIMEOUT_MS;
     $fromConfig = ($request_exec_timeout !== null && (int) $request_exec_timeout > 0)
         ? (int) $request_exec_timeout
         : 0;
     return max($base, $fromConfig);
 }
 
-function mirza_xui_connect_timeout_ms($quick = false)
+function vira_xui_connect_timeout_ms($quick = false)
 {
-    return $quick ? MIRZA_XUI_QUICK_CONNECT_MS : MIRZA_XUI_CONNECT_TIMEOUT_MS;
+    return $quick ? VIRA_XUI_QUICK_CONNECT_MS : VIRA_XUI_CONNECT_TIMEOUT_MS;
 }
 
-function mirza_xui_json_is_success($decoded)
+function vira_xui_json_is_success($decoded)
 {
     if (!is_array($decoded) || !array_key_exists('success', $decoded)) {
         return false;
@@ -67,7 +67,7 @@ function mirza_xui_json_is_success($decoded)
     return $success === true || $success === 1 || $success === '1' || $success === 'true';
 }
 
-function mirza_xui_format_panel_error($response)
+function vira_xui_format_panel_error($response)
 {
     if (!is_array($response)) {
         return 'خطای نامشخص پنل';
@@ -86,10 +86,10 @@ function mirza_xui_format_panel_error($response)
         }
         return '❌ ' . mb_substr($err, 0, 400);
     }
-    return mirza_xui_format_http_error($response['status'] ?? 0, $response['body'] ?? '');
+    return vira_xui_format_http_error($response['status'] ?? 0, $response['body'] ?? '');
 }
 
-function mirza_xui_format_http_error($status, $body = '')
+function vira_xui_format_http_error($status, $body = '')
 {
     $code = (int) $status;
     if ($code === 504) {
@@ -108,7 +108,7 @@ function mirza_xui_format_http_error($status, $body = '')
     return $code > 0 ? ('HTTP ' . $code . ($snippet !== '' ? (': ' . $snippet) : '')) : 'خطای اتصال به پنل';
 }
 
-function mirza_xui_http_should_retry(array $response)
+function vira_xui_http_should_retry(array $response)
 {
     if (!empty($response['error'])) {
         $err = strtolower((string) $response['error']);
@@ -123,19 +123,19 @@ function mirza_xui_http_should_retry(array $response)
     return in_array($status, array(408, 429, 500, 502, 503, 504), true);
 }
 
-function mirza_xui_new_request($url, $quick = false)
+function vira_xui_new_request($url, $quick = false)
 {
     $req = new CurlRequest($url);
-    $timeout = !empty($GLOBALS['mirza_xui_panel_budget_end'])
-        ? mirza_xui_panel_budget_left_ms()
-        : mirza_xui_curl_timeout_ms($quick);
+    $timeout = !empty($GLOBALS['vira_xui_panel_budget_end'])
+        ? vira_xui_panel_budget_left_ms()
+        : vira_xui_curl_timeout_ms($quick);
     $req->setTimeout($timeout);
-    $req->setConnectTimeout(min(mirza_xui_connect_timeout_ms($quick), (int) max(8000, $timeout / 2)));
+    $req->setConnectTimeout(min(vira_xui_connect_timeout_ms($quick), (int) max(8000, $timeout / 2)));
     return $req;
 }
 
 /** Cookie jar must be absolute — PHP CWD is often not the bot directory under Apache/cron. */
-function mirza_xui_cookie_jar_path($code_panel)
+function vira_xui_cookie_jar_path($code_panel)
 {
     return __DIR__ . DIRECTORY_SEPARATOR . '.xui_cookie_' . md5((string) $code_panel) . '.txt';
 }
@@ -143,7 +143,7 @@ function mirza_xui_cookie_jar_path($code_panel)
 /**
  * یادآوری در داشبورد: در ۳x-ui پورت پنل (API) و پورت ساب معمولاً جدا هستند — طبیعی است.
  */
-function mirza_xui_panel_sub_port_note(array $panel)
+function vira_xui_panel_sub_port_note(array $panel)
 {
     $url = (string) ($panel['url_panel'] ?? '');
     $sub = (string) ($panel['linksubx'] ?? '');
@@ -161,23 +161,23 @@ function mirza_xui_panel_sub_port_note(array $panel)
 }
 
 /** Panel root without trailing slash (…/URcgRCQhmQky5qmTOF). */
-function mirza_xui_public_base($url_panel)
+function vira_xui_public_base($url_panel)
 {
-    if (!empty($GLOBALS['mirza_xui_url_override'])) {
-        $url_panel = $GLOBALS['mirza_xui_url_override'];
+    if (!empty($GLOBALS['vira_xui_url_override'])) {
+        $url_panel = $GLOBALS['vira_xui_url_override'];
     }
-    if (function_exists('mirza_normalize_xui_panel_url')) {
-        $url_panel = mirza_normalize_xui_panel_url($url_panel);
-    } elseif (function_exists('mirza_normalize_panel_url')) {
-        $url_panel = mirza_normalize_panel_url($url_panel);
+    if (function_exists('vira_normalize_xui_panel_url')) {
+        $url_panel = vira_normalize_xui_panel_url($url_panel);
+    } elseif (function_exists('vira_normalize_panel_url')) {
+        $url_panel = vira_normalize_panel_url($url_panel);
     }
     return rtrim(trim($url_panel), '/');
 }
 
 /** Origin/Referer host — بدون :443/:80 پیش‌فرض (سازگار با WAF و مرورگر). */
-function mirza_xui_http_origin($url_panel)
+function vira_xui_http_origin($url_panel)
 {
-    $base = mirza_xui_public_base($url_panel);
+    $base = vira_xui_public_base($url_panel);
     $p = parse_url($base);
     if (empty($p['scheme']) || empty($p['host'])) {
         return '';
@@ -194,7 +194,7 @@ function mirza_xui_http_origin($url_panel)
 }
 
 /** Optional Bearer token — Settings → Security → API Token (بدون نیاز به کوکی/CSRF). */
-function mirza_xui_bearer_token(array $panel)
+function vira_xui_bearer_token(array $panel)
 {
     if (!isset($panel['xui_api_token']) || $panel['xui_api_token'] === null || $panel['xui_api_token'] === '') {
         return '';
@@ -202,13 +202,13 @@ function mirza_xui_bearer_token(array $panel)
     return trim((string) $panel['xui_api_token']);
 }
 
-function mirza_xui_verify_bearer($url_panel, $token, $quick = false)
+function vira_xui_verify_bearer($url_panel, $token, $quick = false)
 {
-    $b = mirza_xui_public_base($url_panel);
+    $b = vira_xui_public_base($url_panel);
     $url = $b . '/panel/api/inbounds/list';
-    $req = mirza_xui_new_request($url, $quick);
+    $req = vira_xui_new_request($url, $quick);
     $req->setBearerToken($token);
-    $req->setHeaders(mirza_xui_spa_headers($url_panel));
+    $req->setHeaders(vira_xui_spa_headers($url_panel));
     $res = $req->get();
     if (!empty($res['error'])) {
         return array('success' => false, 'msg' => $res['error']);
@@ -236,26 +236,26 @@ function mirza_xui_verify_bearer($url_panel, $token, $quick = false)
 /**
  * احراز هویت درخواست: یا Bearer (اگر توکن ذخیره شده)، یا کوکی + CSRF.
  */
-function mirza_xui_auth_request(CurlRequest $req, array $panel, $cookiePath)
+function vira_xui_auth_request(CurlRequest $req, array $panel, $cookiePath)
 {
-    $t = mirza_xui_bearer_token($panel);
+    $t = vira_xui_bearer_token($panel);
     if ($t !== '') {
         $req->setBearerToken($t);
         return;
     }
     $req->setCookie($cookiePath);
-    mirza_xui_apply_session($req);
+    vira_xui_apply_session($req);
 }
 
 /**
  * Headers many reverse-proxies / WAFs expect (same as browser SPA on 3x-ui).
  * Without Referer+Origin, POST /login often returns 403 with empty body.
  */
-function mirza_xui_spa_headers($url_panel, $extraHeaders = array())
+function vira_xui_spa_headers($url_panel, $extraHeaders = array())
 {
-    $base = mirza_xui_public_base($url_panel);
+    $base = vira_xui_public_base($url_panel);
     $root = $base . '/';
-    $origin = mirza_xui_http_origin($url_panel);
+    $origin = vira_xui_http_origin($url_panel);
     $h = array(
         'Accept: application/json, text/plain, */*',
         'Referer: ' . $root,
@@ -274,11 +274,11 @@ function mirza_xui_spa_headers($url_panel, $extraHeaders = array())
 function panel_login_cookie($code_panel, $quick = false)
 {
     $panel = select("marzban_panel", "*", "code_panel", $code_panel, "select");
-    $base = mirza_xui_public_base($panel['url_panel']);
+    $base = vira_xui_public_base($panel['url_panel']);
     $loginCandidates = array($base . '/login', $base . '/login/');
-    $timeoutMs = $quick ? MIRZA_XUI_QUICK_TIMEOUT_MS : MIRZA_XUI_TIMEOUT_MS;
-    $connectMs = $quick ? MIRZA_XUI_QUICK_CONNECT_MS : MIRZA_XUI_CONNECT_TIMEOUT_MS;
-    $cookiePath = mirza_xui_cookie_jar_path($code_panel);
+    $timeoutMs = $quick ? VIRA_XUI_QUICK_TIMEOUT_MS : VIRA_XUI_TIMEOUT_MS;
+    $connectMs = $quick ? VIRA_XUI_QUICK_CONNECT_MS : VIRA_XUI_CONNECT_TIMEOUT_MS;
+    $cookiePath = vira_xui_cookie_jar_path($code_panel);
     @unlink($cookiePath);
     @touch($cookiePath);
 
@@ -287,12 +287,12 @@ function panel_login_cookie($code_panel, $quick = false)
         'password' => $panel['password_panel'],
     ));
 
-    $GLOBALS['mirza_xui_last_login_meta'] = null;
+    $GLOBALS['vira_xui_last_login_meta'] = null;
 
     $chromeUa = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
     $do_curl = function ($postFields, $contentType, $loginUrl) use ($cookiePath, $panel, $chromeUa, $timeoutMs, $connectMs) {
-        $headers = mirza_xui_spa_headers($panel['url_panel'], array('Content-Type: ' . $contentType));
+        $headers = vira_xui_spa_headers($panel['url_panel'], array('Content-Type: ' . $contentType));
         $postRedir = 7;
         if (defined('CURL_REDIR_POST_ALL')) {
             $postRedir = CURL_REDIR_POST_ALL;
@@ -324,7 +324,7 @@ function panel_login_cookie($code_panel, $quick = false)
         ));
         $response = curl_exec($curl);
         $err = curl_error($curl);
-        $GLOBALS['mirza_xui_last_login_meta'] = array(
+        $GLOBALS['vira_xui_last_login_meta'] = array(
             'http' => (int) curl_getinfo($curl, CURLINFO_HTTP_CODE),
             'effective_url' => (string) curl_getinfo($curl, CURLINFO_EFFECTIVE_URL),
             'content_type' => (string) curl_getinfo($curl, CURLINFO_CONTENT_TYPE),
@@ -346,7 +346,7 @@ function panel_login_cookie($code_panel, $quick = false)
             if (is_array($d) && !empty($d['success'])) {
                 return $last;
             }
-            $m = $GLOBALS['mirza_xui_last_login_meta'] ?? array();
+            $m = $GLOBALS['vira_xui_last_login_meta'] ?? array();
             if (!empty($m['http']) && (int) $m['http'] !== 403 && (int) $m['http'] !== 404) {
                 return $last;
             }
@@ -372,9 +372,9 @@ function panel_login_cookie($code_panel, $quick = false)
 /** GET /csrf-token — required for cookie-based POST on 3x-ui v3. */
 function fetch_xui_csrf_token($url_panel, $cookiePath, $quick = false)
 {
-    $base = mirza_xui_public_base($url_panel);
+    $base = vira_xui_public_base($url_panel);
     $candidates = array($base . '/csrf-token', $base . '/csrf-token/');
-    $csrfTimeout = $quick ? MIRZA_XUI_QUICK_CSRF_MS : MIRZA_XUI_CSRF_TIMEOUT_MS;
+    $csrfTimeout = $quick ? VIRA_XUI_QUICK_CSRF_MS : VIRA_XUI_CSRF_TIMEOUT_MS;
     $ch = curl_init();
     $chromeUa = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
     $body = '';
@@ -388,7 +388,7 @@ function fetch_xui_csrf_token($url_panel, $cookiePath, $quick = false)
             CURLOPT_TIMEOUT_MS => $csrfTimeout,
             CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_SSL_VERIFYHOST => 0,
-            CURLOPT_HTTPHEADER => mirza_xui_spa_headers($url_panel),
+            CURLOPT_HTTPHEADER => vira_xui_spa_headers($url_panel),
             CURLOPT_USERAGENT => $chromeUa,
         ));
         $body = curl_exec($ch);
@@ -405,20 +405,20 @@ function fetch_xui_csrf_token($url_panel, $cookiePath, $quick = false)
     return null;
 }
 
-function mirza_xui_apply_session(CurlRequest $req)
+function vira_xui_apply_session(CurlRequest $req)
 {
-    if (!empty($GLOBALS['mirza_xui_csrf'])) {
-        $req->setCsrfToken($GLOBALS['mirza_xui_csrf']);
+    if (!empty($GLOBALS['vira_xui_csrf'])) {
+        $req->setCsrfToken($GLOBALS['vira_xui_csrf']);
     }
 }
 
 function login($code_panel, $verify = true, $quick = false, $forceProbe = false)
 {
-    $GLOBALS['mirza_xui_csrf'] = null;
+    $GLOBALS['vira_xui_csrf'] = null;
     $panel = select("marzban_panel", "*", "code_panel", $code_panel, "select");
-    $cookiePath = mirza_xui_cookie_jar_path($code_panel);
+    $cookiePath = vira_xui_cookie_jar_path($code_panel);
 
-    $bearer = mirza_xui_bearer_token($panel);
+    $bearer = vira_xui_bearer_token($panel);
     if ($bearer !== '') {
         if (!$forceProbe && $panel['datelogin'] != null) {
             $date = json_decode($panel['datelogin'], true);
@@ -429,7 +429,7 @@ function login($code_panel, $verify = true, $quick = false, $forceProbe = false)
                 }
             }
         }
-        $probe = mirza_xui_verify_bearer($panel['url_panel'], $bearer, $quick);
+        $probe = vira_xui_verify_bearer($panel['url_panel'], $bearer, $quick);
         if (!empty($probe['success'])) {
             if ($verify) {
                 $time = date('Y/m/d H:i:s');
@@ -447,8 +447,8 @@ function login($code_panel, $verify = true, $quick = false, $forceProbe = false)
         }
         return array(
             'success' => false,
-            'msg' => function_exists('mirza_xui_format_panel_error')
-                ? mirza_xui_format_panel_error(array('error' => $failMsg))
+            'msg' => function_exists('vira_xui_format_panel_error')
+                ? vira_xui_format_panel_error(array('error' => $failMsg))
                 : $failMsg,
         );
     }
@@ -462,7 +462,7 @@ function login($code_panel, $verify = true, $quick = false, $forceProbe = false)
             $start_date = time() - strtotime($date['time']);
             if ($start_date <= 3000) {
                 file_put_contents($cookiePath, $date['access_token']);
-                $GLOBALS['mirza_xui_csrf'] = fetch_xui_csrf_token($panel['url_panel'], $cookiePath, $quick);
+                $GLOBALS['vira_xui_csrf'] = fetch_xui_csrf_token($panel['url_panel'], $cookiePath, $quick);
                 return array('success' => true, 'msg' => 'session cache');
             }
         }
@@ -480,10 +480,10 @@ function login($code_panel, $verify = true, $quick = false, $forceProbe = false)
             ));
             update("marzban_panel", "datelogin", $data, 'name_panel', $panel['name_panel']);
         }
-        $GLOBALS['mirza_xui_csrf'] = fetch_xui_csrf_token($panel['url_panel'], $cookiePath, $quick);
+        $GLOBALS['vira_xui_csrf'] = fetch_xui_csrf_token($panel['url_panel'], $cookiePath, $quick);
     }
     if (!is_string($response)) {
-        $m = $GLOBALS['mirza_xui_last_login_meta'] ?? array();
+        $m = $GLOBALS['vira_xui_last_login_meta'] ?? array();
         return array(
             'success' => false,
             'msg' => 'empty or invalid curl response. HTTP=' . ($m['http'] ?? '?')
@@ -491,7 +491,7 @@ function login($code_panel, $verify = true, $quick = false, $forceProbe = false)
         );
     }
     if (!is_array($dec)) {
-        $m = $GLOBALS['mirza_xui_last_login_meta'] ?? array();
+        $m = $GLOBALS['vira_xui_last_login_meta'] ?? array();
         $snippet = '';
         if ($response !== '') {
             $snippet = function_exists('mb_substr') ? mb_substr($response, 0, 120) : substr($response, 0, 120);
@@ -529,7 +529,7 @@ function login($code_panel, $verify = true, $quick = false, $forceProbe = false)
  * 3x-ui v3+: client-first API (/panel/api/clients/*). Legacy inbounds/* kept as fallback.
  * چند اینباند: panel.inbounds و product.inbounds به صورت JSON آرایهٔ عددی [1,2,3] (مثل چند سرویس در مرزبان).
  */
-function mirza_xui_parse_id_list($raw)
+function vira_xui_parse_id_list($raw)
 {
     if ($raw === null || $raw === '' || $raw === 'null') {
         return array();
@@ -564,12 +564,12 @@ function mirza_xui_parse_id_list($raw)
     if ($trim[0] === '[') {
         $decoded = json_decode($trim, true);
         if (is_array($decoded)) {
-            return mirza_xui_parse_id_list($decoded);
+            return vira_xui_parse_id_list($decoded);
         }
     }
     if (strpos($trim, ',') !== false) {
         $parts = preg_split('/\s*,\s*/', $trim);
-        return mirza_xui_parse_id_list($parts);
+        return vira_xui_parse_id_list($parts);
     }
     if (is_numeric($trim)) {
         return array((int) $trim);
@@ -577,9 +577,9 @@ function mirza_xui_parse_id_list($raw)
     return array();
 }
 
-function mirza_xui_inbound_ids($inboundid, array $panel)
+function vira_xui_inbound_ids($inboundid, array $panel)
 {
-    $ids = mirza_xui_parse_id_list($inboundid);
+    $ids = vira_xui_parse_id_list($inboundid);
     if ($ids !== []) {
         return $ids;
     }
@@ -590,10 +590,10 @@ function mirza_xui_inbound_ids($inboundid, array $panel)
 }
 
 /** انتخاب اینباندها: محصول → پنل → inboundid تکی (همان منطق marzban). */
-function mirza_xui_resolve_inbounds(array $panel, $product = null, $override = null)
+function vira_xui_resolve_inbounds(array $panel, $product = null, $override = null)
 {
     if ($override !== null) {
-        $ids = mirza_xui_inbound_ids($override, $panel);
+        $ids = vira_xui_inbound_ids($override, $panel);
         if ($ids !== []) {
             return $ids;
         }
@@ -601,7 +601,7 @@ function mirza_xui_resolve_inbounds(array $panel, $product = null, $override = n
     if (is_array($product) && $product !== []) {
         $nameProduct = $product['name_product'] ?? '';
         if ($nameProduct === 'usertest') {
-            $ids = mirza_xui_parse_id_list($panel['inboundid'] ?? '');
+            $ids = vira_xui_parse_id_list($panel['inboundid'] ?? '');
             if ($ids !== []) {
                 return $ids;
             }
@@ -612,22 +612,22 @@ function mirza_xui_resolve_inbounds(array $panel, $product = null, $override = n
             && !empty($product['inbounds'])
             && $product['inbounds'] !== 'null'
         ) {
-            $ids = mirza_xui_parse_id_list($product['inbounds']);
+            $ids = vira_xui_parse_id_list($product['inbounds']);
             if ($ids !== []) {
                 return $ids;
             }
         }
     }
     if (!empty($panel['inbounds']) && $panel['inbounds'] !== 'null') {
-        $ids = mirza_xui_parse_id_list($panel['inbounds']);
+        $ids = vira_xui_parse_id_list($panel['inbounds']);
         if ($ids !== []) {
             return $ids;
         }
     }
-    return mirza_xui_inbound_ids($panel['inboundid'] ?? null, $panel);
+    return vira_xui_inbound_ids($panel['inboundid'] ?? null, $panel);
 }
 
-function mirza_xui_save_panel_inbounds($namePanel, array $ids)
+function vira_xui_save_panel_inbounds($namePanel, array $ids)
 {
     $ids = array_values(array_unique(array_map('intval', $ids)));
     $first = $ids !== [] ? (string) $ids[0] : '1';
@@ -636,14 +636,14 @@ function mirza_xui_save_panel_inbounds($namePanel, array $ids)
 }
 
 /** IDهای اینباندی که واقعاً روی پنل وجود دارند (clients API). */
-function mirza_xui_fetch_inbound_id_set(array $panel, $cookiePath)
+function vira_xui_fetch_inbound_id_set(array $panel, $cookiePath)
 {
-    $res = mirza_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/inbounds/options', null, 2);
+    $res = vira_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/inbounds/options', null, 2);
     if ((int) ($res['status'] ?? 0) !== 200) {
         return null;
     }
     $dec = json_decode($res['body'] ?? '', true);
-    if (!is_array($dec) || !mirza_xui_json_is_success($dec) || !isset($dec['obj']) || !is_array($dec['obj'])) {
+    if (!is_array($dec) || !vira_xui_json_is_success($dec) || !isset($dec['obj']) || !is_array($dec['obj'])) {
         return null;
     }
     $ids = array();
@@ -656,7 +656,7 @@ function mirza_xui_fetch_inbound_id_set(array $panel, $cookiePath)
 }
 
 /** فیلتر inboundIds نامعتبر قبل از clients/add — جلوگیری از record not found. */
-function mirza_xui_validate_inbound_ids(array $panel, $cookiePath, array $requestedIds)
+function vira_xui_validate_inbound_ids(array $panel, $cookiePath, array $requestedIds)
 {
     $requestedIds = array_values(array_unique(array_filter(array_map('intval', $requestedIds))));
     if ($requestedIds === []) {
@@ -665,7 +665,7 @@ function mirza_xui_validate_inbound_ids(array $panel, $cookiePath, array $reques
             'error' => 'inbound id is required — از ادمین اینباند پنل را تنظیم کنید',
         );
     }
-    $validSet = mirza_xui_fetch_inbound_id_set($panel, $cookiePath);
+    $validSet = vira_xui_fetch_inbound_id_set($panel, $cookiePath);
     if ($validSet === null) {
         return array('ids' => $requestedIds, 'error' => null);
     }
@@ -674,7 +674,7 @@ function mirza_xui_validate_inbound_ids(array $panel, $cookiePath, array $reques
     }));
     $invalid = array_values(array_diff($requestedIds, $valid));
     if ($invalid !== []) {
-        mirza_xui_panel_log(
+        vira_xui_panel_log(
             'stale inbound ids=' . implode(',', $invalid)
             . ' requested=' . implode(',', $requestedIds)
             . ' panel=' . ($panel['name_panel'] ?? '')
@@ -692,14 +692,14 @@ function mirza_xui_validate_inbound_ids(array $panel, $cookiePath, array $reques
     return array('ids' => $valid, 'error' => null);
 }
 
-function mirza_xui_heal_product_inbounds(array $productRow, array $validIds)
+function vira_xui_heal_product_inbounds(array $productRow, array $validIds)
 {
     if (empty($productRow['id'])) {
         return;
     }
     $val = json_encode(array_values(array_map('intval', $validIds)));
     update('product', 'inbounds', $val, 'id', $productRow['id']);
-    mirza_xui_panel_log(
+    vira_xui_panel_log(
         'healed product inbounds id=' . $productRow['id']
         . ' name=' . ($productRow['name_product'] ?? '')
         . ' -> ' . $val
@@ -707,10 +707,10 @@ function mirza_xui_heal_product_inbounds(array $productRow, array $validIds)
 }
 
 /** اینباند معتبر برای ساخت کاربر — در صورت inbounds قدیمی محصول، به پنل fallback می‌کند. */
-function mirza_xui_resolve_inbounds_for_client(array $panel, $cookiePath, $productRow = null, $override = null)
+function vira_xui_resolve_inbounds_for_client(array $panel, $cookiePath, $productRow = null, $override = null)
 {
-    $primary = mirza_xui_resolve_inbounds($panel, $productRow, $override);
-    $check = mirza_xui_validate_inbound_ids($panel, $cookiePath, $primary);
+    $primary = vira_xui_resolve_inbounds($panel, $productRow, $override);
+    $check = vira_xui_validate_inbound_ids($panel, $cookiePath, $primary);
     if (empty($check['error'])) {
         return $check;
     }
@@ -720,39 +720,39 @@ function mirza_xui_resolve_inbounds_for_client(array $panel, $cookiePath, $produ
     if (!$hadProductInbounds) {
         return $check;
     }
-    $fallback = mirza_xui_resolve_inbounds($panel, null, $override);
+    $fallback = vira_xui_resolve_inbounds($panel, null, $override);
     if ($fallback === $primary) {
         return $check;
     }
-    $check2 = mirza_xui_validate_inbound_ids($panel, $cookiePath, $fallback);
+    $check2 = vira_xui_validate_inbound_ids($panel, $cookiePath, $fallback);
     if (!empty($check2['error']) || $check2['ids'] === []) {
         return $check;
     }
-    mirza_xui_panel_log(
+    vira_xui_panel_log(
         'product stale inbounds fallback product=' . ($productRow['name_product'] ?? '')
         . ' old=' . implode(',', $primary)
         . ' new=' . implode(',', $check2['ids'])
     );
-    mirza_xui_heal_product_inbounds($productRow, $check2['ids']);
+    vira_xui_heal_product_inbounds($productRow, $check2['ids']);
     return $check2;
 }
 
 /** همه محصولات یک پنل — inbounds منقضی را با اینباندهای فعلی پنل هم‌تراز می‌کند. */
-function mirza_xui_heal_stale_product_inbounds_for_panel($namePanel)
+function vira_xui_heal_stale_product_inbounds_for_panel($namePanel)
 {
     global $pdo;
     $panel = select('marzban_panel', '*', 'name_panel', $namePanel, 'select');
     if (!$panel) {
         return 0;
     }
-    $cookiePath = mirza_xui_cookie_jar_path($panel['code_panel']);
+    $cookiePath = vira_xui_cookie_jar_path($panel['code_panel']);
     login($panel['code_panel']);
-    $validSet = mirza_xui_fetch_inbound_id_set($panel, $cookiePath);
+    $validSet = vira_xui_fetch_inbound_id_set($panel, $cookiePath);
     @unlink($cookiePath);
     if ($validSet === null || $validSet === []) {
         return 0;
     }
-    $panelDefault = mirza_xui_resolve_inbounds($panel, null);
+    $panelDefault = vira_xui_resolve_inbounds($panel, null);
     if ($panelDefault === []) {
         $panelDefault = array_map('intval', array_keys($validSet));
     }
@@ -762,7 +762,7 @@ function mirza_xui_heal_stale_product_inbounds_for_panel($namePanel)
     );
     $stmt->execute(array(':loc' => $namePanel));
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $ids = mirza_xui_parse_id_list($row['inbounds']);
+        $ids = vira_xui_parse_id_list($row['inbounds']);
         $valid = array_values(array_filter($ids, static function ($id) use ($validSet) {
             return isset($validSet[$id]);
         }));
@@ -770,22 +770,22 @@ function mirza_xui_heal_stale_product_inbounds_for_panel($namePanel)
             continue;
         }
         $newIds = $valid !== [] ? $valid : $panelDefault;
-        mirza_xui_heal_product_inbounds($row, $newIds);
+        vira_xui_heal_product_inbounds($row, $newIds);
         $fixed++;
     }
     return $fixed;
 }
 
-function mirza_xui_api_call_once(array $panel, $cookiePath, $method, $apiPath, $body = null)
+function vira_xui_api_call_once(array $panel, $cookiePath, $method, $apiPath, $body = null)
 {
-    $b = mirza_xui_public_base($panel['url_panel']);
+    $b = vira_xui_public_base($panel['url_panel']);
     $url = $b . $apiPath;
-    $req = mirza_xui_new_request($url);
+    $req = vira_xui_new_request($url);
     $req->setHeaders(array_merge(
-        mirza_xui_spa_headers($panel['url_panel']),
+        vira_xui_spa_headers($panel['url_panel']),
         array('Content-Type: application/json', 'Accept: application/json')
     ));
-    mirza_xui_auth_request($req, $panel, $cookiePath);
+    vira_xui_auth_request($req, $panel, $cookiePath);
     $m = strtoupper($method);
     if ($m === 'GET') {
         return $req->get();
@@ -796,52 +796,52 @@ function mirza_xui_api_call_once(array $panel, $cookiePath, $method, $apiPath, $
     return $req->post($body);
 }
 
-function mirza_xui_api_call(array $panel, $cookiePath, $method, $apiPath, $body = null, $maxRetries = null)
+function vira_xui_api_call(array $panel, $cookiePath, $method, $apiPath, $body = null, $maxRetries = null)
 {
-    if (mirza_xui_panel_budget_exceeded()) {
+    if (vira_xui_panel_budget_exceeded()) {
         return array(
             'status' => 504,
             'body' => null,
-            'error' => 'panel time budget exceeded (' . MIRZA_XUI_PANEL_BUDGET_SEC . 's)',
+            'error' => 'panel time budget exceeded (' . VIRA_XUI_PANEL_BUDGET_SEC . 's)',
         );
     }
     $isWrite = in_array(strtoupper($method), array('POST', 'PUT', 'PATCH', 'DELETE'), true);
-    $max = $maxRetries ?? ($isWrite ? MIRZA_XUI_API_RETRY_WRITE_MAX : MIRZA_XUI_API_RETRY_MAX);
+    $max = $maxRetries ?? ($isWrite ? VIRA_XUI_API_RETRY_WRITE_MAX : VIRA_XUI_API_RETRY_MAX);
     $max = max(1, (int) $max);
     $last = array('status' => 0, 'body' => null, 'error' => 'no attempt');
     for ($attempt = 1; $attempt <= $max; $attempt++) {
-        if (mirza_xui_panel_budget_exceeded()) {
+        if (vira_xui_panel_budget_exceeded()) {
             return array(
                 'status' => 504,
                 'body' => null,
                 'error' => 'panel time budget exceeded',
             );
         }
-        $last = mirza_xui_api_call_once($panel, $cookiePath, $method, $apiPath, $body);
+        $last = vira_xui_api_call_once($panel, $cookiePath, $method, $apiPath, $body);
         $status = (int) ($last['status'] ?? 0);
         if (empty($last['error']) && $status >= 200 && $status < 300) {
             return $last;
         }
-        if (!mirza_xui_http_should_retry($last) || $attempt >= $max) {
+        if (!vira_xui_http_should_retry($last) || $attempt >= $max) {
             return $last;
         }
-        usleep(MIRZA_XUI_API_RETRY_DELAY_MS * 1000 * $attempt);
+        usleep(VIRA_XUI_API_RETRY_DELAY_MS * 1000 * $attempt);
     }
     return $last;
 }
 
-function mirza_xui_panel_api_mode_cache_path($code_panel)
+function vira_xui_panel_api_mode_cache_path($code_panel)
 {
     return __DIR__ . DIRECTORY_SEPARATOR . '.xui_api_mode_' . md5((string) $code_panel) . '.json';
 }
 
-function mirza_xui_panel_uses_clients_api(array $panel, $cookiePath)
+function vira_xui_panel_uses_clients_api(array $panel, $cookiePath)
 {
-    $key = 'mirza_xui_clients_api_' . ($panel['code_panel'] ?? '');
+    $key = 'vira_xui_clients_api_' . ($panel['code_panel'] ?? '');
     if (isset($GLOBALS[$key])) {
         return (bool) $GLOBALS[$key];
     }
-    $cacheFile = mirza_xui_panel_api_mode_cache_path($panel['code_panel'] ?? '');
+    $cacheFile = vira_xui_panel_api_mode_cache_path($panel['code_panel'] ?? '');
     if (is_file($cacheFile)) {
         $cached = json_decode((string) file_get_contents($cacheFile), true);
         if (is_array($cached) && isset($cached['uses_clients_api']) && (int) ($cached['ts'] ?? 0) > time() - 604800) {
@@ -849,7 +849,7 @@ function mirza_xui_panel_uses_clients_api(array $panel, $cookiePath)
             return $GLOBALS[$key];
         }
     }
-    $probe = mirza_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/clients/list', null, 2);
+    $probe = vira_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/clients/list', null, 2);
     $ok = false;
     if (empty($probe['error']) && (int) ($probe['status'] ?? 0) === 200) {
         $dec = json_decode($probe['body'] ?? '', true);
@@ -861,33 +861,33 @@ function mirza_xui_panel_uses_clients_api(array $panel, $cookiePath)
 }
 
 /** بررسی سریع وجود کاربر روی پنل (بدون کشیدن لینک ساب). */
-function mirza_xui_user_exists_quick(array $panel, $email)
+function vira_xui_user_exists_quick(array $panel, $email)
 {
     $email = trim((string) $email);
     if ($email === '') {
         return false;
     }
-    $cookiePath = mirza_xui_cookie_jar_path($panel['code_panel']);
+    $cookiePath = vira_xui_cookie_jar_path($panel['code_panel']);
     $auth = login($panel['code_panel'], false, true);
     if (empty($auth['success'])) {
         return false;
     }
-    if (mirza_xui_panel_uses_clients_api($panel, $cookiePath)) {
-        $res = mirza_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/clients/get/' . rawurlencode($email), null, 2);
+    if (vira_xui_panel_uses_clients_api($panel, $cookiePath)) {
+        $res = vira_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/clients/get/' . rawurlencode($email), null, 2);
         if (!empty($res['error']) || (int) ($res['status'] ?? 0) !== 200) {
             return false;
         }
         $dec = json_decode($res['body'] ?? '', true);
         return is_array($dec) && !empty($dec['success']) && !empty($dec['obj']);
     }
-    $b = mirza_xui_public_base($panel['url_panel']);
+    $b = vira_xui_public_base($panel['url_panel']);
     $url = $b . '/panel/api/inbounds/getClientTraffics/' . rawurlencode($email);
-    $req = mirza_xui_new_request($url, true);
+    $req = vira_xui_new_request($url, true);
     $req->setHeaders(array_merge(
-        mirza_xui_spa_headers($panel['url_panel']),
+        vira_xui_spa_headers($panel['url_panel']),
         array('Content-Type: application/json')
     ));
-    mirza_xui_auth_request($req, $panel, $cookiePath);
+    vira_xui_auth_request($req, $panel, $cookiePath);
     $res = $req->get();
     if (!empty($res['error']) || (int) ($res['status'] ?? 0) !== 200) {
         return false;
@@ -897,7 +897,7 @@ function mirza_xui_user_exists_quick(array $panel, $email)
 }
 
 /** Map clients/get + traffic to legacy getClientTraffics obj shape (panels.php expects this). */
-function mirza_xui_normalize_client_obj(array $payload, array $panel, $traffic = null)
+function vira_xui_normalize_client_obj(array $payload, array $panel, $traffic = null)
 {
     $client = isset($payload['client']) && is_array($payload['client']) ? $payload['client'] : $payload;
     $inboundIds = isset($payload['inboundIds']) && is_array($payload['inboundIds']) ? $payload['inboundIds'] : array();
@@ -941,7 +941,7 @@ function mirza_xui_normalize_client_obj(array $payload, array $panel, $traffic =
 }
 
 /** نرمال‌سازی پاسخ /panel/api/inbounds/options (آرایه یا آبجکت کلیددار). */
-function mirza_xui_normalize_inbound_options_obj($obj)
+function vira_xui_normalize_inbound_options_obj($obj)
 {
     if (!is_array($obj)) {
         return array();
@@ -963,62 +963,62 @@ function mirza_xui_normalize_inbound_options_obj($obj)
 }
 
 /** لیست اینباندها برای منوی ادمین — GET /panel/api/inbounds/options */
-function mirza_xui_list_inbound_options($namepanel)
+function vira_xui_list_inbound_options($namepanel)
 {
-    $GLOBALS['mirza_xui_last_inbound_error'] = '';
+    $GLOBALS['vira_xui_last_inbound_error'] = '';
     $panel = select('marzban_panel', '*', 'name_panel', $namepanel, 'select');
     if (!$panel) {
-        $GLOBALS['mirza_xui_last_inbound_error'] = 'panel not found';
+        $GLOBALS['vira_xui_last_inbound_error'] = 'panel not found';
         return array();
     }
-    $cookiePath = mirza_xui_cookie_jar_path($panel['code_panel']);
+    $cookiePath = vira_xui_cookie_jar_path($panel['code_panel']);
     $loginResult = login($panel['code_panel'], false, true);
     if (empty($loginResult['success'])) {
         $msg = is_array($loginResult) ? (string) ($loginResult['msg'] ?? '') : '';
-        $GLOBALS['mirza_xui_last_inbound_error'] = $msg !== '' ? strip_tags($msg) : 'ورود به پنل ناموفق — توکن API یا نام‌کاربری/رمز را بررسی کنید.';
+        $GLOBALS['vira_xui_last_inbound_error'] = $msg !== '' ? strip_tags($msg) : 'ورود به پنل ناموفق — توکن API یا نام‌کاربری/رمز را بررسی کنید.';
         @unlink($cookiePath);
-        $GLOBALS['mirza_xui_csrf'] = null;
+        $GLOBALS['vira_xui_csrf'] = null;
         return array();
     }
-    $res = mirza_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/inbounds/options', null, 2);
+    $res = vira_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/inbounds/options', null, 2);
     @unlink($cookiePath);
-    $GLOBALS['mirza_xui_csrf'] = null;
+    $GLOBALS['vira_xui_csrf'] = null;
     if ((int) ($res['status'] ?? 0) !== 200) {
-        $GLOBALS['mirza_xui_last_inbound_error'] = function_exists('mirza_xui_format_panel_error')
-            ? strip_tags(mirza_xui_format_panel_error($res))
+        $GLOBALS['vira_xui_last_inbound_error'] = function_exists('vira_xui_format_panel_error')
+            ? strip_tags(vira_xui_format_panel_error($res))
             : 'HTTP ' . (int) ($res['status'] ?? 0);
         return array();
     }
     $dec = json_decode($res['body'] ?? '', true);
-    if (!is_array($dec) || !mirza_xui_json_is_success($dec) || !isset($dec['obj'])) {
-        $GLOBALS['mirza_xui_last_inbound_error'] = is_array($dec) && !empty($dec['msg'])
+    if (!is_array($dec) || !vira_xui_json_is_success($dec) || !isset($dec['obj'])) {
+        $GLOBALS['vira_xui_last_inbound_error'] = is_array($dec) && !empty($dec['msg'])
             ? (string) $dec['msg']
             : 'پاسخ نامعتبر از پنل برای لیست اینباندها';
         return array();
     }
-    $list = mirza_xui_normalize_inbound_options_obj($dec['obj']);
+    $list = vira_xui_normalize_inbound_options_obj($dec['obj']);
     if ($list === []) {
-        $GLOBALS['mirza_xui_last_inbound_error'] = 'پنل اینباندی برنگرداند';
+        $GLOBALS['vira_xui_last_inbound_error'] = 'پنل اینباندی برنگرداند';
     }
     return $list;
 }
 
-function mirza_xui_last_inbound_fetch_error()
+function vira_xui_last_inbound_fetch_error()
 {
-    return (string) ($GLOBALS['mirza_xui_last_inbound_error'] ?? '');
+    return (string) ($GLOBALS['vira_xui_last_inbound_error'] ?? '');
 }
 
 /** هم‌تراز با مرزبان: attach/detach تا مجموعهٔ inboundIds کاربر دقیقاً target شود. */
-function mirza_xui_sync_client_inbounds(array $panel, $cookiePath, $email, array $targetIds, $syncExact = true)
+function vira_xui_sync_client_inbounds(array $panel, $cookiePath, $email, array $targetIds, $syncExact = true)
 {
-    if (!mirza_xui_panel_uses_clients_api($panel, $cookiePath)) {
+    if (!vira_xui_panel_uses_clients_api($panel, $cookiePath)) {
         return array('success' => true);
     }
     $targetIds = array_values(array_unique(array_filter(array_map('intval', $targetIds))));
     if ($targetIds === []) {
         return array('success' => true);
     }
-    $getRes = mirza_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/clients/get/' . rawurlencode($email));
+    $getRes = vira_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/clients/get/' . rawurlencode($email));
     $dec = json_decode($getRes['body'] ?? '', true);
     if (!is_array($dec) || empty($dec['success']) || empty($dec['obj'])) {
         return array('success' => false, 'msg' => $dec['msg'] ?? 'client not found');
@@ -1030,7 +1030,7 @@ function mirza_xui_sync_client_inbounds(array $panel, $cookiePath, $email, array
     $toAttach = array_values(array_diff($targetIds, $current));
     $toDetach = $syncExact ? array_values(array_diff($current, $targetIds)) : array();
     if ($toAttach !== []) {
-        $attachRes = mirza_xui_api_call(
+        $attachRes = vira_xui_api_call(
             $panel,
             $cookiePath,
             'POST',
@@ -1043,7 +1043,7 @@ function mirza_xui_sync_client_inbounds(array $panel, $cookiePath, $email, array
         }
     }
     if ($toDetach !== []) {
-        $detachRes = mirza_xui_api_call(
+        $detachRes = vira_xui_api_call(
             $panel,
             $cookiePath,
             'POST',
@@ -1058,7 +1058,7 @@ function mirza_xui_sync_client_inbounds(array $panel, $cookiePath, $email, array
     return array('success' => true);
 }
 
-function mirza_xui_finish_request(array $panel, $cookiePath, $response)
+function vira_xui_finish_request(array $panel, $cookiePath, $response)
 {
     if (isset($response['body'])) {
         $decodedBody = json_decode($response['body'], true);
@@ -1077,11 +1077,11 @@ function mirza_xui_finish_request(array $panel, $cookiePath, $response)
     if (is_file($cookiePath)) {
         @unlink($cookiePath);
     }
-    $GLOBALS['mirza_xui_csrf'] = null;
+    $GLOBALS['vira_xui_csrf'] = null;
     return $response;
 }
 
-function mirza_xui_expiry_ms($name_product, array $panel, $Expire)
+function vira_xui_expiry_ms($name_product, array $panel, $Expire)
 {
     if ($name_product == 'usertest') {
         if ($panel['on_hold_test'] == '1') {
@@ -1106,17 +1106,17 @@ function mirza_xui_expiry_ms($name_product, array $panel, $Expire)
 function get_clinets($username, $namepanel)
 {
     $marzban_list_get = select('marzban_panel', '*', 'name_panel', $namepanel, 'select');
-    $cookiePath = mirza_xui_cookie_jar_path($marzban_list_get['code_panel']);
+    $cookiePath = vira_xui_cookie_jar_path($marzban_list_get['code_panel']);
     login($marzban_list_get['code_panel']);
 
-    if (mirza_xui_panel_uses_clients_api($marzban_list_get, $cookiePath)) {
+    if (vira_xui_panel_uses_clients_api($marzban_list_get, $cookiePath)) {
         $emailPath = '/panel/api/clients/get/' . rawurlencode($username);
-        $getRes = mirza_xui_api_call($marzban_list_get, $cookiePath, 'GET', $emailPath);
+        $getRes = vira_xui_api_call($marzban_list_get, $cookiePath, 'GET', $emailPath);
         $status = (int) ($getRes['status'] ?? 0);
         $dec = json_decode($getRes['body'] ?? '', true);
         if ($status === 200 && is_array($dec) && !empty($dec['success']) && !empty($dec['obj'])) {
             $traffic = null;
-            $trafRes = mirza_xui_api_call(
+            $trafRes = vira_xui_api_call(
                 $marzban_list_get,
                 $cookiePath,
                 'GET',
@@ -1128,30 +1128,30 @@ function get_clinets($username, $namepanel)
                     $traffic = $trafDec['obj'];
                 }
             }
-            $legacyObj = mirza_xui_normalize_client_obj($dec['obj'], $marzban_list_get, $traffic);
+            $legacyObj = vira_xui_normalize_client_obj($dec['obj'], $marzban_list_get, $traffic);
             $getRes['body'] = json_encode(array('success' => true, 'obj' => $legacyObj));
-            return mirza_xui_finish_request($marzban_list_get, $cookiePath, $getRes);
+            return vira_xui_finish_request($marzban_list_get, $cookiePath, $getRes);
         }
         if (is_array($dec) && isset($dec['success']) && $dec['success'] === false) {
             $getRes['error'] = $dec['msg'] ?? 'Unknown panel error';
-            return mirza_xui_finish_request($marzban_list_get, $cookiePath, $getRes);
+            return vira_xui_finish_request($marzban_list_get, $cookiePath, $getRes);
         }
     }
 
-    $b = mirza_xui_public_base($marzban_list_get['url_panel']);
+    $b = vira_xui_public_base($marzban_list_get['url_panel']);
     $url = $b . '/panel/api/inbounds/getClientTraffics/' . rawurlencode($username);
-    $req = mirza_xui_new_request($url);
+    $req = vira_xui_new_request($url);
     $req->setHeaders(array_merge(
-        mirza_xui_spa_headers($marzban_list_get['url_panel']),
+        vira_xui_spa_headers($marzban_list_get['url_panel']),
         array('Content-Type: application/json')
     ));
-    mirza_xui_auth_request($req, $marzban_list_get, $cookiePath);
-    return mirza_xui_finish_request($marzban_list_get, $cookiePath, $req->get());
+    vira_xui_auth_request($req, $marzban_list_get, $cookiePath);
+    return vira_xui_finish_request($marzban_list_get, $cookiePath, $req->get());
 }
 function addClient($namepanel, $usernameac, $Expire, $Total, $Uuid, $Flow, $subid, $inboundid, $name_product, $note = '')
 {
-    mirza_xui_panel_budget_start(MIRZA_XUI_PANEL_BUDGET_SEC);
-    mirza_xui_panel_log('addClient start panel=' . $namepanel . ' user=' . $usernameac);
+    vira_xui_panel_budget_start(VIRA_XUI_PANEL_BUDGET_SEC);
+    vira_xui_panel_log('addClient start panel=' . $namepanel . ' user=' . $usernameac);
     if (!isset($usernameac)) {
         return array(
             'status' => 500,
@@ -1159,28 +1159,28 @@ function addClient($namepanel, $usernameac, $Expire, $Total, $Uuid, $Flow, $subi
         );
     }
     $marzban_list_get = select('marzban_panel', '*', 'name_panel', $namepanel, 'select');
-    $cookiePath = mirza_xui_cookie_jar_path($marzban_list_get['code_panel']);
+    $cookiePath = vira_xui_cookie_jar_path($marzban_list_get['code_panel']);
     $loginRes = login($marzban_list_get['code_panel'], false, true);
     if (empty($loginRes['success'])) {
-        mirza_xui_panel_log('addClient login failed: ' . ($loginRes['msg'] ?? ''));
+        vira_xui_panel_log('addClient login failed: ' . ($loginRes['msg'] ?? ''));
         return array(
             'status' => 503,
             'body' => null,
             'error' => $loginRes['msg'] ?? 'panel login failed',
-            'msg' => function_exists('mirza_xui_format_panel_error')
-                ? mirza_xui_format_panel_error(array('error' => $loginRes['msg'] ?? 'panel login failed'))
+            'msg' => function_exists('vira_xui_format_panel_error')
+                ? vira_xui_format_panel_error(array('error' => $loginRes['msg'] ?? 'panel login failed'))
                 : ($loginRes['msg'] ?? 'panel login failed'),
         );
     }
-    $timeservice = mirza_xui_expiry_ms($name_product, $marzban_list_get, $Expire);
+    $timeservice = vira_xui_expiry_ms($name_product, $marzban_list_get, $Expire);
 
-    if (mirza_xui_panel_uses_clients_api($marzban_list_get, $cookiePath)) {
+    if (vira_xui_panel_uses_clients_api($marzban_list_get, $cookiePath)) {
         $productRow = ($name_product !== false && $name_product !== '')
             ? select('product', '*', 'name_product', $name_product, 'select')
             : null;
-        $inboundCheck = mirza_xui_resolve_inbounds_for_client($marzban_list_get, $cookiePath, $productRow, $inboundid);
+        $inboundCheck = vira_xui_resolve_inbounds_for_client($marzban_list_get, $cookiePath, $productRow, $inboundid);
         if (!empty($inboundCheck['error'])) {
-            mirza_xui_panel_log('addClient inbound validation: ' . $inboundCheck['error']);
+            vira_xui_panel_log('addClient inbound validation: ' . $inboundCheck['error']);
             return array(
                 'status' => 500,
                 'body' => null,
@@ -1189,7 +1189,7 @@ function addClient($namepanel, $usernameac, $Expire, $Total, $Uuid, $Flow, $subi
         }
         $inboundIds = $inboundCheck['ids'];
         if ($inboundIds === []) {
-            mirza_xui_panel_log('addClient no inbounds panel=' . $namepanel);
+            vira_xui_panel_log('addClient no inbounds panel=' . $namepanel);
             return array(
                 'status' => 500,
                 'body' => null,
@@ -1212,12 +1212,12 @@ function addClient($namepanel, $usernameac, $Expire, $Total, $Uuid, $Flow, $subi
             ),
             'inboundIds' => $inboundIds,
         ));
-        $response = mirza_xui_api_call($marzban_list_get, $cookiePath, 'POST', '/panel/api/clients/add', $payload, MIRZA_XUI_API_RETRY_WRITE_MAX);
+        $response = vira_xui_api_call($marzban_list_get, $cookiePath, 'POST', '/panel/api/clients/add', $payload, VIRA_XUI_API_RETRY_WRITE_MAX);
         $bodySnippet = function_exists('mb_substr')
             ? mb_substr((string) ($response['body'] ?? ''), 0, 240)
             : substr((string) ($response['body'] ?? ''), 0, 240);
-        mirza_xui_panel_log('addClient clients/add status=' . ($response['status'] ?? 'null') . ' err=' . ($response['error'] ?? '') . ' body=' . $bodySnippet);
-        return mirza_xui_finish_request($marzban_list_get, $cookiePath, $response);
+        vira_xui_panel_log('addClient clients/add status=' . ($response['status'] ?? 'null') . ' err=' . ($response['error'] ?? '') . ' body=' . $bodySnippet);
+        return vira_xui_finish_request($marzban_list_get, $cookiePath, $response);
     }
 
     $config = array(
@@ -1241,14 +1241,14 @@ function addClient($namepanel, $usernameac, $Expire, $Total, $Uuid, $Flow, $subi
             'fallbacks' => array(),
         )),
     );
-    $response = mirza_xui_api_call($marzban_list_get, $cookiePath, 'POST', '/panel/api/inbounds/addClient', json_encode($config), MIRZA_XUI_API_RETRY_WRITE_MAX);
-    return mirza_xui_finish_request($marzban_list_get, $cookiePath, $response);
+    $response = vira_xui_api_call($marzban_list_get, $cookiePath, 'POST', '/panel/api/inbounds/addClient', json_encode($config), VIRA_XUI_API_RETRY_WRITE_MAX);
+    return vira_xui_finish_request($marzban_list_get, $cookiePath, $response);
 }
 
 function updateClient($namepanel, $uuid, array $config)
 {
     $marzban_list_get = select('marzban_panel', '*', 'name_panel', $namepanel, 'select');
-    $cookiePath = mirza_xui_cookie_jar_path($marzban_list_get['code_panel']);
+    $cookiePath = vira_xui_cookie_jar_path($marzban_list_get['code_panel']);
     login($marzban_list_get['code_panel']);
 
     $settingsRaw = $config['settings'] ?? '{}';
@@ -1259,7 +1259,7 @@ function updateClient($namepanel, $uuid, array $config)
     }
     $email = $clientRow['email'] ?? '';
 
-    if ($email !== '' && mirza_xui_panel_uses_clients_api($marzban_list_get, $cookiePath)) {
+    if ($email !== '' && vira_xui_panel_uses_clients_api($marzban_list_get, $cookiePath)) {
         $payload = array(
             'email' => $email,
             'id' => $clientRow['id'] ?? $uuid,
@@ -1276,17 +1276,17 @@ function updateClient($namepanel, $uuid, array $config)
             $payload['comment'] = $clientRow['comment'];
         }
         $path = '/panel/api/clients/update/' . rawurlencode($email);
-        $response = mirza_xui_api_call($marzban_list_get, $cookiePath, 'POST', $path, json_encode($payload));
+        $response = vira_xui_api_call($marzban_list_get, $cookiePath, 'POST', $path, json_encode($payload));
         if (
             empty($response['error'])
             && (int) ($response['status'] ?? 0) === 200
             && !empty($config['inboundIds'])
         ) {
-            $sync = mirza_xui_sync_client_inbounds(
+            $sync = vira_xui_sync_client_inbounds(
                 $marzban_list_get,
                 $cookiePath,
                 $email,
-                mirza_xui_parse_id_list($config['inboundIds']),
+                vira_xui_parse_id_list($config['inboundIds']),
                 true
             );
             if (empty($sync['success'])) {
@@ -1294,27 +1294,27 @@ function updateClient($namepanel, $uuid, array $config)
             }
         }
         @unlink($cookiePath);
-        $GLOBALS['mirza_xui_csrf'] = null;
+        $GLOBALS['vira_xui_csrf'] = null;
         return $response;
     }
 
-    $response = mirza_xui_api_call($marzban_list_get, $cookiePath, 'POST', '/panel/api/inbounds/updateClient/' . rawurlencode((string) $uuid), json_encode($config));
+    $response = vira_xui_api_call($marzban_list_get, $cookiePath, 'POST', '/panel/api/inbounds/updateClient/' . rawurlencode((string) $uuid), json_encode($config));
     @unlink($cookiePath);
-    $GLOBALS['mirza_xui_csrf'] = null;
+    $GLOBALS['vira_xui_csrf'] = null;
     return $response;
 }
 
 function ResetUserDataUsagex_uisin($usernamepanel, $namepanel)
 {
     $marzban_list_get = select('marzban_panel', '*', 'name_panel', $namepanel, 'select');
-    $cookiePath = mirza_xui_cookie_jar_path($marzban_list_get['code_panel']);
+    $cookiePath = vira_xui_cookie_jar_path($marzban_list_get['code_panel']);
     login($marzban_list_get['code_panel']);
 
-    if (mirza_xui_panel_uses_clients_api($marzban_list_get, $cookiePath)) {
+    if (vira_xui_panel_uses_clients_api($marzban_list_get, $cookiePath)) {
         $path = '/panel/api/clients/resetTraffic/' . rawurlencode($usernamepanel);
-        $response = mirza_xui_api_call($marzban_list_get, $cookiePath, 'POST', $path, '{}');
+        $response = vira_xui_api_call($marzban_list_get, $cookiePath, 'POST', $path, '{}');
         @unlink($cookiePath);
-        $GLOBALS['mirza_xui_csrf'] = null;
+        $GLOBALS['vira_xui_csrf'] = null;
         return $response;
     }
 
@@ -1328,55 +1328,55 @@ function ResetUserDataUsagex_uisin($usernamepanel, $namepanel)
         );
     }
     $path = '/panel/api/inbounds/' . (int) $obj['inboundId'] . '/resetClientTraffic/' . rawurlencode($usernamepanel);
-    $response = mirza_xui_api_call($marzban_list_get, $cookiePath, 'POST', $path, '{}');
+    $response = vira_xui_api_call($marzban_list_get, $cookiePath, 'POST', $path, '{}');
     @unlink($cookiePath);
-    $GLOBALS['mirza_xui_csrf'] = null;
+    $GLOBALS['vira_xui_csrf'] = null;
     return $response;
 }
 
 function removeClient($location, $username)
 {
     $marzban_list_get = select('marzban_panel', '*', 'name_panel', $location, 'select');
-    $cookiePath = mirza_xui_cookie_jar_path($marzban_list_get['code_panel']);
+    $cookiePath = vira_xui_cookie_jar_path($marzban_list_get['code_panel']);
     login($marzban_list_get['code_panel']);
 
-    if (mirza_xui_panel_uses_clients_api($marzban_list_get, $cookiePath)) {
+    if (vira_xui_panel_uses_clients_api($marzban_list_get, $cookiePath)) {
         $path = '/panel/api/clients/del/' . rawurlencode($username);
-        $response = mirza_xui_api_call($marzban_list_get, $cookiePath, 'POST', $path, '{}');
+        $response = vira_xui_api_call($marzban_list_get, $cookiePath, 'POST', $path, '{}');
         @unlink($cookiePath);
-        $GLOBALS['mirza_xui_csrf'] = null;
+        $GLOBALS['vira_xui_csrf'] = null;
         return $response;
     }
 
     $path = '/panel/api/inbounds/' . (int) $marzban_list_get['inboundid'] . '/delClientByEmail/' . rawurlencode($username);
-    $response = mirza_xui_api_call($marzban_list_get, $cookiePath, 'POST', $path, '{}');
+    $response = vira_xui_api_call($marzban_list_get, $cookiePath, 'POST', $path, '{}');
     @unlink($cookiePath);
-    $GLOBALS['mirza_xui_csrf'] = null;
+    $GLOBALS['vira_xui_csrf'] = null;
     return $response;
 }
 
 /* ========== مدیریت پنل ۳x-ui در تلگرام (UX ادمین) ========== */
 
-function mirza_xui_panel_hash($name_panel)
+function vira_xui_panel_hash($name_panel)
 {
     return substr(md5((string) $name_panel), 0, 8);
 }
 
-function mirza_xui_admin_selection_load($from_id, $name_panel)
+function vira_xui_admin_selection_load($from_id, $name_panel)
 {
     $user = select('user', '*', 'id', $from_id, 'select');
     $data = json_decode($user['Processing_value_two'] ?? '', true);
     if (is_array($data) && ($data['panel'] ?? '') === $name_panel && isset($data['ids'])) {
-        return mirza_xui_parse_id_list($data['ids']);
+        return vira_xui_parse_id_list($data['ids']);
     }
     $panel = select('marzban_panel', '*', 'name_panel', $name_panel, 'select');
     if (!$panel) {
         return array();
     }
-    return mirza_xui_resolve_inbounds($panel, null);
+    return vira_xui_resolve_inbounds($panel, null);
 }
 
-function mirza_xui_admin_selection_save($from_id, $name_panel, array $ids, $listCache = null)
+function vira_xui_admin_selection_save($from_id, $name_panel, array $ids, $listCache = null)
 {
     $payload = array(
         'panel' => $name_panel,
@@ -1390,7 +1390,7 @@ function mirza_xui_admin_selection_save($from_id, $name_panel, array $ids, $list
     update('user', 'Processing_value_two', json_encode($payload), 'id', $from_id);
 }
 
-function mirza_xui_admin_picker_list_cached($from_id, $name_panel)
+function vira_xui_admin_picker_list_cached($from_id, $name_panel)
 {
     $user = select('user', '*', 'id', $from_id, 'select');
     $data = json_decode($user['Processing_value_two'] ?? '', true);
@@ -1400,20 +1400,20 @@ function mirza_xui_admin_picker_list_cached($from_id, $name_panel)
     return null;
 }
 
-function mirza_xui_fetch_server_status($name_panel)
+function vira_xui_fetch_server_status($name_panel)
 {
     $panel = select('marzban_panel', '*', 'name_panel', $name_panel, 'select');
     if (!$panel) {
         return null;
     }
-    $cookiePath = mirza_xui_cookie_jar_path($panel['code_panel']);
+    $cookiePath = vira_xui_cookie_jar_path($panel['code_panel']);
     $login = login($panel['code_panel'], true, true);
     if (empty($login['success'])) {
         return null;
     }
-    $res = mirza_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/server/status');
+    $res = vira_xui_api_call($panel, $cookiePath, 'GET', '/panel/api/server/status');
     @unlink($cookiePath);
-    $GLOBALS['mirza_xui_csrf'] = null;
+    $GLOBALS['vira_xui_csrf'] = null;
     if ((int) ($res['status'] ?? 0) !== 200) {
         return null;
     }
@@ -1424,18 +1424,18 @@ function mirza_xui_fetch_server_status($name_panel)
     return $dec['obj'];
 }
 
-function mirza_xui_test_connection($code_panel)
+function vira_xui_test_connection($code_panel)
 {
     return login($code_panel, true, true, true);
 }
 
-function mirza_xui_admin_dashboard_text(array $panel, $connect = null)
+function vira_xui_admin_dashboard_text(array $panel, $connect = null)
 {
     $name = htmlspecialchars((string) ($panel['name_panel'] ?? ''), ENT_QUOTES, 'UTF-8');
     $ok = is_array($connect) && !empty($connect['success']);
     $stateLine = $ok ? '✅ <b>اتصال:</b> برقرار' : '❌ <b>اتصال:</b> قطع';
     $authMode = !empty(trim((string) ($panel['xui_api_token'] ?? ''))) ? 'توکن API' : 'نام کاربری و رمز';
-    $inbounds = mirza_xui_resolve_inbounds($panel, null);
+    $inbounds = vira_xui_resolve_inbounds($panel, null);
     $ibText = $inbounds !== [] ? implode(', ', $inbounds) : 'انتخاب نشده';
     $subRaw = trim((string) ($panel['linksubx'] ?? ''));
     $panelRaw = trim((string) ($panel['url_panel'] ?? ''));
@@ -1458,12 +1458,12 @@ function mirza_xui_admin_dashboard_text(array $panel, $connect = null)
     }
 
     if ($ok) {
-        $stats = mirza_xui_fetch_server_status($panel['name_panel']);
+        $stats = vira_xui_fetch_server_status($panel['name_panel']);
         if (is_array($stats)) {
             $cpu = isset($stats['cpu']) ? round((float) $stats['cpu'], 1) : '—';
             global $textbotlang;
             $uiLang = is_array($textbotlang ?? null) ? $textbotlang : (function_exists('languagechange') ? languagechange(null, 'fa') : []);
-            $xray = mirza_xray_state_label($stats['xray']['state'] ?? '', $uiLang);
+            $xray = vira_xray_state_label($stats['xray']['state'] ?? '', $uiLang);
             $xver = $stats['xray']['version'] ?? '';
             $memPct = '—';
             if (isset($stats['mem']['current'], $stats['mem']['total']) && (int) $stats['mem']['total'] > 0) {
@@ -1478,8 +1478,8 @@ function mirza_xui_admin_dashboard_text(array $panel, $connect = null)
     } elseif (is_array($connect) && !empty($connect['msg'])) {
         $lines[] = '';
         $msg = (string) $connect['msg'];
-        if (function_exists('mirza_xui_format_panel_error') && stripos($msg, 'Failed to connect') !== false) {
-            $msg = mirza_xui_format_panel_error(array('error' => $msg));
+        if (function_exists('vira_xui_format_panel_error') && stripos($msg, 'Failed to connect') !== false) {
+            $msg = vira_xui_format_panel_error(array('error' => $msg));
         }
         $lines[] = '💬 ' . htmlspecialchars(mb_substr(strip_tags($msg), 0, 300), ENT_QUOTES, 'UTF-8');
     }
@@ -1492,9 +1492,9 @@ function mirza_xui_admin_dashboard_text(array $panel, $connect = null)
     return implode("\n", $lines);
 }
 
-function mirza_xui_hub_inline_keyboard($name_panel)
+function vira_xui_hub_inline_keyboard($name_panel)
 {
-    $h = mirza_xui_panel_hash($name_panel);
+    $h = vira_xui_panel_hash($name_panel);
     return json_encode(array(
         'inline_keyboard' => array(
             array(
@@ -1512,7 +1512,7 @@ function mirza_xui_hub_inline_keyboard($name_panel)
     ));
 }
 
-function mirza_xui_inbound_picker_text(array $panel, array $selected)
+function vira_xui_inbound_picker_text(array $panel, array $selected)
 {
     $count = count($selected);
     $hint = $count > 0
@@ -1524,9 +1524,9 @@ function mirza_xui_inbound_picker_text(array $panel, array $selected)
         . '⬜ خاموش · ✅ فعال — در پایان «💾 ذخیره» را بزنید.';
 }
 
-function mirza_xui_inbound_picker_keyboard($name_panel, array $inbounds, array $selected)
+function vira_xui_inbound_picker_keyboard($name_panel, array $inbounds, array $selected)
 {
-    $h = mirza_xui_panel_hash($name_panel);
+    $h = vira_xui_panel_hash($name_panel);
     $rows = array();
     foreach ($inbounds as $ib) {
         $id = (int) ($ib['id'] ?? 0);
@@ -1571,7 +1571,7 @@ function mirza_xui_inbound_picker_keyboard($name_panel, array $inbounds, array $
 }
 
 /** برچسب‌های منوی Reply کیبورد ۳x-ui (برای تشخیص قبل از step انتخاب پنل). */
-function mirza_xui_admin_reply_menu_labels()
+function vira_xui_admin_reply_menu_labels()
 {
     return array(
         '🎯 انتخاب اینباندها',
@@ -1580,12 +1580,12 @@ function mirza_xui_admin_reply_menu_labels()
     );
 }
 
-function mirza_xui_admin_is_reply_menu_label($text)
+function vira_xui_admin_is_reply_menu_label($text)
 {
-    return in_array((string) $text, mirza_xui_admin_reply_menu_labels(), true);
+    return in_array((string) $text, vira_xui_admin_reply_menu_labels(), true);
 }
 
-function mirza_xui_admin_can_manage($from_id, $adminrulecheck)
+function vira_xui_admin_can_manage($from_id, $adminrulecheck)
 {
     global $admin_ids;
 
@@ -1593,7 +1593,7 @@ function mirza_xui_admin_can_manage($from_id, $adminrulecheck)
         && (($adminrulecheck['rule'] ?? '') === 'administrator');
 }
 
-function mirza_xui_admin_resolve_panel_name(array $user)
+function vira_xui_admin_resolve_panel_name(array $user)
 {
     $name = trim((string) ($user['Processing_value'] ?? ''));
     if ($name === '') {
@@ -1612,16 +1612,16 @@ function mirza_xui_admin_resolve_panel_name(array $user)
  *
  * @return bool true اگر پیام پردازش شد
  */
-function mirza_xui_admin_handle_reply_keyboard($from_id, $text, array $user, $adminrulecheck)
+function vira_xui_admin_handle_reply_keyboard($from_id, $text, array $user, $adminrulecheck)
 {
     global $optionX_ui_single, $backadmin;
 
-    if (!mirza_xui_admin_is_reply_menu_label($text) || !mirza_xui_admin_can_manage($from_id, $adminrulecheck)) {
+    if (!vira_xui_admin_is_reply_menu_label($text) || !vira_xui_admin_can_manage($from_id, $adminrulecheck)) {
         return false;
     }
 
     step('home', $from_id);
-    $namePanel = mirza_xui_admin_resolve_panel_name($user);
+    $namePanel = vira_xui_admin_resolve_panel_name($user);
 
     if ($text === '🔑 توکن API پنل (3x-ui)') {
         return false;
@@ -1638,7 +1638,7 @@ function mirza_xui_admin_handle_reply_keyboard($from_id, $text, array $user, $ad
     }
 
     if ($text === '🎯 انتخاب اینباندها') {
-        mirza_xui_admin_open_inbound_picker($from_id, $namePanel);
+        vira_xui_admin_open_inbound_picker($from_id, $namePanel);
         return true;
     }
     if ($text === '🔄 تست اتصال') {
@@ -1647,7 +1647,7 @@ function mirza_xui_admin_handle_reply_keyboard($from_id, $text, array $user, $ad
             $xuiLogin = login($panel['code_panel'], false, true);
             $ok = !empty($xuiLogin['success']);
             $msg = $ok ? '✅ اتصال برقرار است.' : '⚠️ ' . mb_substr((string) ($xuiLogin['msg'] ?? 'خطای اتصال'), 0, 200);
-            sendmessage($from_id, $msg . "\n\n" . mirza_xui_admin_dashboard_text($panel, $xuiLogin), mirza_xui_hub_inline_keyboard($namePanel), 'HTML');
+            sendmessage($from_id, $msg . "\n\n" . vira_xui_admin_dashboard_text($panel, $xuiLogin), vira_xui_hub_inline_keyboard($namePanel), 'HTML');
         }
         return true;
     }
@@ -1655,7 +1655,7 @@ function mirza_xui_admin_handle_reply_keyboard($from_id, $text, array $user, $ad
     return false;
 }
 
-function mirza_xui_admin_guide_text()
+function vira_xui_admin_guide_text()
 {
     return "📖 <b>راهنمای سریع پنل ۳x-ui</b>\n\n"
         . "1️⃣ در پنل: <b>Settings → Security → API Token</b> توکن بسازید.\n"
@@ -1667,7 +1667,7 @@ function mirza_xui_admin_guide_text()
         . "💡 مشکل 403؟ توکن API یا Allow IP سرور ربات در WAF/Cloudflare.";
 }
 
-function mirza_xui_admin_open_hub($from_id, $name_panel)
+function vira_xui_admin_open_hub($from_id, $name_panel)
 {
     $panel = select('marzban_panel', '*', 'name_panel', $name_panel, 'select');
     if (!$panel || $panel['type'] !== 'x-ui_single') {
@@ -1675,12 +1675,12 @@ function mirza_xui_admin_open_hub($from_id, $name_panel)
     }
     update('user', 'Processing_value', $name_panel, 'id', $from_id);
     $xuiLogin = login($panel['code_panel'], true, true);
-    $text = mirza_xui_admin_dashboard_text($panel, $xuiLogin);
-    sendmessage($from_id, $text, mirza_xui_hub_inline_keyboard($name_panel), 'HTML');
+    $text = vira_xui_admin_dashboard_text($panel, $xuiLogin);
+    sendmessage($from_id, $text, vira_xui_hub_inline_keyboard($name_panel), 'HTML');
     return true;
 }
 
-function mirza_xui_admin_open_inbound_picker($from_id, $name_panel, $message_id = null)
+function vira_xui_admin_open_inbound_picker($from_id, $name_panel, $message_id = null)
 {
     global $optionX_ui_single;
     $panel = select('marzban_panel', '*', 'name_panel', $name_panel, 'select');
@@ -1688,15 +1688,15 @@ function mirza_xui_admin_open_inbound_picker($from_id, $name_panel, $message_id 
         return false;
     }
     update('user', 'Processing_value', $name_panel, 'id', $from_id);
-    $list = mirza_xui_list_inbound_options($name_panel);
+    $list = vira_xui_list_inbound_options($name_panel);
     if ($list === []) {
         sendmessage($from_id, '❌ لیست اینباند خالی است. اول توکن API یا اتصال را درست کنید.', $optionX_ui_single ?? null, 'HTML');
         return false;
     }
-    $selected = mirza_xui_admin_selection_load($from_id, $name_panel);
-    mirza_xui_admin_selection_save($from_id, $name_panel, $selected, $list);
-    $text = mirza_xui_inbound_picker_text($panel, $selected);
-    $kb = mirza_xui_inbound_picker_keyboard($name_panel, $list, $selected);
+    $selected = vira_xui_admin_selection_load($from_id, $name_panel);
+    vira_xui_admin_selection_save($from_id, $name_panel, $selected, $list);
+    $text = vira_xui_inbound_picker_text($panel, $selected);
+    $kb = vira_xui_inbound_picker_keyboard($name_panel, $list, $selected);
     if ($message_id !== null && $message_id > 0) {
         Editmessagetext($from_id, $message_id, $text, $kb, 'HTML');
     } else {
@@ -1705,7 +1705,7 @@ function mirza_xui_admin_open_inbound_picker($from_id, $name_panel, $message_id 
     return true;
 }
 
-function mirza_xui_admin_verify_hash($name_panel, $hash)
+function vira_xui_admin_verify_hash($name_panel, $hash)
 {
-    return mirza_xui_panel_hash($name_panel) === $hash;
+    return vira_xui_panel_hash($name_panel) === $hash;
 }

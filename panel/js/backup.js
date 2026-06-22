@@ -1,11 +1,11 @@
 (function () {
-    if (!window.mirzaBotTools) return;
+    if (!window.viraBotTools) return;
 
     var root = document.querySelector('.backup-page');
-    var csrf = root ? root.getAttribute('data-csrf') : window.mirzaBotTools.csrf();
+    var csrf = root ? root.getAttribute('data-csrf') : window.viraBotTools.csrf();
 
     function apiUrl(action, extra) {
-        var u = window.mirzaBotTools.base() + 'api/bot_tools.php?action=' + encodeURIComponent(action);
+        var u = window.viraBotTools.base() + 'api/bot_tools.php?action=' + encodeURIComponent(action);
         if (extra) {
             Object.keys(extra).forEach(function (k) {
                 u += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(extra[k]);
@@ -18,7 +18,7 @@
         if (!confirm('وب‌هوک ربات دوباره تنظیم شود؟ (معادل ری‌استارت برای ربات تلگرام)')) return;
         if (statusEl) statusEl.textContent = 'در حال ری‌استارت…';
         if (btn) btn.disabled = true;
-        window.mirzaBotTools.post('bot_restart', {}).then(function (d) {
+        window.viraBotTools.post('bot_restart', {}).then(function (d) {
             if (statusEl) statusEl.textContent = d.msg || (d.ok ? 'انجام شد' : 'خطا');
             if (window.toast) toast(d.msg, d.ok ? 'ok' : 'no');
         }).finally(function () {
@@ -72,7 +72,7 @@
             if (st) st.textContent = 'در حال بازیابی… ممکن است چند دقیقه طول بکشد.';
             restoreForm.querySelector('button[type=submit]').disabled = true;
 
-            fetch(window.mirzaBotTools.base() + 'api/bot_tools.php', {
+            fetch(window.viraBotTools.base() + 'api/bot_tools.php', {
                 method: 'POST',
                 body: fd,
                 credentials: 'same-origin',
@@ -94,7 +94,7 @@
         dlSql.onclick = function () {
             var st = document.getElementById('backupStatus');
             if (st) st.textContent = 'در حال آماده‌سازی…';
-            window.mirzaBotTools.get('backup_sql').then(function (d) {
+            window.viraBotTools.get('backup_sql').then(function (d) {
                 if (!d.ok || !d.sql) {
                     if (st) st.textContent = d.msg || 'خطا';
                     return;
@@ -102,7 +102,7 @@
                 var blob = new Blob([d.sql], { type: 'application/sql;charset=utf-8' });
                 var a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = 'mirza-backup-' + new Date().toISOString().slice(0, 10) + '.sql';
+                a.download = 'vira-backup-' + new Date().toISOString().slice(0, 10) + '.sql';
                 a.click();
                 if (st) st.textContent = 'دانلود آغاز شد';
             });

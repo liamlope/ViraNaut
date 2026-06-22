@@ -1,5 +1,5 @@
 <?php
-if (!defined('VIRA_BOT_BOOTSTRAP') && !defined('MIRZA_BOT_BOOTSTRAP')) {
+if (!defined('VIRA_BOT_BOOTSTRAP') && !defined('VIRA_BOT_BOOTSTRAP')) {
     http_response_code(404);
     exit;
 }
@@ -10,9 +10,9 @@ $textadmin = ["panel", "/panel", $textbotlang['Admin']['textpaneladmin']];
 $text_panel_admin_login_template = "💎 | نسخه ربات: %s
 📌 | نسخه مینی‌اپ: %s
 
-<blockquote>🔹 | <b>ویرانات ViraNaut</b> — ربات VPN رایگان و متن‌باز</blockquote>
+<blockquote>🔹 | <b>ویرا ViraNaut</b> — ربات VPN رایگان و متن‌باز</blockquote>
 
-<blockquote>🔹 | توسعه‌یافته توسط تیم ویرانات · نسخه 2.0.1</blockquote>
+<blockquote>🔹 | توسعه‌یافته توسط تیم ویرا · نسخه 2.0.1</blockquote>
 
 <blockquote>🔹 | هرگونه فروش یا دریافت وجه بابت این ربات تخلف محسوب می‌شود.</blockquote>
 
@@ -22,7 +22,7 @@ if (!in_array($from_id, $admin_ids))
     return;
 
 if ($text == "/start" || $datain == "start" || $text == "start") {
-    mirza_handle_bot_start_command($from_id, $datatextbot, $keyboard);
+    vira_handle_bot_start_command($from_id, $datatextbot, $keyboard);
     return;
 }
 
@@ -30,7 +30,7 @@ $domainhostsEscaped = htmlspecialchars($domainhosts, ENT_QUOTES | ENT_SUBSTITUTE
 $mini_app_url_display = htmlspecialchars(bot_site_https_url('app/'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
 $miniAppInstructionText = <<<HTML
-📌 <b>فعال‌سازی مینی‌اپ ویرانات</b> در BotFather
+📌 <b>فعال‌سازی مینی‌اپ ویرا</b> در BotFather
 
 1️⃣ /mybots → انتخاب ربات
 2️⃣ Bot Settings → Configure Mini App → Enable
@@ -84,17 +84,17 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     $confirmationText = $miniAppInstructionText . "\n\n✅ این پیام دیگر برای شما نمایش داده نخواهد شد.";
     Editmessagetext($from_id, $message_id, $confirmationText, $confirmationKeyboard, 'HTML');
     return;
-} elseif (mirza_admin_allows_user_lookup((string) ($user['step'] ?? 'home'))
-    && ($adminLookup = mirza_admin_parse_user_lookup((string) $text)) !== null) {
-    $resolvedId = mirza_admin_resolve_user_id($adminLookup, $pdo);
+} elseif (vira_admin_allows_user_lookup((string) ($user['step'] ?? 'home'))
+    && ($adminLookup = vira_admin_parse_user_lookup((string) $text)) !== null) {
+    $resolvedId = vira_admin_resolve_user_id($adminLookup, $pdo);
     if ($resolvedId === null) {
         sendmessage($from_id, $textbotlang['Admin']['not-user'] . "\n\n💡 فرمت: <code>/آیدی</code> یا <code>/username</code> یا <code>https://t.me/username</code>", null, 'HTML');
         return;
     }
-    mirza_admin_show_user_manage($from_id, $resolvedId);
+    vira_admin_show_user_manage($from_id, $resolvedId);
     return;
 } elseif (preg_match('/^manageusercat_(fin|st|ord|ag|card|msg)_(\w+)$/', $datain, $catManageMatch)) {
-    mirza_admin_show_user_manage($from_id, $catManageMatch[2], [
+    vira_admin_show_user_manage($from_id, $catManageMatch[2], [
         'category' => $catManageMatch[1],
         'edit' => true,
         'message_id' => $message_id,
@@ -163,7 +163,7 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     step('savemoji_wait', $from_id);
     return;
 } elseif (($user['step'] ?? '') === 'savemoji_wait') {
-    $foundEmoji = mirza_message_extract_custom_emoji($update['message'] ?? []);
+    $foundEmoji = vira_message_extract_custom_emoji($update['message'] ?? []);
     if ($foundEmoji === null) {
         sendmessage(
             $from_id,
@@ -178,7 +178,7 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     if ($emojiLabel === '') {
         $emojiLabel = 'emoji_' . time();
     }
-    $saveResult = mirza_custom_emoji_save(
+    $saveResult = vira_custom_emoji_save(
         $emojiLabel,
         $foundEmoji['custom_emoji_id'],
         $foundEmoji['emoji_utf8'],
@@ -191,7 +191,7 @@ if (in_array($text, $textadmin) || $datain == "admin") {
         return;
     }
     $emojiSlug = trim((string) ($saveResult['slug'] ?? ''));
-    $emojiCodeHtml = mirza_emoji_code_html($emojiSlug);
+    $emojiCodeHtml = vira_emoji_code_html($emojiSlug);
     sendmessage(
         $from_id,
         "✅ ایموجی <b>" . htmlspecialchars($emojiLabel, ENT_QUOTES, 'UTF-8') . "</b> ذخیره شد.\n\n"
@@ -989,11 +989,11 @@ $paycount
     $userdata = json_decode($user['Processing_value'], true);
     $panelType = is_array($userdata) ? ($userdata['type'] ?? '') : '';
     if ($panelType === 'x-ui_single' || $panelType === 'alireza_single') {
-        $text = mirza_normalize_xui_panel_url($text);
+        $text = vira_normalize_xui_panel_url($text);
     } else {
-        $text = mirza_normalize_panel_url($text);
+        $text = vira_normalize_panel_url($text);
     }
-    if (!mirza_panel_url_is_valid($text)) {
+    if (!vira_panel_url_is_valid($text)) {
         sendmessage($from_id, $textbotlang['Admin']['managepanel']['Invalid-domain'], $backadmin, 'HTML');
         return;
     }
@@ -1016,7 +1016,7 @@ $paycount
         savedata("save", "username", "null");
         savedata("save", "password", "null");
         return;
-    } elseif ($userdata['type'] == "s_ui" || $userdata['type'] == "WGDashboard" || $userdata['type'] == "mirza_agent" || $userdata['type'] == "ilan") {
+    } elseif ($userdata['type'] == "s_ui" || $userdata['type'] == "WGDashboard" || $userdata['type'] == "vira_agent" || $userdata['type'] == "ilan") {
         sendmessage($from_id, "📌 توکن را ارسال نمایید", $backadmin, 'HTML');
         step('add_password_panel', $from_id);
         savedata("save", "username", "null");
@@ -1062,11 +1062,11 @@ $paycount
         step('home', $from_id);
         return;
     }
-    if (function_exists('mirza_ensure_marzban_panel_columns')) {
-        mirza_ensure_marzban_panel_columns();
+    if (function_exists('vira_ensure_marzban_panel_columns')) {
+        vira_ensure_marzban_panel_columns();
     }
     if (in_array($userdata['type'] ?? '', array('x-ui_single', 'alireza_single'), true) && !empty($userdata['url_panel'])) {
-        $userdata['url_panel'] = mirza_normalize_xui_panel_url($userdata['url_panel']);
+        $userdata['url_panel'] = vira_normalize_xui_panel_url($userdata['url_panel']);
     }
     $randomString = bin2hex(random_bytes(2));
     if ($userdata['type'] == "x-ui_single" || $userdata['type'] == "alireza") {
@@ -2328,156 +2328,148 @@ $caption";
     } elseif ($setting['iran_number'] == "❌ بررسی شماره ایرانی غیرفعال است") {
         update("setting", "iran_number", "offAuthenticationiran");
     }
-    $status_cron = json_decode($setting['cron_status'], true);
-    $setting = select("setting", "*", null, null, "select");
-    $name_status = [
+    $setting = vira_ensure_setting_ready();
+    $status_cron = vira_setting_cron_status($setting);
+    $name_status = vira_setting_pick([
         'botstatuson' => $textbotlang['Admin']['Status']['statuson'],
         'botstatusoff' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['Bot_Status']];
-    $name_status_username = [
+    ], $setting['Bot_Status'], 'botstatuson');
+    $name_status_username = vira_setting_pick([
         'onnotuser' => $textbotlang['Admin']['Status']['statuson'],
         'offnotuser' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['NotUser']];
-    $name_status_notifnewuser = [
+    ], $setting['NotUser'], 'offnotuser');
+    $name_status_notifnewuser = vira_setting_pick([
         'onnewuser' => $textbotlang['Admin']['Status']['statuson'],
         'offnewuser' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['statusnewuser']];
-    $name_status_showagent = [
+    ], $setting['statusnewuser'], 'onnewuser');
+    $name_status_showagent = vira_setting_pick([
         'onrequestagent' => $textbotlang['Admin']['Status']['statuson'],
         'offrequestagent' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['statusagentrequest']];
-    $name_status_role = [
+    ], $setting['statusagentrequest'], 'onrequestagent');
+    $name_status_role = vira_setting_pick([
         'rolleon' => $textbotlang['Admin']['Status']['statuson'],
         'rolleoff' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['roll_Status']];
-    $Authenticationphone = [
+    ], $setting['roll_Status'], 'rolleon');
+    $Authenticationphone = vira_setting_pick([
         'onAuthenticationphone' => $textbotlang['Admin']['Status']['statuson'],
         'offAuthenticationphone' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['get_number']];
-    $Authenticationiran = [
+    ], $setting['get_number'], 'offAuthenticationphone');
+    $Authenticationiran = vira_setting_pick([
         'onAuthenticationiran' => $textbotlang['Admin']['Status']['statuson'],
         'offAuthenticationiran' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['iran_number']];
-    $statusinline = [
+    ], $setting['iran_number'], 'offAuthenticationiran');
+    $statusinline = vira_setting_pick([
         'oninline' => $textbotlang['Admin']['Status']['statuson'],
         'offinline' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['inlinebtnmain']];
-    $statusverify = [
+    ], $setting['inlinebtnmain'], 'offinline');
+    $statusverify = vira_setting_pick([
         'onverify' => $textbotlang['Admin']['Status']['statuson'],
         'offverify' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['verifystart']];
-    $statuspvsupport = [
+    ], $setting['verifystart'], 'offverify');
+    $statuspvsupport = vira_setting_pick([
         'onpvsupport' => $textbotlang['Admin']['Status']['statuson'],
         'offpvsupport' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['statussupportpv']];
-    $statusnameconfig = [
+    ], $setting['statussupportpv'], 'offpvsupport');
+    $statusnameconfig = vira_setting_pick([
         'onnamecustom' => $textbotlang['Admin']['Status']['statuson'],
         'offnamecustom' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['statusnamecustom']];
-    $statusnamebulk = [
+    ], $setting['statusnamecustom'], 'offnamecustom');
+    $statusnamebulk = vira_setting_pick([
         'onbulk' => $textbotlang['Admin']['Status']['statuson'],
         'offbulk' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['bulkbuy']];
-    $statusverifybyuser = [
+    ], $setting['bulkbuy'], 'onbulk');
+    $statusverifybyuser = vira_setting_pick([
         'onverify' => $textbotlang['Admin']['Status']['statuson'],
         'offverify' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['verifybucodeuser']];
-    $score = [
+    ], $setting['verifybucodeuser'], 'offverify');
+    $score = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['scorestatus']];
-    $wheel_luck = [
+    ], $setting['scorestatus'], '0');
+    $wheel_luck = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['wheelـluck']];
-    $refralstatus = [
+    ], $setting['wheelـluck'], '0');
+    $refralstatus = vira_setting_pick([
         'onaffiliates' => $textbotlang['Admin']['Status']['statuson'],
         'offaffiliates' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['affiliatesstatus']];
-    $btnstatuscategory = [
+    ], $setting['affiliatesstatus'], 'offaffiliates');
+    $btnstatuscategory = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['categoryhelp']];
-    $btnstatuslinkapp = [
+    ], $setting['categoryhelp'], '0');
+    $btnstatuslinkapp = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['linkappstatus']];
-    $cronteststatustext = [
+    ], $setting['linkappstatus'], '0');
+    $cronteststatustext = vira_setting_pick([
         true => $textbotlang['Admin']['Status']['statuson'],
         false => $textbotlang['Admin']['Status']['statusoff']
-    ][$status_cron['test']];
-    $crondaystatustext = [
+    ], $status_cron['test'] ?? false, false);
+    $crondaystatustext = vira_setting_pick([
         true => $textbotlang['Admin']['Status']['statuson'],
         false => $textbotlang['Admin']['Status']['statusoff']
-    ][$status_cron['day']];
-    $cronvolumestatustext = [
+    ], $status_cron['day'] ?? true, true);
+    $cronvolumestatustext = vira_setting_pick([
         true => $textbotlang['Admin']['Status']['statuson'],
         false => $textbotlang['Admin']['Status']['statusoff']
-    ][$status_cron['volume']];
-    $cronremovestatustext = [
+    ], $status_cron['volume'] ?? true, true);
+    $cronremovestatustext = vira_setting_pick([
         true => $textbotlang['Admin']['Status']['statuson'],
         false => $textbotlang['Admin']['Status']['statusoff']
-    ][$status_cron['remove']];
-    $cronremovevolumestatustext = [
+    ], $status_cron['remove'] ?? false, false);
+    $cronremovevolumestatustext = vira_setting_pick([
         true => $textbotlang['Admin']['Status']['statuson'],
         false => $textbotlang['Admin']['Status']['statusoff']
-    ][$status_cron['remove_volume']];
-    $cronuptime_nodestatustext = [
+    ], $status_cron['remove_volume'] ?? false, false);
+    $cronuptime_nodestatustext = vira_setting_pick([
         true => $textbotlang['Admin']['Status']['statuson'],
         false => $textbotlang['Admin']['Status']['statusoff']
-    ][$status_cron['uptime_node']];
-    $cronuptime_panelstatustext = [
+    ], $status_cron['uptime_node'] ?? false, false);
+    $cronuptime_panelstatustext = vira_setting_pick([
         true => $textbotlang['Admin']['Status']['statuson'],
         false => $textbotlang['Admin']['Status']['statusoff']
-    ][$status_cron['uptime_panel']];
-    $cronon_holdtext = [
+    ], $status_cron['uptime_panel'] ?? false, false);
+    $cronon_holdtext = vira_setting_pick([
         true => $textbotlang['Admin']['Status']['statuson'],
         false => $textbotlang['Admin']['Status']['statusoff']
-    ][$status_cron['on_hold']];
-    $languagestatus = [
+    ], $status_cron['on_hold'] ?? false, false);
+    $wheelagent = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['languageen']];
-    $languagestatusru = [
+    ], $setting['wheelagent'], '1');
+    $Lotteryagent = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['languageru']];
-    $wheelagent = [
+    ], $setting['Lotteryagent'], '1');
+    $statusfirstwheel = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['wheelagent']];
-    $Lotteryagent = [
+    ], $setting['statusfirstwheel'], '0');
+    $statuslimitchangeloc = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['Lotteryagent']];
-    $statusfirstwheel = [
+    ], $setting['statuslimitchangeloc'], '0');
+    $statusDebtsettlement = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['statusfirstwheel']];
-    $statuslimitchangeloc = [
+    ], $setting['Debtsettlement'], '1');
+    $statusDice = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['statuslimitchangeloc']];
-    $statusDebtsettlement = [
+    ], $setting['Dice'], '0');
+    $statusnotef = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['Debtsettlement']];
-    $statusDice = [
+    ], $setting['statusnoteforf'], '1');
+    $status_copy_cart = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['Dice']];
-    $statusnotef = [
+    ], $setting['statuscopycart'], '0');
+    $keyboard_config_text = vira_setting_pick([
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['statusnoteforf']];
-    $status_copy_cart = [
-        '1' => $textbotlang['Admin']['Status']['statuson'],
-        '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['statuscopycart']];
-    $keyboard_config_text = [
-        '1' => $textbotlang['Admin']['Status']['statuson'],
-        '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['status_keyboard_config']];
+    ], $setting['status_keyboard_config'], '1');
     $Bot_Status = json_encode([
         'inline_keyboard' => [
             [
@@ -2638,7 +2630,8 @@ $caption";
     ]);
     sendmessage($from_id, $textbotlang['Admin']['Status']['BotTitle'], $Bot_Status, 'HTML');
 } elseif (preg_match('/^editstsuts-(.*)-(.*)/', $datain, $dataget)) {
-    $status_cron = json_decode($setting['cron_status'], true);
+    $setting = vira_ensure_setting_ready();
+    $status_cron = vira_setting_cron_status($setting);
     $type = $dataget[1];
     $value = $dataget[2];
     if ($type == "statusbot") {
@@ -2825,28 +2818,6 @@ $caption";
             $valuenew = "1";
         }
         update("setting", "linkappstatus", $valuenew);
-    } elseif ($type == "btnstautslanguage") {
-        if ($setting['languageru'] == "1") {
-            sendmessage($from_id, "زبان روسیه ای روشن است و نمی توانید زبان انگلیسی را تغییر وضعیت دهید", null, 'HTML');
-            return;
-        }
-        if ($value == "1") {
-            $valuenew = "0";
-        } else {
-            $valuenew = "1";
-        }
-        update("setting", "languageen", $valuenew);
-    } elseif ($type == "btnstautslanguageru") {
-        if ($setting['languageen'] == "1") {
-            sendmessage($from_id, "زبان انگلیسی روشن است و نمی توانید زبان روسیه ای را تغییر وضعیت دهید", null, 'HTML');
-            return;
-        }
-        if ($value == "1") {
-            $valuenew = "0";
-        } else {
-            $valuenew = "1";
-        }
-        update("setting", "languageru", $valuenew);
     } elseif ($type == "wheelagentfirst") {
         if ($value == "1") {
             $valuenew = "0";
@@ -3052,15 +3023,7 @@ $caption";
     $cronon_holdtext = [
         true => $textbotlang['Admin']['Status']['statuson'],
         false => $textbotlang['Admin']['Status']['statusoff']
-    ][$status_cron['on_hold']];
-    $languagestatus = [
-        '1' => $textbotlang['Admin']['Status']['statuson'],
-        '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['languageen']];
-    $languagestatusru = [
-        '1' => $textbotlang['Admin']['Status']['statuson'],
-        '0' => $textbotlang['Admin']['Status']['statusoff']
-    ][$setting['languageru']];
+    ][$status_cron['on_hold'] ?? false] ?? $textbotlang['Admin']['Status']['statusoff'];
     $wheelagent = [
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
@@ -3276,7 +3239,8 @@ $caption";
 4 - ربات خودتان را ادمین گروه کنید 
 5 - آیدی عددی ارسال شده را در ربات ارسال کنید.
 
-آیدی عددی فعلی شما: {$setting['Channel_Report']}";
+آیدی عددی فعلی شما: {$setting['Channel_Report']}"
+        . vira_idfindeer_hint_html();
     sendmessage($from_id, $textreports, $backadmin, 'HTML');
     step('addchannelid', $from_id);
 } elseif ($user['step'] == "addchannelid") {
@@ -3534,7 +3498,7 @@ $caption";
     $varhide_panel = "{}";
     if (!isset($userdata['category']))
         $userdata['category'] = null;
-    if (mirza_product_name_taken($pdo, (string) ($userdata['name_product'] ?? ''), (string) ($userdata['category'] ?? ''))) {
+    if (vira_product_name_taken($pdo, (string) ($userdata['name_product'] ?? ''), (string) ($userdata['category'] ?? ''))) {
         sendmessage($from_id, 'محصولی با این نام در همین دسته قبلاً ثبت شده. در دستهٔ دیگر می‌توانید همین نام را بسازید.', $shopkeyboard, 'HTML');
         step('home', $from_id);
         return;
@@ -3602,7 +3566,7 @@ $caption";
     $stmt = $pdo->prepare($sql);
     $stmt->execute();
     $countpay = $stmt->rowCount();
-    $typepay = explode('|', mirza_card_invoice_payment_payload((string) $Payment_report['id_invoice']));
+    $typepay = explode('|', vira_card_invoice_payment_payload((string) $Payment_report['id_invoice']));
     if ($countpay > 0 and !in_array($typepay[0], ['getconfigafterpay', 'getextenduser', 'getextravolumeuser', 'getextratimeuser'])) {
         sendmessage($from_id, "⚠️ برای تأیید درخواست‌های کاربر، ابتدا رسیدهای خرید یا تمدید اشتراک را بررسی و تأیید کنید. سپس رسید شارژ کیف پول را تأیید کنید. ", null, 'HTML');
         return;
@@ -4150,13 +4114,13 @@ $caption";
     step('show_info', $from_id);
 } elseif ($user['step'] == "show_info" || preg_match('/manageuser_(\w+)/', $datain, $dataget) || preg_match('/updateinfouser_(\w+)/', $datain, $dataget) || strpos($text, "/user ") !== false || strpos($text, "/id ") !== false) {
     if ($user['step'] == "show_info") {
-        $lookup = mirza_admin_parse_user_lookup((string) $text);
+        $lookup = vira_admin_parse_user_lookup((string) $text);
         if ($lookup !== null) {
-            $id_user = mirza_admin_resolve_user_id($lookup, $pdo);
+            $id_user = vira_admin_resolve_user_id($lookup, $pdo);
         } elseif (ctype_digit(trim($text))) {
             $id_user = trim($text);
         } else {
-            $id_user = mirza_admin_resolve_user_id(ltrim(trim($text), '@'), $pdo) ?: trim($text);
+            $id_user = vira_admin_resolve_user_id(ltrim(trim($text), '@'), $pdo) ?: trim($text);
         }
         if ($id_user === null || $id_user === '') {
             sendmessage($from_id, $textbotlang['Admin']['not-user'], null, 'HTML');
@@ -4164,7 +4128,7 @@ $caption";
         }
     } elseif (explode(" ", $text)[0] == "/user") {
         $lookup = explode(" ", $text)[1] ?? '';
-        $id_user = mirza_admin_resolve_user_id($lookup, $pdo) ?: ltrim($lookup, '@');
+        $id_user = vira_admin_resolve_user_id($lookup, $pdo) ?: ltrim($lookup, '@');
     } elseif (explode(" ", $text)[0] == "/id") {
         $id_user = explode(" ", $text)[1];
     } else {
@@ -4172,7 +4136,7 @@ $caption";
     }
     $isRefresh = preg_match('/^updateinfouser_/', (string) $datain);
     $isInlineNav = (bool) preg_match('/^(updateinfouser_|manageuser_)/', (string) $datain);
-    mirza_admin_show_user_manage($from_id, (string) $id_user, [
+    vira_admin_show_user_manage($from_id, (string) $id_user, [
         'category' => 'main',
         'edit' => $isInlineNav && !empty($message_id),
         'message_id' => $message_id,
@@ -4356,14 +4320,14 @@ $caption";
     sendmessage($from_id, $textbotlang['Admin']['SettingnowPayment']['Savaapi'], $keyboardzarinpal, 'HTML');
     update("PaySetting", "ValuePay", $text, "NamePay", "merchant_zarinpal");
     step('home', $from_id);
-} elseif (function_exists('mirza_xui_admin_handle_reply_keyboard') && mirza_xui_admin_handle_reply_keyboard($from_id, $text, $user, $adminrulecheck)) {
+} elseif (function_exists('vira_xui_admin_handle_reply_keyboard') && vira_xui_admin_handle_reply_keyboard($from_id, $text, $user, $adminrulecheck)) {
 } elseif ($text == $textbotlang['Admin']['btnkeyboardadmin']['managementpanel'] && $adminrulecheck['rule'] == "administrator") {
     sendmessage($from_id, $textbotlang['Admin']['managepanel']['getLoc'], $json_list_marzban_panel, 'HTML');
     step('GetLocationEdit', $from_id);
 } elseif ($user['step'] == "GetLocationEdit") {
-    if (function_exists('mirza_xui_admin_is_reply_menu_label') && mirza_xui_admin_is_reply_menu_label($text)) {
+    if (function_exists('vira_xui_admin_is_reply_menu_label') && vira_xui_admin_is_reply_menu_label($text)) {
         step('home', $from_id);
-        if (mirza_xui_admin_handle_reply_keyboard($from_id, $text, $user, $adminrulecheck)) {
+        if (vira_xui_admin_handle_reply_keyboard($from_id, $text, $user, $adminrulecheck)) {
             return;
         }
     }
@@ -4424,21 +4388,21 @@ $caption";
             sendmessage($from_id, $text_marzban, $optionMarzban, 'HTML');
         }
     } elseif ($marzban_list_get['type'] == "x-ui_single") {
-        $x_ui_check_connect = mirza_xui_test_connection($marzban_list_get['code_panel']);
+        $x_ui_check_connect = vira_xui_test_connection($marzban_list_get['code_panel']);
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $text, "select");
-        $dash = mirza_xui_admin_dashboard_text($marzban_list_get, $x_ui_check_connect);
+        $dash = vira_xui_admin_dashboard_text($marzban_list_get, $x_ui_check_connect);
         $dash .= "\n\n⭕️ از منوی زیر یا دکمه‌های بالا (اینباند / تست اتصال) استفاده کنید.";
-        sendmessage($from_id, $dash, mirza_xui_hub_inline_keyboard($marzban_list_get['name_panel']), 'HTML');
+        sendmessage($from_id, $dash, vira_xui_hub_inline_keyboard($marzban_list_get['name_panel']), 'HTML');
         // همیشه کیبورد اصلی مدیریت پنل را هم نمایش بده تا ادمین در «مرکز پنل» گیر نکند.
         sendmessage($from_id, $textbotlang['users']['selectoption'] ?? 'یک گزینه را انتخاب نمایید', $optionX_ui_single, 'HTML');
         if (!$x_ui_check_connect['success']) {
             $err = (string) ($x_ui_check_connect['msg'] ?? 'اتصال برقرار نیست');
             sendmessage($from_id, $err, $backadmin, 'HTML');
         }
-    } elseif ($marzban_list_get['type'] == "mirza_agent") {
+    } elseif ($marzban_list_get['type'] == "vira_agent") {
         sendmessage($from_id, $textbotlang['users']['selectoption'] ?? 'یک گزینه را انتخاب کنید', $optionMarzban, 'HTML');
     } elseif ($marzban_list_get['type'] == "alireza_single") {
-        $x_ui_check_connect = mirza_xui_test_connection($marzban_list_get['code_panel']);
+        $x_ui_check_connect = vira_xui_test_connection($marzban_list_get['code_panel']);
         if ($x_ui_check_connect['success']) {
             sendmessage($from_id, $textbotlang['Admin']['managepanel']['connectXUi'], $optionalireza_single, 'HTML');
         } elseif ($x_ui_check_connect['msg'] == "The username or password is incorrect") {
@@ -4600,11 +4564,11 @@ $caption";
     $rawUrl = $text;
     $typepanel = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
     if ($typepanel && in_array($typepanel['type'], array('x-ui_single', 'alireza_single'), true)) {
-        $text = mirza_normalize_xui_panel_url($text);
+        $text = vira_normalize_xui_panel_url($text);
     } else {
-        $text = mirza_normalize_panel_url($text);
+        $text = vira_normalize_panel_url($text);
     }
-    if (!mirza_panel_url_is_valid($text)) {
+    if (!vira_panel_url_is_valid($text)) {
         sendmessage($from_id, $textbotlang['Admin']['managepanel']['Invalid-domain'], $backadmin, 'HTML');
         return;
     }
@@ -4706,7 +4670,7 @@ $caption";
     $action = $xuiHub[1];
     $hash = $xuiHub[2];
     $namePanel = $user['Processing_value'];
-    if (!mirza_xui_admin_verify_hash($namePanel, $hash)) {
+    if (!vira_xui_admin_verify_hash($namePanel, $hash)) {
         telegram('answerCallbackQuery', array(
             'callback_query_id' => $callback_query_id,
             'text' => 'پنل نامعتبر — دوباره از مدیریت پنل وارد شوید.',
@@ -4717,9 +4681,9 @@ $caption";
     $panel = select("marzban_panel", "*", "name_panel", $namePanel, "select");
     if ($action === 'ib') {
         telegram('answerCallbackQuery', array('callback_query_id' => $callback_query_id));
-        mirza_xui_admin_open_inbound_picker($from_id, $namePanel, $message_id);
+        vira_xui_admin_open_inbound_picker($from_id, $namePanel, $message_id);
     } elseif ($action === 'tst') {
-        $xuiLogin = mirza_xui_test_connection($panel['code_panel']);
+        $xuiLogin = vira_xui_test_connection($panel['code_panel']);
         $ok = !empty($xuiLogin['success']);
         telegram('answerCallbackQuery', array(
             'callback_query_id' => $callback_query_id,
@@ -4727,22 +4691,22 @@ $caption";
             'show_alert' => !$ok,
         ));
         if ($ok) {
-            Editmessagetext($from_id, $message_id, mirza_xui_admin_dashboard_text($panel, $xuiLogin), mirza_xui_hub_inline_keyboard($namePanel), 'HTML');
+            Editmessagetext($from_id, $message_id, vira_xui_admin_dashboard_text($panel, $xuiLogin), vira_xui_hub_inline_keyboard($namePanel), 'HTML');
         }
     } elseif ($action === 'ref') {
         $xuiLogin = login($panel['code_panel'], true, true);
-        $healed = function_exists('mirza_xui_heal_stale_product_inbounds_for_panel')
-            ? mirza_xui_heal_stale_product_inbounds_for_panel($namePanel)
+        $healed = function_exists('vira_xui_heal_stale_product_inbounds_for_panel')
+            ? vira_xui_heal_stale_product_inbounds_for_panel($namePanel)
             : 0;
         $refNote = $healed > 0 ? " · {$healed} محصول inbounds اصلاح شد" : '';
         telegram('answerCallbackQuery', array(
             'callback_query_id' => $callback_query_id,
             'text' => 'بروز شد' . $refNote,
         ));
-        Editmessagetext($from_id, $message_id, mirza_xui_admin_dashboard_text($panel, $xuiLogin), mirza_xui_hub_inline_keyboard($namePanel), 'HTML');
+        Editmessagetext($from_id, $message_id, vira_xui_admin_dashboard_text($panel, $xuiLogin), vira_xui_hub_inline_keyboard($namePanel), 'HTML');
     } elseif ($action === 'hlp') {
         telegram('answerCallbackQuery', array('callback_query_id' => $callback_query_id));
-        Editmessagetext($from_id, $message_id, mirza_xui_admin_guide_text(), mirza_xui_hub_inline_keyboard($namePanel), 'HTML');
+        Editmessagetext($from_id, $message_id, vira_xui_admin_guide_text(), vira_xui_hub_inline_keyboard($namePanel), 'HTML');
     } elseif ($action === 'tok') {
         telegram('answerCallbackQuery', array('callback_query_id' => $callback_query_id));
         sendmessage(
@@ -4757,16 +4721,16 @@ $caption";
     $cmd = $xuiBulk[1];
     $hash = $xuiBulk[2];
     $namePanel = $user['Processing_value'];
-    if (!mirza_xui_admin_verify_hash($namePanel, $hash)) {
+    if (!vira_xui_admin_verify_hash($namePanel, $hash)) {
         return;
     }
     $panel = select("marzban_panel", "*", "name_panel", $namePanel, "select");
-    $list = mirza_xui_admin_picker_list_cached($from_id, $namePanel);
+    $list = vira_xui_admin_picker_list_cached($from_id, $namePanel);
     if ($list === null) {
-        $list = mirza_xui_list_inbound_options($namePanel);
+        $list = vira_xui_list_inbound_options($namePanel);
     }
     if ($cmd === 'save') {
-        $selected = mirza_xui_admin_selection_load($from_id, $namePanel);
+        $selected = vira_xui_admin_selection_load($from_id, $namePanel);
         if ($selected === []) {
             telegram('answerCallbackQuery', array(
                 'callback_query_id' => $callback_query_id,
@@ -4775,9 +4739,9 @@ $caption";
             ));
             return;
         }
-        mirza_xui_save_panel_inbounds($namePanel, $selected);
-        if (function_exists('mirza_xui_heal_stale_product_inbounds_for_panel')) {
-            mirza_xui_heal_stale_product_inbounds_for_panel($namePanel);
+        vira_xui_save_panel_inbounds($namePanel, $selected);
+        if (function_exists('vira_xui_heal_stale_product_inbounds_for_panel')) {
+            vira_xui_heal_stale_product_inbounds_for_panel($namePanel);
         }
         telegram('answerCallbackQuery', array(
             'callback_query_id' => $callback_query_id,
@@ -4785,7 +4749,7 @@ $caption";
             'show_alert' => true,
         ));
         $xuiLogin = login($panel['code_panel'], true, true);
-        Editmessagetext($from_id, $message_id, mirza_xui_admin_dashboard_text($panel, $xuiLogin), mirza_xui_hub_inline_keyboard($namePanel), 'HTML');
+        Editmessagetext($from_id, $message_id, vira_xui_admin_dashboard_text($panel, $xuiLogin), vira_xui_hub_inline_keyboard($namePanel), 'HTML');
     } elseif ($cmd === 'all') {
         $allIds = array();
         foreach ($list as $ib) {
@@ -4793,23 +4757,23 @@ $caption";
                 $allIds[] = (int) $ib['id'];
             }
         }
-        mirza_xui_admin_selection_save($from_id, $namePanel, $allIds, $list);
+        vira_xui_admin_selection_save($from_id, $namePanel, $allIds, $list);
         telegram('answerCallbackQuery', array('callback_query_id' => $callback_query_id, 'text' => 'همه انتخاب شد'));
-        Editmessagetext($from_id, $message_id, mirza_xui_inbound_picker_text($panel, $allIds), mirza_xui_inbound_picker_keyboard($namePanel, $list, $allIds), 'HTML');
+        Editmessagetext($from_id, $message_id, vira_xui_inbound_picker_text($panel, $allIds), vira_xui_inbound_picker_keyboard($namePanel, $list, $allIds), 'HTML');
     } elseif ($cmd === 'none') {
-        mirza_xui_admin_selection_save($from_id, $namePanel, array(), $list);
+        vira_xui_admin_selection_save($from_id, $namePanel, array(), $list);
         telegram('answerCallbackQuery', array('callback_query_id' => $callback_query_id, 'text' => 'پاک شد'));
-        Editmessagetext($from_id, $message_id, mirza_xui_inbound_picker_text($panel, array()), mirza_xui_inbound_picker_keyboard($namePanel, $list, array()), 'HTML');
+        Editmessagetext($from_id, $message_id, vira_xui_inbound_picker_text($panel, array()), vira_xui_inbound_picker_keyboard($namePanel, $list, array()), 'HTML');
     }
 } elseif (preg_match('/^xuiib-(\d+)-([a-f0-9]{8})$/', $datain, $xuiToggle) && $adminrulecheck['rule'] == "administrator") {
     $ibId = (int) $xuiToggle[1];
     $hash = $xuiToggle[2];
     $namePanel = $user['Processing_value'];
-    if (!mirza_xui_admin_verify_hash($namePanel, $hash)) {
+    if (!vira_xui_admin_verify_hash($namePanel, $hash)) {
         return;
     }
     $panel = select("marzban_panel", "*", "name_panel", $namePanel, "select");
-    $selected = mirza_xui_admin_selection_load($from_id, $namePanel);
+    $selected = vira_xui_admin_selection_load($from_id, $namePanel);
     $pos = array_search($ibId, $selected, true);
     if ($pos !== false) {
         unset($selected[$pos]);
@@ -4817,25 +4781,25 @@ $caption";
     } else {
         $selected[] = $ibId;
     }
-    mirza_xui_admin_selection_save($from_id, $namePanel, $selected, mirza_xui_admin_picker_list_cached($from_id, $namePanel));
-    $list = mirza_xui_admin_picker_list_cached($from_id, $namePanel);
+    vira_xui_admin_selection_save($from_id, $namePanel, $selected, vira_xui_admin_picker_list_cached($from_id, $namePanel));
+    $list = vira_xui_admin_picker_list_cached($from_id, $namePanel);
     if ($list === null) {
-        $list = mirza_xui_list_inbound_options($namePanel);
+        $list = vira_xui_list_inbound_options($namePanel);
     }
     telegram('answerCallbackQuery', array('callback_query_id' => $callback_query_id));
-    Editmessagetext($from_id, $message_id, mirza_xui_inbound_picker_text($panel, $selected), mirza_xui_inbound_picker_keyboard($namePanel, $list, $selected), 'HTML');
+    Editmessagetext($from_id, $message_id, vira_xui_inbound_picker_text($panel, $selected), vira_xui_inbound_picker_keyboard($namePanel, $list, $selected), 'HTML');
 } elseif ($text == "💎 تنظیم شناسه اینباند" && $adminrulecheck['rule'] == "administrator") {
     sendmessage($from_id, "📌 شناسه اینباند(ها) را ارسال کنید — یا از «🎯 انتخاب اینباندها» با دکمهٔ لمسی انتخاب کنید.\n\n• یک اینباند: <code>3</code>\n• چند اینباند: <code>1,3,5</code> یا <code>[1,3,5]</code>", $backadmin, 'HTML');
     step('getinboundiid', $from_id);
 } elseif ($user['step'] == "getinboundiid") {
     $typepanel = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
     if ($typepanel && $typepanel['type'] === 'x-ui_single') {
-        $ids = mirza_xui_parse_id_list($text);
+        $ids = vira_xui_parse_id_list($text);
         if ($ids === []) {
             sendmessage($from_id, "❌ فرمت نامعتبر. مثال: <code>1,3,5</code>", $backadmin, 'HTML');
             return;
         }
-        mirza_xui_save_panel_inbounds($user['Processing_value'], $ids);
+        vira_xui_save_panel_inbounds($user['Processing_value'], $ids);
         $msg = "✅ " . count($ids) . " اینباند ذخیره شد: " . implode(', ', $ids);
         sendmessage($from_id, $msg, $optionX_ui_single, 'HTML');
     } else {
@@ -4844,7 +4808,7 @@ $caption";
     }
     step('home', $from_id);
 } elseif ($text == "📡 نمایش اینباندهای پنل" && $adminrulecheck['rule'] == "administrator") {
-    mirza_xui_admin_open_inbound_picker($from_id, $user['Processing_value']);
+    vira_xui_admin_open_inbound_picker($from_id, $user['Processing_value']);
 } elseif ($text == "👤 ویرایش نام کاربری" && $adminrulecheck['rule'] == "administrator") {
     sendmessage($from_id, $textbotlang['Admin']['managepanel']['getusernamenew'], $backadmin, 'HTML');
     step('GetusernameNew', $from_id);
@@ -6434,14 +6398,14 @@ n2", $backadmin, 'HTML');
         return;
     }
     if ($DataUserOut['online_at'] == "online") {
-        $lastonline = mirza_online_status_label('online', $textbotlang);
+        $lastonline = vira_online_status_label('online', $textbotlang);
     } elseif ($DataUserOut['online_at'] == "offline") {
-        $lastonline = mirza_online_status_label('offline', $textbotlang);
+        $lastonline = vira_online_status_label('offline', $textbotlang);
     } else {
         if (isset($DataUserOut['online_at']) && $DataUserOut['online_at'] !== null) {
-            $lastonline = mirza_online_status_label($DataUserOut['online_at'], $textbotlang);
+            $lastonline = vira_online_status_label($DataUserOut['online_at'], $textbotlang);
         } else {
-            $lastonline = mirza_online_status_label(null, $textbotlang);
+            $lastonline = vira_online_status_label(null, $textbotlang);
         }
     }
     #-------------status----------------#
@@ -7230,7 +7194,7 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     sendmessage(
         $from_id,
         $textbotlang['Admin']['Status']['autoconfirmcard'] . "\n\n📱 تأیید از طریق پیامک بانک (گروه تلگرام یا HTTP)",
-        mirza_card_sms_autoconfirm_inline_keyboard(),
+        vira_card_sms_autoconfirm_inline_keyboard(),
         'HTML'
     );
 } elseif ($datain == "onautoconfirm" && $adminrulecheck['rule'] == "administrator") {
@@ -7239,7 +7203,7 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
         $from_id,
         $message_id,
         $textbotlang['Admin']['Status']['autoConfirmOff'],
-        mirza_card_sms_autoconfirm_inline_keyboard('offautoconfirm')
+        vira_card_sms_autoconfirm_inline_keyboard('offautoconfirm')
     );
 } elseif ($datain == "offautoconfirm" && $adminrulecheck['rule'] == "administrator") {
     update("PaySetting", "ValuePay", "onautoconfirm", "NamePay", "statuscardautoconfirm");
@@ -7247,7 +7211,7 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
         $from_id,
         $message_id,
         $textbotlang['Admin']['Status']['autoConfirmOn'],
-        mirza_card_sms_autoconfirm_inline_keyboard('onautoconfirm')
+        vira_card_sms_autoconfirm_inline_keyboard('onautoconfirm')
     );
 } elseif ($text == "/token") {
     $secret_key = select("admin", "*", "id_admin", $from_id, "select");
@@ -7925,7 +7889,7 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     update("user", "Processing_value", $userdata['idpanel'], "id", $from_id);
     step("home", $from_id);
 } elseif ($text == "📬 گزارش ربات" && $adminrulecheck['rule'] == "administrator") {
-    $textupdate = "💬 | گزارش ربات\n\n🔹 | اگر در عملکرد ربات با <b>باگ یا مشکلی</b> روبه‌رو شدید، لطفاً مورد را برای بررسی به ما اطلاع دهید.\n➖➖➖➖➖➖➖➖➖➖➖\n🔹 | در صورتی که با <b>باگ جدی</b> یا رفتار غیرعادی مواجه شدید، سریع‌تر گزارش دهید تا رفع شود.\n➖➖➖➖➖➖➖➖➖➖➖\n🔹 | اگر پیشنهادی برای <b>افزودن قابلیت جدید</b> دارید یا ایده‌ای برای بهبود عملکرد ربات در نظر دارید، خوشحال می‌شویم بشنویم.\n➖➖➖➖➖➖➖➖➖➖➖\n🔹 | همچنین اگر نیاز به <b>راهنمایی</b> یا کمک دارید، می‌توانید از طریق دایرکت با تیم پشتیبانی در ارتباط باشید.\n\n📩 | برای ارسال گزارش، پیشنهاد یا درخواست راهنمایی، در <b>گروه ویرانات</b> پیام بگذارید:\n<a href=\"https://github.com/liamlope/ViraNaut/issues\" rel=\"nofollow\" target=\"_blank\">ViraNaut Support</a>";
+    $textupdate = "💬 | گزارش ربات\n\n🔹 | اگر در عملکرد ربات با <b>باگ یا مشکلی</b> روبه‌رو شدید، لطفاً مورد را برای بررسی به ما اطلاع دهید.\n➖➖➖➖➖➖➖➖➖➖➖\n🔹 | در صورتی که با <b>باگ جدی</b> یا رفتار غیرعادی مواجه شدید، سریع‌تر گزارش دهید تا رفع شود.\n➖➖➖➖➖➖➖➖➖➖➖\n🔹 | اگر پیشنهادی برای <b>افزودن قابلیت جدید</b> دارید یا ایده‌ای برای بهبود عملکرد ربات در نظر دارید، خوشحال می‌شویم بشنویم.\n➖➖➖➖➖➖➖➖➖➖➖\n🔹 | همچنین اگر نیاز به <b>راهنمایی</b> یا کمک دارید، می‌توانید از طریق دایرکت با تیم پشتیبانی در ارتباط باشید.\n\n📩 | برای ارسال گزارش، پیشنهاد یا درخواست راهنمایی، در <b>گروه ویرا</b> پیام بگذارید:\n<a href=\"https://github.com/liamlope/ViraNaut/issues\" rel=\"nofollow\" target=\"_blank\">ViraNaut Support</a>";
     sendmessage($from_id, $textupdate, null, 'HTML');
     step('home', $from_id);
 } elseif ($text == "🛠 قابلیت های پنل") {
@@ -8268,7 +8232,7 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     ]);
     sendmessage($from_id, "📌 از لیست زیر میتوانید درگاه ها را مدیریت کنید.
 
-⚠️ تیم ویرانات هیچ تضمینی برای درگاه‌ها ندارد؛ مسئولیت استفاده با شماست", $Bot_Status, 'HTML');
+⚠️ تیم ویرا هیچ تضمینی برای درگاه‌ها ندارد؛ مسئولیت استفاده با شماست", $Bot_Status, 'HTML');
 } elseif ($text == "🎁 کش بک تمدید" && $adminrulecheck['rule'] == "administrator") {
     sendmessage($from_id, "📌 مقدار درصدی که می خواهید حساب کاربر بعد از تمدید به عنوان هدیه شارژ شود را ارسال کنید.
 ⚠️ در صورتی که میخواهید غیرفعال باشد عدد 0 را ارسال کنید", $backadmin, 'HTML');
@@ -8492,7 +8456,7 @@ n2", $backadmin, 'HTML');
     ]);
     Editmessagetext($from_id, $message_id, "📌 از لیست زیر میتوانید درگاه ها را مدیریت کنید.
 
-⚠️ تیم ویرانات هیچ تضمینی برای درگاه‌ها ندارد؛ مسئولیت استفاده با شماست", $Bot_Status);
+⚠️ تیم ویرا هیچ تضمینی برای درگاه‌ها ندارد؛ مسئولیت استفاده با شماست", $Bot_Status);
 } elseif ($text == "💰 کش بک کارت به کارت") {
     sendmessage($from_id, "📌 در این بخش می توانید تعیین کنید کاربر پس از پرداخت چه درصدی به عنوان هدیه به حسابش واریز شود. ( برای غیرفعال کردن این قابلیت عدد صفر ارسال کنید)", $backadmin, 'HTML');
     step("getcashcart", $from_id);
@@ -9271,7 +9235,7 @@ f,n.n2", $backadmin, 'HTML');
     update("user", "Processing_value", $userdata['namepanel'], "id", $from_id);
     step('home', $from_id);
 } elseif ($text == "🔼 اضافه کردن دپارتمان") {
-    sendmessage($from_id, "📌 ایدی عددی ادمینی که میخواهید پیام ها به آن ادمین ارسال شود را بفرستید", $backadmin, 'HTML');
+    sendmessage($from_id, vira_prompt_with_idfindeer("📌 ایدی عددی ادمینی که میخواهید پیام ها به آن ادمین ارسال شود را بفرستید"), $backadmin, 'HTML');
     step("getidadmindep", $from_id);
 } elseif ($user['step'] == "getidadmindep") {
     if (!ctype_digit($text)) {
@@ -9698,8 +9662,8 @@ f,n.n2", $backadmin, 'HTML');
 } elseif (preg_match('/transferaccount_(\w+)/', $datain, $dataget)) {
     $iduser = $dataget[1];
     update("user", "Processing_value", $iduser, "id", $from_id);
-    sendmessage($from_id, "آیدی عددی کاربری که میخواهید تمامی اطلاعات به آن کاربر منتقل شود را ارسال نمایید
-    توجه داشتید باشید در کاربر مقصد در صورت داشتن موجودی حذف خواهد شد", $backadmin, 'HTML');
+    sendmessage($from_id, vira_prompt_with_idfindeer("آیدی عددی کاربری که میخواهید تمامی اطلاعات به آن کاربر منتقل شود را ارسال نمایید
+    توجه داشتید باشید در کاربر مقصد در صورت داشتن موجودی حذف خواهد شد"), $backadmin, 'HTML');
     step("getidfortransfers", $from_id);
 } elseif ($user['step'] == "getidfortransfers") {
     if (!in_array($text, $users_ids)) {
@@ -9835,12 +9799,12 @@ f,n.n2", $backadmin, 'HTML');
             sendmessage($from_id, $textbotlang['users']['stateus']['UserNotFound'], null, 'html');
             return;
         }
-        $ids = !empty($obj['inboundIds']) ? mirza_xui_parse_id_list($obj['inboundIds']) : mirza_xui_parse_id_list($obj['inboundId'] ?? '');
+        $ids = !empty($obj['inboundIds']) ? vira_xui_parse_id_list($obj['inboundIds']) : vira_xui_parse_id_list($obj['inboundId'] ?? '');
         if ($ids === []) {
             sendmessage($from_id, "❌ اینباند برای این کاربر یافت نشد.", $optionX_ui_single, 'HTML');
             return;
         }
-        mirza_xui_save_panel_inbounds($panel['name_panel'], $ids);
+        vira_xui_save_panel_inbounds($panel['name_panel'], $ids);
     } elseif ($panel['type'] == "ibsng" || $panel['type'] == "mikrotik") {
         update("marzban_panel", "proxies", $text, "name_panel", $user['Processing_value']);
     }
@@ -9936,7 +9900,7 @@ f,n.n2", $backadmin, 'HTML');
 //     sendmessage($from_id, "✅  کانفیگ های کاربر در صف غیرفعال شدن قرار گرفتند توجه داشتید این کار ممکن است بیشتر از ۲ ساعت طول بکشد زمان بستگی به تعداد کانفیگ دارد.", null, 'HTML');
 // }
 elseif ($text == "🫣 مخفی کردن پنل برای یک کاربر" && $adminrulecheck['rule'] == "administrator") {
-    sendmessage($from_id, "📌آیدی عددی کاربر را برای این پنل را ارسال نمایید.", $backadmin, 'HTML');
+    sendmessage($from_id, vira_prompt_with_idfindeer("📌آیدی عددی کاربر را برای این پنل را ارسال نمایید."), $backadmin, 'HTML');
     step('getuserhide', $from_id);
 } elseif ($user['step'] == "getuserhide") {
     if (!ctype_digit($text)) {
@@ -9955,7 +9919,7 @@ elseif ($text == "🫣 مخفی کردن پنل برای یک کاربر" && $ad
     update("marzban_panel", "hide_user", $hideuserid, "name_panel", $user['Processing_value']);
     step('home', $from_id);
 } elseif ($text == "❌  حذف کاربر از لیست مخفی شدگان" && $adminrulecheck['rule'] == "administrator") {
-    sendmessage($from_id, "📌آیدی عددی کاربر را برای این پنل را ارسال نمایید.", $backadmin, 'HTML');
+    sendmessage($from_id, vira_prompt_with_idfindeer("📌آیدی عددی کاربر را برای این پنل را ارسال نمایید."), $backadmin, 'HTML');
     step('getuserhideforremove', $from_id);
 } elseif ($user['step'] == "getuserhideforremove") {
     if (!ctype_digit($text)) {
@@ -10151,7 +10115,7 @@ elseif ($text == "🫣 مخفی کردن پنل برای یک کاربر" && $ad
         }
         $datainbound = json_encode($userdata['service_ids'], true);
     } elseif ($marzban_list_get['type'] == "x-ui_single") {
-        $ids = mirza_xui_parse_id_list($text);
+        $ids = vira_xui_parse_id_list($text);
         if ($ids === []) {
             $user_data = get_clinets($text, $marzban_list_get['name_panel']);
             if (!empty($user_data['error'])) {
@@ -10164,7 +10128,7 @@ elseif ($text == "🫣 مخفی کردن پنل برای یک کاربر" && $ad
                 sendmessage($from_id, $textbotlang['users']['stateus']['UserNotFound'], null, 'html');
                 return;
             }
-            $ids = !empty($obj['inboundIds']) ? mirza_xui_parse_id_list($obj['inboundIds']) : mirza_xui_parse_id_list($obj['inboundId'] ?? '');
+            $ids = !empty($obj['inboundIds']) ? vira_xui_parse_id_list($obj['inboundIds']) : vira_xui_parse_id_list($obj['inboundId'] ?? '');
         }
         if ($ids === []) {
             sendmessage($from_id, "❌ شناسه اینباند نامعتبر. مثال: <code>1,3</code> یا نام کاربری موجود در پنل.", $shopkeyboard, 'HTML');
@@ -10732,8 +10696,7 @@ if (isset($update["inline_query"])) {
     }
     savedata("save", "token", $text);
     savedata("save", "username", $getInfoToken['result']['username']);
-    $texbot = "📌 آیدی عددی ادمین را ارسال نمایید";
-    sendmessage($from_id, $texbot, $backadmin, 'HTML');
+    sendmessage($from_id, vira_prompt_with_idfindeer("📌 آیدی عددی ادمین را ارسال نمایید"), $backadmin, 'HTML');
     step("getadminidbot", $from_id);
 } elseif ($user['step'] == "getadminidbot") {
     if (!ctype_digit($text)) {
@@ -10894,7 +10857,7 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
         'onsublink' => $textbotlang['Admin']['Status']['statuson'],
         'offsublink' => $textbotlang['Admin']['Status']['statusoff']
     ][$panel['sublink']];
-    $statusshowbuy = mirza_panel_is_active_status($panel['status'] ?? '')
+    $statusshowbuy = vira_panel_is_active_status($panel['status'] ?? '')
         ? $textbotlang['Admin']['Status']['statuson']
         : $textbotlang['Admin']['Status']['statusoff'];
     $statusshowtest = [
@@ -11045,7 +11008,7 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
         }
         update("marzban_panel", "sublink", $valuenew, "code_panel", $code_panel);
     } elseif ($type == "statusbuy") {
-        $valuenew = mirza_panel_is_active_status($value) ? 'deactive' : 'active';
+        $valuenew = vira_panel_is_active_status($value) ? 'deactive' : 'active';
         update("marzban_panel", "status", $valuenew, "code_panel", $code_panel);
     } elseif ($type == "statustest") {
         if ($value == "ONTestAccount") {
@@ -11144,7 +11107,7 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
         'onsublink' => $textbotlang['Admin']['Status']['statuson'],
         'offsublink' => $textbotlang['Admin']['Status']['statusoff']
     ][$panel['sublink']];
-    $statusshowbuy = mirza_panel_is_active_status($panel['status'] ?? '')
+    $statusshowbuy = vira_panel_is_active_status($panel['status'] ?? '')
         ? $textbotlang['Admin']['Status']['statuson']
         : $textbotlang['Admin']['Status']['statusoff'];
     $statusshowtest = [

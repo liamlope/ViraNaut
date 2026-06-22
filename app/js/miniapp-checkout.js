@@ -13,11 +13,11 @@
   }
 
   function toast(msg) {
-    var el = document.getElementById('mirza-mini-toast');
+    var el = document.getElementById('vira-mini-toast');
     if (!el) {
       el = document.createElement('div');
-      el.id = 'mirza-mini-toast';
-      el.className = 'mirza-mini-toast';
+      el.id = 'vira-mini-toast';
+      el.className = 'vira-mini-toast';
       document.body.appendChild(el);
     }
     el.textContent = msg;
@@ -34,31 +34,31 @@
   }
 
   function overlayHtml() {
-    var el = document.getElementById('mirza-checkout-overlay');
+    var el = document.getElementById('vira-checkout-overlay');
     if (el) return el;
     el = document.createElement('div');
-    el.id = 'mirza-checkout-overlay';
-    el.className = 'mirza-checkout-overlay';
+    el.id = 'vira-checkout-overlay';
+    el.className = 'vira-checkout-overlay';
     el.innerHTML =
-      '<div class="mirza-checkout-sheet" role="dialog" aria-modal="true">' +
-      '<button type="button" class="mirza-checkout-close" aria-label="بستن">×</button>' +
-      '<div class="mirza-checkout-body"></div></div>';
+      '<div class="vira-checkout-sheet" role="dialog" aria-modal="true">' +
+      '<button type="button" class="vira-checkout-close" aria-label="بستن">×</button>' +
+      '<div class="vira-checkout-body"></div></div>';
     document.body.appendChild(el);
     el.addEventListener('click', function (e) {
       if (e.target === el) close();
     });
-    el.querySelector('.mirza-checkout-close').addEventListener('click', close);
+    el.querySelector('.vira-checkout-close').addEventListener('click', close);
     return el;
   }
 
   function close() {
-    var el = document.getElementById('mirza-checkout-overlay');
+    var el = document.getElementById('vira-checkout-overlay');
     if (el) el.classList.remove('open');
   }
 
   function setBody(html) {
     var el = overlayHtml();
-    el.querySelector('.mirza-checkout-body').innerHTML = html;
+    el.querySelector('.vira-checkout-body').innerHTML = html;
     el.classList.add('open');
   }
 
@@ -70,7 +70,7 @@
   }
 
   function ensureMetaDefaults() {
-    var D = global.MIRZA_DEMO_DATA || {};
+    var D = global.VIRA_DEMO_DATA || {};
     D.meta = D.meta || {};
     D.meta.gateways = D.meta.gateways || {};
     D.meta.deposit_limits = D.meta.deposit_limits || {};
@@ -80,13 +80,13 @@
     if (!D.meta.deposit_limits.card) {
       D.meta.deposit_limits.card = { min: 5000, max: 50000000 };
     }
-    global.MIRZA_DEMO_DATA = D;
+    global.VIRA_DEMO_DATA = D;
     return D.meta;
   }
 
   function depositLimits(gateway) {
     ensureMetaDefaults();
-    var meta = (global.MIRZA_DEMO_DATA && global.MIRZA_DEMO_DATA.meta) || {};
+    var meta = (global.VIRA_DEMO_DATA && global.VIRA_DEMO_DATA.meta) || {};
     var limits = (meta.deposit_limits && meta.deposit_limits[gateway]) || {};
     var min = Number(limits.min) || 5000;
     var max = Number(limits.max) || 50000000;
@@ -104,7 +104,7 @@
 
   function limitsHintHtml(gateway) {
     var lim = depositLimits(gateway);
-    return '<p class="mirza-checkout-hint">حداقل ' + fmt(lim.min) + ' — حداکثر ' + fmt(lim.max) + ' تومان</p>';
+    return '<p class="vira-checkout-hint">حداقل ' + fmt(lim.min) + ' — حداکثر ' + fmt(lim.max) + ' تومان</p>';
   }
 
   function quickAmountsHtml(gateway, selected) {
@@ -112,18 +112,18 @@
     var presets = [lim.min, 50000, 100000, 200000, 500000].filter(function (v, i, a) {
       return v >= lim.min && v <= lim.max && a.indexOf(v) === i;
     }).slice(0, 4);
-    return '<div class="mirza-checkout-quick">' + presets.map(function (v) {
+    return '<div class="vira-checkout-quick">' + presets.map(function (v) {
       var on = selected === v ? ' on' : '';
-      return '<button type="button" class="mirza-checkout-quick-btn' + on + '" data-amount="' + v + '">' + fmt(v) + '</button>';
+      return '<button type="button" class="vira-checkout-quick-btn' + on + '" data-amount="' + v + '">' + fmt(v) + '</button>';
     }).join('') + '</div>';
   }
 
   function bindQuickAmounts(sheet, inputId) {
-    sheet.querySelectorAll('.mirza-checkout-quick-btn').forEach(function (btn) {
+    sheet.querySelectorAll('.vira-checkout-quick-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var inp = sheet.querySelector('#' + inputId);
         if (inp) inp.value = btn.getAttribute('data-amount');
-        sheet.querySelectorAll('.mirza-checkout-quick-btn').forEach(function (b) {
+        sheet.querySelectorAll('.vira-checkout-quick-btn').forEach(function (b) {
           b.classList.toggle('on', b === btn);
         });
       });
@@ -131,19 +131,19 @@
   }
 
   function watchReturnAndRefresh(onSuccess) {
-    if (!global.MIRZA_MINIAPP_API || !global.MIRZA_MINIAPP_API.reloadCatalog) return;
+    if (!global.VIRA_MINIAPP_API || !global.VIRA_MINIAPP_API.reloadCatalog) return;
     var done = false;
     function handler() {
       if (document.visibilityState !== 'visible' || done) return;
       done = true;
       document.removeEventListener('visibilitychange', handler);
-      global.MIRZA_MINIAPP_API.reloadCatalog().then(function (part) {
-        var D = global.MIRZA_DEMO_DATA || {};
+      global.VIRA_MINIAPP_API.reloadCatalog().then(function (part) {
+        var D = global.VIRA_DEMO_DATA || {};
         if (part.user) {
           D.user = D.user || {};
           D.user.balance = Number(part.user.balance || 0);
         }
-        global.MIRZA_DEMO_DATA = D;
+        global.VIRA_DEMO_DATA = D;
         toast('موجودی به‌روز شد');
         if (typeof onSuccess === 'function') onSuccess(part);
       }).catch(function () { /* ignore */ });
@@ -160,7 +160,7 @@
       toast(check.msg);
       return Promise.reject(new Error(check.msg));
     }
-    return global.MIRZA_MINIAPP_API.createDeposit(check.amount, gateway, ctx).then(function (res) {
+    return global.VIRA_MINIAPP_API.createDeposit(check.amount, gateway, ctx).then(function (res) {
       if (res.payment_url) {
         openLink(res.payment_url);
         if (typeof onOpened === 'function') onOpened();
@@ -171,40 +171,40 @@
   }
 
   function openPurchase(product, ctx, isDemo, onSuccess) {
-    var balance = Number((global.MIRZA_DEMO_DATA && global.MIRZA_DEMO_DATA.user && global.MIRZA_DEMO_DATA.user.balance) || 0);
+    var balance = Number((global.VIRA_DEMO_DATA && global.VIRA_DEMO_DATA.user && global.VIRA_DEMO_DATA.user.balance) || 0);
     var price = Number(product.price || 0);
     var needTopup = balance < price;
-    var gw = (global.MIRZA_DEMO_DATA && global.MIRZA_DEMO_DATA.meta && global.MIRZA_DEMO_DATA.meta.gateways) || {};
+    var gw = (global.VIRA_DEMO_DATA && global.VIRA_DEMO_DATA.meta && global.VIRA_DEMO_DATA.meta.gateways) || {};
     var zarinOn = gatewayOn(gw, 'zarinpalstatus');
     var lim = depositLimits('zarinpal');
     var defaultTopup = Math.max(lim.min, price - balance);
 
     setBody(
-      '<h3 class="mirza-checkout-title">تأیید خرید</h3>' +
-      '<div class="mirza-checkout-product">' +
+      '<h3 class="vira-checkout-title">تأیید خرید</h3>' +
+      '<div class="vira-checkout-product">' +
       '<h4>' + esc(product.name) + '</h4>' +
       '<p>' + esc(product.days) + ' روز · ' + esc(product.gb) + ' GB · ' + esc(product.panel || product.cat) + '</p>' +
-      '<div class="mirza-checkout-price">' + (price ? fmt(price) + ' تومان' : 'رایگان') + '</div></div>' +
-      '<div class="mirza-checkout-balance">موجودی شما: <strong>' + fmt(balance) + ' ت</strong></div>' +
+      '<div class="vira-checkout-price">' + (price ? fmt(price) + ' تومان' : 'رایگان') + '</div></div>' +
+      '<div class="vira-checkout-balance">موجودی شما: <strong>' + fmt(balance) + ' ت</strong></div>' +
       (needTopup
-        ? '<p class="mirza-checkout-warn">موجودی کافی نیست — ابتدا کیف پول را شارژ کنید.</p>' +
-          '<label class="mirza-checkout-label">مبلغ شارژ (تومان)</label>' +
+        ? '<p class="vira-checkout-warn">موجودی کافی نیست — ابتدا کیف پول را شارژ کنید.</p>' +
+          '<label class="vira-checkout-label">مبلغ شارژ (تومان)</label>' +
           limitsHintHtml('zarinpal') +
           quickAmountsHtml('zarinpal', defaultTopup) +
-          '<input type="number" class="mirza-checkout-input" id="mirzaTopupAmount" min="' + lim.min + '" max="' + lim.max + '" step="1000" value="' + defaultTopup + '" />' +
-          (zarinOn ? '<button type="button" class="mirza-sh-btn mirza-checkout-topup">پرداخت با زرین‌پال</button>' : '<p class="mirza-checkout-hint">درگاه آنلاین فعال نیست.</p>')
+          '<input type="number" class="vira-checkout-input" id="viraTopupAmount" min="' + lim.min + '" max="' + lim.max + '" step="1000" value="' + defaultTopup + '" />' +
+          (zarinOn ? '<button type="button" class="vira-sh-btn vira-checkout-topup">پرداخت با زرین‌پال</button>' : '<p class="vira-checkout-hint">درگاه آنلاین فعال نیست.</p>')
         : '') +
-      '<button type="button" class="mirza-sh-btn mirza-checkout-confirm" ' + (needTopup ? 'disabled' : '') + '>پرداخت از موجودی و فعال‌سازی</button>'
+      '<button type="button" class="vira-sh-btn vira-checkout-confirm" ' + (needTopup ? 'disabled' : '') + '>پرداخت از موجودی و فعال‌سازی</button>'
     );
 
-    var sheet = document.getElementById('mirza-checkout-overlay');
-    bindQuickAmounts(sheet, 'mirzaTopupAmount');
-    var confirmBtn = sheet.querySelector('.mirza-checkout-confirm');
-    var topupBtn = sheet.querySelector('.mirza-checkout-topup');
+    var sheet = document.getElementById('vira-checkout-overlay');
+    bindQuickAmounts(sheet, 'viraTopupAmount');
+    var confirmBtn = sheet.querySelector('.vira-checkout-confirm');
+    var topupBtn = sheet.querySelector('.vira-checkout-topup');
 
     if (topupBtn && !isDemo) {
       topupBtn.addEventListener('click', function () {
-        var amount = parseInt(sheet.querySelector('#mirzaTopupAmount').value, 10) || 0;
+        var amount = parseInt(sheet.querySelector('#viraTopupAmount').value, 10) || 0;
         topupBtn.disabled = true;
         topupBtn.textContent = 'در حال ساخت لینک…';
         runDeposit(amount, 'zarinpal', ctx, function () {
@@ -231,15 +231,15 @@
         }
         confirmBtn.disabled = true;
         confirmBtn.textContent = 'در حال پردازش…';
-        global.MIRZA_MINIAPP_API.purchase(product, ctx).then(function (res) {
+        global.VIRA_MINIAPP_API.purchase(product, ctx).then(function (res) {
           var svc = res.service || {};
           setBody(
-            '<h3 class="mirza-checkout-title">✅ خرید موفق</h3>' +
-            '<p>نام کاربری سرویس:</p><code class="mirza-checkout-code">' + esc(svc.username || '—') + '</code>' +
-            '<p style="font-size:.8rem;color:var(--mirza-muted);margin-top:12px">سرویس در بخش «سرویس‌ها» نمایش داده می‌شود.</p>' +
-            '<button type="button" class="mirza-sh-btn mirza-checkout-done">بستن</button>'
+            '<h3 class="vira-checkout-title">✅ خرید موفق</h3>' +
+            '<p>نام کاربری سرویس:</p><code class="vira-checkout-code">' + esc(svc.username || '—') + '</code>' +
+            '<p style="font-size:.8rem;color:var(--vira-muted);margin-top:12px">سرویس در بخش «سرویس‌ها» نمایش داده می‌شود.</p>' +
+            '<button type="button" class="vira-sh-btn vira-checkout-done">بستن</button>'
           );
-          sheet.querySelector('.mirza-checkout-done').addEventListener('click', function () {
+          sheet.querySelector('.vira-checkout-done').addEventListener('click', function () {
             close();
             if (typeof onSuccess === 'function') onSuccess(res);
           });
@@ -256,10 +256,10 @@
   function walletChargeHtml(idSuffix) {
     ensureMetaDefaults();
     idSuffix = idSuffix || '';
-    var amountId = 'mirzaWalletAmount' + idSuffix;
-    var cardAmountId = 'mirzaCardAmount' + idSuffix;
-    var balance = Number((global.MIRZA_DEMO_DATA && global.MIRZA_DEMO_DATA.user && global.MIRZA_DEMO_DATA.user.balance) || 0);
-    var meta = (global.MIRZA_DEMO_DATA && global.MIRZA_DEMO_DATA.meta) || {};
+    var amountId = 'viraWalletAmount' + idSuffix;
+    var cardAmountId = 'viraCardAmount' + idSuffix;
+    var balance = Number((global.VIRA_DEMO_DATA && global.VIRA_DEMO_DATA.user && global.VIRA_DEMO_DATA.user.balance) || 0);
+    var meta = (global.VIRA_DEMO_DATA && global.VIRA_DEMO_DATA.meta) || {};
     var gw = meta.gateways || {};
     var zarinOn = gatewayOn(gw, 'zarinpalstatus');
     var cardOn = gatewayOn(gw, 'Cartstatus') || gatewayOn(gw, 'cartstatus');
@@ -273,46 +273,46 @@
     if (cardOn && cardNum) {
       var limC = depositLimits('card');
       cardBlock =
-        '<div class="mirza-checkout-product mirza-wallet-card-block" style="margin-top:12px">' +
+        '<div class="vira-checkout-product vira-wallet-card-block" style="margin-top:12px">' +
         '<h4>کارت به کارت</h4>' +
         limitsHintHtml('card') +
-        '<code class="mirza-checkout-code">' + esc(cardNum) + '</code>' +
-        (cardHolder ? '<p class="mirza-checkout-hint">به نام: ' + esc(cardHolder) + '</p>' : '') +
-        '<label class="mirza-checkout-label">مبلغ واریز (تومان)</label>' +
-        '<input type="tel" inputmode="numeric" pattern="[0-9]*" class="mirza-checkout-input" id="' + cardAmountId + '" min="' + limC.min + '" max="' + limC.max + '" step="1000" value="' + Math.max(limC.min, defaultAmt) + '" placeholder="مثلاً ' + fmt(limC.min) + '" />' +
-        '<button type="button" class="mirza-sh-btn mirza-wallet-copy-card">کپی شماره کارت</button>' +
-        '<p class="mirza-checkout-hint">مبلغ را دقیقاً واریز کنید. پس از تأیید ادمین موجودی شارژ می‌شود.</p></div>';
+        '<code class="vira-checkout-code">' + esc(cardNum) + '</code>' +
+        (cardHolder ? '<p class="vira-checkout-hint">به نام: ' + esc(cardHolder) + '</p>' : '') +
+        '<label class="vira-checkout-label">مبلغ واریز (تومان)</label>' +
+        '<input type="tel" inputmode="numeric" pattern="[0-9]*" class="vira-checkout-input" id="' + cardAmountId + '" min="' + limC.min + '" max="' + limC.max + '" step="1000" value="' + Math.max(limC.min, defaultAmt) + '" placeholder="مثلاً ' + fmt(limC.min) + '" />' +
+        '<button type="button" class="vira-sh-btn vira-wallet-copy-card">کپی شماره کارت</button>' +
+        '<p class="vira-checkout-hint">مبلغ را دقیقاً واریز کنید. پس از تأیید ادمین موجودی شارژ می‌شود.</p></div>';
     }
 
-    return '<div class="mirza-wallet-charge-form" data-wallet-suffix="' + esc(idSuffix) + '">' +
-      '<div class="mirza-checkout-balance">موجودی فعلی: <strong>' + fmt(balance) + ' تومان</strong></div>' +
-      '<h4 class="mirza-wallet-charge-title">مبلغ شارژ را انتخاب یا وارد کنید</h4>' +
-      '<label class="mirza-checkout-label" for="' + amountId + '">مبلغ (تومان)</label>' +
+    return '<div class="vira-wallet-charge-form" data-wallet-suffix="' + esc(idSuffix) + '">' +
+      '<div class="vira-checkout-balance">موجودی فعلی: <strong>' + fmt(balance) + ' تومان</strong></div>' +
+      '<h4 class="vira-wallet-charge-title">مبلغ شارژ را انتخاب یا وارد کنید</h4>' +
+      '<label class="vira-checkout-label" for="' + amountId + '">مبلغ (تومان)</label>' +
       limitsHintHtml('zarinpal') +
       quickAmountsHtml('zarinpal', defaultAmt) +
-      '<input type="tel" inputmode="numeric" pattern="[0-9]*" class="mirza-checkout-input mirza-wallet-amount-input" id="' + amountId + '" min="' + limZ.min + '" max="' + limZ.max + '" step="1000" value="' + defaultAmt + '" placeholder="مثلاً ' + fmt(defaultAmt) + '" autocomplete="off" />' +
+      '<input type="tel" inputmode="numeric" pattern="[0-9]*" class="vira-checkout-input vira-wallet-amount-input" id="' + amountId + '" min="' + limZ.min + '" max="' + limZ.max + '" step="1000" value="' + defaultAmt + '" placeholder="مثلاً ' + fmt(defaultAmt) + '" autocomplete="off" />' +
       (zarinOn
-        ? '<button type="button" class="mirza-sh-btn mirza-wallet-zarin">پرداخت آنلاین (زرین‌پال)</button>'
-        : '<p class="mirza-checkout-hint">درگاه زرین‌پال در پنل ادمین غیرفعال است — مبلغ را وارد کنید و از کارت به کارت استفاده کنید.</p>') +
+        ? '<button type="button" class="vira-sh-btn vira-wallet-zarin">پرداخت آنلاین (زرین‌پال)</button>'
+        : '<p class="vira-checkout-hint">درگاه زرین‌پال در پنل ادمین غیرفعال است — مبلغ را وارد کنید و از کارت به کارت استفاده کنید.</p>') +
       cardBlock +
-      (!zarinOn && !cardOn ? '<p class="mirza-checkout-warn">هیچ درگاه پرداختی فعال نیست. از پنل → تنظیمات پرداخت، زرین‌پال یا کارت را فعال کنید.</p>' : '') +
+      (!zarinOn && !cardOn ? '<p class="vira-checkout-warn">هیچ درگاه پرداختی فعال نیست. از پنل → تنظیمات پرداخت، زرین‌پال یا کارت را فعال کنید.</p>' : '') +
       '</div>';
   }
 
   function bindWalletCharge(root, ctx, isDemo, onSuccess) {
     if (!root) return;
-    var form = root.classList && root.classList.contains('mirza-wallet-charge-form')
+    var form = root.classList && root.classList.contains('vira-wallet-charge-form')
       ? root
-      : root.querySelector('.mirza-wallet-charge-form');
+      : root.querySelector('.vira-wallet-charge-form');
     if (!form) form = root;
     var suffix = form.getAttribute('data-wallet-suffix') || '';
-    var amountId = 'mirzaWalletAmount' + suffix;
-    var amountInput = form.querySelector('#' + amountId) || form.querySelector('.mirza-wallet-amount-input');
+    var amountId = 'viraWalletAmount' + suffix;
+    var amountInput = form.querySelector('#' + amountId) || form.querySelector('.vira-wallet-amount-input');
     bindQuickAmounts(form, amountId);
 
-    var meta = (global.MIRZA_DEMO_DATA && global.MIRZA_DEMO_DATA.meta) || {};
+    var meta = (global.VIRA_DEMO_DATA && global.VIRA_DEMO_DATA.meta) || {};
     var cardNum = meta.card_number || '';
-    var copyCard = form.querySelector('.mirza-wallet-copy-card');
+    var copyCard = form.querySelector('.vira-wallet-copy-card');
     if (copyCard && cardNum) {
       copyCard.addEventListener('click', function () {
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -325,7 +325,7 @@
       });
     }
 
-    var zBtn = form.querySelector('.mirza-wallet-zarin');
+    var zBtn = form.querySelector('.vira-wallet-zarin');
     if (zBtn) {
       zBtn.addEventListener('click', function () {
         if (isDemo) {
@@ -348,7 +348,7 @@
   }
 
   function botChargeUrl() {
-    var D = global.MIRZA_DEMO_DATA || {};
+    var D = global.VIRA_DEMO_DATA || {};
     var bot = D.meta && D.meta.bot_username ? String(D.meta.bot_username).replace(/^@/, '') : '';
     if (!bot) return '';
     return 'https://t.me/' + bot + '?start=charge';
@@ -357,17 +357,17 @@
   function botChargeRedirectHtml() {
     var url = botChargeUrl();
     if (!url) {
-      return '<div class="mirza-sh-empty">برای شارژ کیف پول به ربات تلگرام بروید.</div>';
+      return '<div class="vira-sh-empty">برای شارژ کیف پول به ربات تلگرام بروید.</div>';
     }
-    return '<div class="mirza-sh-card mirza-bot-charge-card" style="text-align:center;padding:20px">' +
+    return '<div class="vira-sh-card vira-bot-charge-card" style="text-align:center;padding:20px">' +
       '<div style="font-size:2rem;margin-bottom:8px">🤖</div>' +
       '<h4 style="margin:0 0 8px">شارژ کیف پول در ربات</h4>' +
-      '<p class="mirza-checkout-hint">پرداخت و شارژ فقط از داخل ربات تلگرام انجام می‌شود.</p>' +
-      '<button type="button" class="mirza-sh-btn mirza-bot-charge-btn" style="margin-top:12px">رفتن به ربات برای شارژ</button></div>';
+      '<p class="vira-checkout-hint">پرداخت و شارژ فقط از داخل ربات تلگرام انجام می‌شود.</p>' +
+      '<button type="button" class="vira-sh-btn vira-bot-charge-btn" style="margin-top:12px">رفتن به ربات برای شارژ</button></div>';
   }
 
   function bindBotChargeBtn(root) {
-    var btn = root.querySelector('.mirza-bot-charge-btn');
+    var btn = root.querySelector('.vira-bot-charge-btn');
     if (!btn) return;
     btn.addEventListener('click', function () {
       var url = botChargeUrl();
@@ -387,14 +387,14 @@
   }
 
   function openWallet(ctx, isDemo, onSuccess) {
-    setBody('<h3 class="mirza-checkout-title">شارژ کیف پول</h3>' + botChargeRedirectHtml());
-    var sheet = document.getElementById('mirza-checkout-overlay');
-    var body = sheet && sheet.querySelector('.mirza-checkout-body');
+    setBody('<h3 class="vira-checkout-title">شارژ کیف پول</h3>' + botChargeRedirectHtml());
+    var sheet = document.getElementById('vira-checkout-overlay');
+    var body = sheet && sheet.querySelector('.vira-checkout-body');
     if (body) bindBotChargeBtn(body);
   }
 
   function findProduct(id, countryId) {
-    var list = (global.MIRZA_DEMO_DATA && global.MIRZA_DEMO_DATA.products) || [];
+    var list = (global.VIRA_DEMO_DATA && global.VIRA_DEMO_DATA.products) || [];
     for (var i = 0; i < list.length; i++) {
       if (String(list[i].id) === String(id) && (!countryId || String(list[i].country_id) === String(countryId))) {
         return list[i];
@@ -403,7 +403,7 @@
     return null;
   }
 
-  global.MIRZA_CHECKOUT = {
+  global.VIRA_CHECKOUT = {
     openProduct: function (productId, countryId, opts) {
       opts = opts || {};
       var p = findProduct(productId, countryId);
@@ -411,11 +411,11 @@
         toast('پلن یافت نشد');
         return;
       }
-      openPurchase(p, opts.ctx || (global.MIRZA_MINIAPP_API && global.MIRZA_MINIAPP_API.getContext()), opts.isDemo, opts.onSuccess);
+      openPurchase(p, opts.ctx || (global.VIRA_MINIAPP_API && global.VIRA_MINIAPP_API.getContext()), opts.isDemo, opts.onSuccess);
     },
     openWallet: function (opts) {
       opts = opts || {};
-      openWallet(opts.ctx || (global.MIRZA_MINIAPP_API && global.MIRZA_MINIAPP_API.getContext()), opts.isDemo, opts.onSuccess);
+      openWallet(opts.ctx || (global.VIRA_MINIAPP_API && global.VIRA_MINIAPP_API.getContext()), opts.isDemo, opts.onSuccess);
     },
     mountWalletInline: mountWalletInline,
     walletChargeHtml: walletChargeHtml,

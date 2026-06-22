@@ -1,5 +1,5 @@
 /* ViraNaut Mini App — لایه قابلیت‌های اضافه */
-.mirza-mini-topbar {
+.vira-mini-topbar {
   position: fixed;
   top: 0;
   left: 0;
@@ -17,17 +17,17 @@
   transform: translateY(-8px);
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
-body.mirza-miniapp-ready .mirza-mini-topbar {
+body.vira-miniapp-ready .vira-mini-topbar {
   opacity: 1;
   transform: none;
   pointer-events: auto;
 }
-.mirza-mini-topbar .mirza-brand {
+.vira-mini-topbar .vira-brand {
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--tg-theme-text-color, #f8fafc);
 }
-.mirza-mini-topbar .mirza-balance {
+.vira-mini-topbar .vira-balance {
   font-size: 0.75rem;
   color: var(--tg-theme-hint-color, #94a3b8);
   background: rgba(255, 255, 255, 0.06);
@@ -35,11 +35,11 @@ body.mirza-miniapp-ready .mirza-mini-topbar {
   border-radius: 999px;
   padding: 4px 12px;
 }
-.mirza-mini-topbar .mirza-balance strong {
+.vira-mini-topbar .vira-balance strong {
   color: #34d399;
   font-weight: 700;
 }
-.mirza-mini-dock {
+.vira-mini-dock {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -56,10 +56,10 @@ body.mirza-miniapp-ready .mirza-mini-topbar {
   transform: translateY(100%);
   transition: transform 0.35s ease;
 }
-body.mirza-miniapp-ready .mirza-mini-dock {
+body.vira-miniapp-ready .vira-mini-dock {
   transform: translateY(0);
 }
-.mirza-dock-btn {
+.vira-dock-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -74,15 +74,15 @@ body.mirza-miniapp-ready .mirza-mini-dock {
   cursor: pointer;
   font-family: inherit;
 }
-.mirza-dock-btn span:first-child {
+.vira-dock-btn span:first-child {
   font-size: 1.15rem;
 }
-.mirza-dock-btn.active,
-.mirza-dock-btn:active {
+.vira-dock-btn.active,
+.vira-dock-btn:active {
   background: rgba(6, 182, 212, 0.15);
   color: var(--tg-theme-button-color, #22d3ee);
 }
-.mirza-mini-toast {
+.vira-mini-toast {
   position: fixed;
   bottom: 88px;
   left: 50%;
@@ -99,15 +99,15 @@ body.mirza-miniapp-ready .mirza-mini-dock {
   max-width: 90vw;
   text-align: center;
 }
-.mirza-mini-toast.show {
+.vira-mini-toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
-body.mirza-miniapp-enhanced #root {
+body.vira-miniapp-enhanced #root {
   padding-top: 48px;
   padding-bottom: 72px;
 }
-.mirza-mini-hint-card {
+.vira-mini-hint-card {
   margin: 12px 16px;
   padding: 14px 16px;
   border-radius: 14px;
@@ -117,7 +117,7 @@ body.mirza-miniapp-enhanced #root {
   line-height: 1.65;
   color: var(--tg-theme-text-color, #e2e8f0);
 }
-.mirza-mini-hint-card h4 {
+.vira-mini-hint-card h4 {
   margin: 0 0 6px;
   font-size: 0.88rem;
 }

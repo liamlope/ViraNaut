@@ -29,7 +29,7 @@ function vpnbot_sync_user_balance_json(string $userId, int $balance): void
 function DirectPaymentbot($order_id, $image = 'images.jpg')
 {
     global $pdo, $ManagePanel, $textbotlang, $keyboardextendfnished, $keyboard, $Confirm_pay, $from_id, $message_id, $datatextbot;
-    if (function_exists('mirza_payment_try_claim') && !mirza_payment_try_claim((string) $order_id)) {
+    if (function_exists('vira_payment_try_claim') && !vira_payment_try_claim((string) $order_id)) {
         return false;
     }
     $setting = select("setting", "*");
@@ -49,7 +49,7 @@ function DirectPaymentbot($order_id, $image = 'images.jpg')
     $Balance_confrim = (int) $Balance_id['Balance'] + (int) $Payment_report['price'];
     update("user", "Balance", $Balance_confrim, "id", $Balance_id['id']);
     vpnbot_sync_user_balance_json((string) $Balance_id['id'], $Balance_confrim);
-    if (!function_exists('mirza_payment_try_claim')) {
+    if (!function_exists('vira_payment_try_claim')) {
         update("Payment_report", "payment_Status", "paid", "id_order", $Payment_report['id_order']);
     }
     $Payment_report['price'] = number_format($Payment_report['price'], 0);

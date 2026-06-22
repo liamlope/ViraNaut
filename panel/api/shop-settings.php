@@ -14,7 +14,7 @@ function shop_json(bool $ok, string $msg = '', array $extra = []): void
 }
 
 if ($action === 'get') {
-    shop_json(true, '', mirza_shop_load_values($pdo));
+    shop_json(true, '', vira_shop_load_values($pdo));
 }
 
 http_response_code(400);

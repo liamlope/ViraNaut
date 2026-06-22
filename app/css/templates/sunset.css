@@ -1,29 +1,29 @@
-body.mirza-tpl-sunset {
-  --mirza-accent: #fb923c;
-  --mirza-accent-2: #f43f5e;
-  --mirza-surface: rgba(28, 16, 23, 0.96);
-  --mirza-surface-2: rgba(69, 26, 34, 0.6);
-  --mirza-border: rgba(251, 146, 60, 0.28);
-  --mirza-glow: rgba(244, 63, 94, 0.22);
-  --mirza-text: #fff7ed;
-  --mirza-muted: #fdba74;
-  --mirza-success: #fbbf24;
-  --mirza-radius: 18px;
+body.vira-tpl-sunset {
+  --vira-accent: #fb923c;
+  --vira-accent-2: #f43f5e;
+  --vira-surface: rgba(28, 16, 23, 0.96);
+  --vira-surface-2: rgba(69, 26, 34, 0.6);
+  --vira-border: rgba(251, 146, 60, 0.28);
+  --vira-glow: rgba(244, 63, 94, 0.22);
+  --vira-text: #fff7ed;
+  --vira-muted: #fdba74;
+  --vira-success: #fbbf24;
+  --vira-radius: 18px;
   background: linear-gradient(180deg, #1c1017 0%, #431407 50%, #1c1017 100%) !important;
 }
-body.mirza-tpl-sunset .mirza-mini-dock {
+body.vira-tpl-sunset .vira-mini-dock {
   border-radius: 24px 24px 0 0;
   backdrop-filter: blur(16px);
 }
-body.mirza-tpl-sunset .mirza-dock-btn {
+body.vira-tpl-sunset .vira-dock-btn {
   border-radius: 16px;
 }
-body.mirza-tpl-sunset .mirza-mini-hint-card h4::after {
+body.vira-tpl-sunset .vira-mini-hint-card h4::after {
   content: ' ✨';
 }
-body.mirza-tpl-sunset .mirza-mini-topbar .mirza-brand {
+body.vira-tpl-sunset .vira-mini-topbar .vira-brand {
   font-weight: 800;
 }
-body.mirza-tpl-sunset .mirza-app-loader {
+body.vira-tpl-sunset .vira-app-loader {
   background: #1c1017;
 }

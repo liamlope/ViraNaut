@@ -6,14 +6,14 @@ require_once __DIR__ . '/../botapi.php';
 require_once __DIR__ . '/../Marzban.php';
 require_once __DIR__ . '/../panels.php';
 require_once __DIR__ . '/../function.php';
-if (function_exists('mirza_ensure_user_lang_column')) {
-    mirza_ensure_user_lang_column();
+if (function_exists('vira_ensure_user_lang_column')) {
+    vira_ensure_user_lang_column();
 }
 require_once __DIR__ . '/../keyboard.php';
 $ManagePanel = new ManagePanel();
 require __DIR__ . '/../vendor/autoload.php';
 
-if (!mirza_card_sms_autoconfirm_enabled()) {
+if (!vira_card_sms_autoconfirm_enabled()) {
     http_response_code(200);
     exit;
 }
@@ -39,7 +39,7 @@ if (!is_string($valuepost) || trim($valuepost) === '') {
     exit;
 }
 
-$result = mirza_card_sms_process_and_approve($valuepost, $name_bank !== '' ? $name_bank : null);
+$result = vira_card_sms_process_and_approve($valuepost, $name_bank !== '' ? $name_bank : null);
 if (!$result['ok']) {
     error_log('[card-sms-http] ' . ($result['reason'] ?? 'fail') . ' ' . json_encode($result, JSON_UNESCAPED_UNICODE));
 }

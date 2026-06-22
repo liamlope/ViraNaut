@@ -5,16 +5,16 @@ require_once __DIR__ . '/inc/bot_data.php';
 require_once __DIR__ . '/inc/bot_emojis.php';
 require_auth();
 
-$catalog = mirza_panel_keyboard_catalog();
-$datatextbot = mirza_panel_load_datatextbot($pdo);
-$buttonStyles = mirza_keyboard_button_styles();
+$catalog = vira_panel_keyboard_catalog();
+$datatextbot = vira_panel_load_datatextbot($pdo);
+$buttonStyles = vira_keyboard_button_styles();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
     $action = $_POST['action'] ?? 'save';
     if ($action === 'reset') {
-        $default = json_decode(mirza_panel_default_keyboard_json(), true);
-        mirza_panel_save_keyboardmain($pdo, $default['keyboard']);
+        $default = json_decode(vira_panel_default_keyboard_json(), true);
+        vira_panel_save_keyboardmain($pdo, $default['keyboard']);
         flash('success', 'چیدمان به حالت پیش‌فرض بازگشت.');
         header('Location: keyboard.php');
         exit;
@@ -57,13 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: keyboard.php');
         exit;
     }
-    mirza_panel_save_keyboardmain($pdo, $clean);
+    vira_panel_save_keyboardmain($pdo, $clean);
     flash('success', 'چیدمان منوی استارت ذخیره شد.');
     header('Location: keyboard.php');
     exit;
 }
 
-$keyboardData = mirza_panel_load_keyboardmain($pdo);
+$keyboardData = vira_panel_load_keyboardmain($pdo);
 $usedKeys = [];
 foreach ($keyboardData['keyboard'] as $row) {
     foreach ($row as $btn) {
@@ -75,7 +75,7 @@ foreach ($keyboardData['keyboard'] as $row) {
 $availableKeys = [];
 foreach ($catalog as $id => $title) {
     if (!isset($usedKeys[$id])) {
-        $availableKeys[$id] = mirza_panel_keyboard_label($id, $datatextbot, $catalog);
+        $availableKeys[$id] = vira_panel_keyboard_label($id, $datatextbot, $catalog);
     }
 }
 
@@ -115,7 +115,7 @@ include __DIR__ . '/inc/layout_head.php';
                     <div class="kb-row" data-row="<?= (int) $ri ?>">
                         <?php foreach ($row as $btn):
                             $kid = $btn['text'] ?? '';
-                            $label = mirza_panel_keyboard_label($kid, $datatextbot, $catalog);
+                            $label = vira_panel_keyboard_label($kid, $datatextbot, $catalog);
                             $btnStyle = (string) ($btn['style'] ?? '');
                             ?>
                             <div class="kb-btn" draggable="true"
@@ -181,7 +181,7 @@ include __DIR__ . '/inc/layout_head.php';
 
 <script>
 window.KB_STYLE_OPTIONS = <?= json_encode($buttonStyles, JSON_UNESCAPED_UNICODE) ?>;
-window.KB_STYLE_COLORS = <?= json_encode(mirza_keyboard_style_colors(), JSON_UNESCAPED_UNICODE) ?>;
+window.KB_STYLE_COLORS = <?= json_encode(vira_keyboard_style_colors(), JSON_UNESCAPED_UNICODE) ?>;
 </script>
 
 <?php include __DIR__ . '/inc/layout_foot.php'; ?>

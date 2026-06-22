@@ -16,19 +16,19 @@ function mat_json(bool $ok, string $msg = '', array $extra = []): void
 global $domainhosts;
 $domain = '';
 if (!empty($domainhosts) && strpos((string) $domainhosts, '{') === false) {
-    $host = function_exists('mirza_normalize_domainhosts_value')
-        ? mirza_normalize_domainhosts_value($domainhosts)
+    $host = function_exists('vira_normalize_domainhosts_value')
+        ? vira_normalize_domainhosts_value($domainhosts)
         : preg_replace('#^https?://#i', '', trim((string) $domainhosts));
     $domain = $host;
 }
 
 if ($action === 'list') {
-    $current = mirza_miniapp_get_template($pdo);
+    $current = vira_miniapp_get_template($pdo);
     $items = [];
-    foreach (mirza_miniapp_templates() as $t) {
+    foreach (vira_miniapp_templates() as $t) {
         $items[] = array_merge($t, [
             'active' => $t['id'] === $current,
-            'preview_url' => $domain ? mirza_miniapp_preview_url($t['id'], $domain) : '',
+            'preview_url' => $domain ? vira_miniapp_preview_url($t['id'], $domain) : '',
         ]);
     }
     mat_json(true, '', [
@@ -42,8 +42,8 @@ if ($action === 'apply' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
     $id = trim((string) ($_POST['template_id'] ?? ''));
     try {
-        mirza_miniapp_set_template($pdo, $id);
-        mat_json(true, 'قالب «' . (mirza_miniapp_templates()[$id]['label'] ?? $id) . '» برای مینی‌اپ فعال شد.', [
+        vira_miniapp_set_template($pdo, $id);
+        mat_json(true, 'قالب «' . (vira_miniapp_templates()[$id]['label'] ?? $id) . '» برای مینی‌اپ فعال شد.', [
             'current' => $id,
         ]);
     } catch (Throwable $e) {

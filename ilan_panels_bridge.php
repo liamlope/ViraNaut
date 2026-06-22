@@ -50,7 +50,7 @@ function ilan_bridge_reset(array $panel, string $username): array
     return ['status' => true];
 }
 
-function ilan_bridge_mirza_style_result(array $resp): array
+function ilan_bridge_vira_style_result(array $resp): array
 {
     if (!ilan_http_ok($resp)) {
         return ['status' => false, 'msg' => $resp['error'] ?? ($resp['body'] ?? 'Ilan API error')];

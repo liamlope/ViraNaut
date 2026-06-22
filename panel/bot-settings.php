@@ -4,8 +4,8 @@ require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/bot_settings_defs.php';
 require_auth();
 
-$groups = mirza_bot_settings_groups();
-$fields = mirza_bot_settings_flat_fields();
+$groups = vira_bot_settings_groups();
+$fields = vira_bot_settings_flat_fields();
 
 $setting = [];
 try {
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $params[] = $val;
     }
     $cron = [];
-    foreach (mirza_bot_cron_defs() as $ck => $_) {
+    foreach (vira_bot_cron_defs() as $ck => $_) {
         if (isset($_POST['cron_' . $ck])) {
             $cron[$ck] = $_POST['cron_' . $ck] === '1' || $_POST['cron_' . $ck] === 'true';
         }
@@ -153,7 +153,7 @@ include __DIR__ . '/inc/layout_head.php';
                 <div class="card-subtitle">هم‌تراز با منوی وضعیت قابلیت‌ها در تلگرام</div>
             </div>
             <div class="card-body bot-settings-fields">
-                <?php foreach (mirza_bot_cron_defs() as $ck => $clbl):
+                <?php foreach (vira_bot_cron_defs() as $ck => $clbl):
                     $on = !empty($cronStatus[$ck]);
                     ?>
                     <div class="bot-settings-toggle-row">

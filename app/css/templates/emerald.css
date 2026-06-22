@@ -1,26 +1,26 @@
-body.mirza-tpl-emerald {
-  --mirza-accent: #34d399;
-  --mirza-accent-2: #14b8a6;
-  --mirza-surface: rgba(2, 44, 34, 0.95);
-  --mirza-surface-2: rgba(6, 78, 59, 0.55);
-  --mirza-border: rgba(52, 211, 153, 0.3);
-  --mirza-glow: rgba(16, 185, 129, 0.28);
-  --mirza-text: #ecfdf5;
-  --mirza-muted: #6ee7b7;
-  --mirza-success: #4ade80;
+body.vira-tpl-emerald {
+  --vira-accent: #34d399;
+  --vira-accent-2: #14b8a6;
+  --vira-surface: rgba(2, 44, 34, 0.95);
+  --vira-surface-2: rgba(6, 78, 59, 0.55);
+  --vira-border: rgba(52, 211, 153, 0.3);
+  --vira-glow: rgba(16, 185, 129, 0.28);
+  --vira-text: #ecfdf5;
+  --vira-muted: #6ee7b7;
+  --vira-success: #4ade80;
   background: linear-gradient(165deg, #022c22 0%, #064e3b 45%, #022c22 100%) !important;
 }
-body.mirza-tpl-emerald .mirza-mini-topbar .mirza-brand::before {
+body.vira-tpl-emerald .vira-mini-topbar .vira-brand::before {
   content: '🔒 ';
 }
-body.mirza-tpl-emerald .mirza-mini-hint-card {
+body.vira-tpl-emerald .vira-mini-hint-card {
   backdrop-filter: blur(10px);
   border-width: 2px;
   box-shadow: 0 0 20px rgba(52, 211, 153, 0.15);
 }
-body.mirza-tpl-emerald .mirza-dock-btn.active {
+body.vira-tpl-emerald .vira-dock-btn.active {
   box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.4);
 }
-body.mirza-tpl-emerald .mirza-app-loader {
+body.vira-tpl-emerald .vira-app-loader {
   background: #022c22;
 }

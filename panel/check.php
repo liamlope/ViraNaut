@@ -21,7 +21,7 @@ $required = [
     'api/shop-settings.php',
 ];
 
-echo "Mirza panel check — " . date('c') . "\n\n";
+echo "Vira panel check — " . date('c') . "\n\n";
 
 foreach ($required as $rel) {
     $path = $root . '/' . $rel;

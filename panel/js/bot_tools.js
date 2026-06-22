@@ -57,5 +57,5 @@
             });
     }
 
-    window.mirzaBotTools = { base: base, csrf: csrf, post: post, get: get, loadBar: loadBar };
+    window.viraBotTools = { base: base, csrf: csrf, post: post, get: get, loadBar: loadBar };
 }());

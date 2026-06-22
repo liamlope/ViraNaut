@@ -35,9 +35,7 @@ function agent_get_flash(): ?array
 
 function agent_lang(PDO $pdo, string $userId): string
 {
-    $row = db_fetch($pdo, 'SELECT lang FROM agent_panel_tokens WHERE id_user = ? LIMIT 1', [$userId]);
-    $lang = $row['lang'] ?? 'fa';
-    return in_array($lang, ['fa', 'en'], true) ? $lang : 'fa';
+    return 'fa';
 }
 
 function agent_t(string $key, string $lang = 'fa'): string

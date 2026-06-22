@@ -21,7 +21,7 @@
   }
 
   function markReady() {
-    document.body.classList.add('mirza-miniapp-ready');
+    document.body.classList.add('vira-miniapp-ready');
   }
 
   if (document.readyState === 'complete') {
@@ -32,7 +32,7 @@
   setTimeout(markReady, 8000);
 
   window.addEventListener('error', function () {
-    var loader = document.querySelector('.mirza-app-loader p');
+    var loader = document.querySelector('.vira-app-loader p');
     if (loader) loader.textContent = 'خطا در بارگذاری — اتصال را بررسی کنید';
   });
 }());

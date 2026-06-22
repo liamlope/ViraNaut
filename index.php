@@ -9,20 +9,20 @@ require_once 'config.php';
 require_once 'botapi.php';
 require_once 'jdf.php';
 require_once 'function.php';
-if (function_exists('mirza_ensure_user_lang_column')) {
-    mirza_ensure_user_lang_column();
+if (function_exists('vira_ensure_user_lang_column')) {
+    vira_ensure_user_lang_column();
 }
 require_once 'keyboard.php';
 require_once 'vendor/autoload.php';
 require_once 'panels.php';
 require_once 'viranaut_handlers.php';
 $ManagePanel = new ManagePanel();
-$textbotlang = languagechange(null, mirza_resolve_bot_ui_lang('fa'));
+$textbotlang = languagechange();
 if (!isset($update['update_id'])) {
     http_response_code(200);
     exit;
 }
-if (mirza_try_handle_card_sms_telegram_update($update)) {
+if (vira_try_handle_card_sms_telegram_update($update)) {
     http_response_code(200);
     exit;
 }
@@ -30,7 +30,7 @@ if (!empty($update['channel_post'])) {
     http_response_code(200);
     exit;
 }
-$earlyChat = mirza_card_sms_get_update_chat($update);
+$earlyChat = vira_card_sms_get_update_chat($update);
 if ($earlyChat !== null && in_array((string) ($earlyChat['type'] ?? ''), ['group', 'supergroup'], true)) {
     http_response_code(200);
     exit;
@@ -56,12 +56,12 @@ if (isset($update['chat_member'])) {
 if (!in_array($Chat_type, ["private", "supergroup"]))
     return;
 if ($Chat_type === 'private' && !empty($from_id)) {
-    mirza_card_receipt_prompt_for_user((string) $from_id);
+    vira_card_receipt_prompt_for_user((string) $from_id);
 }
 if (isset($chat_member))
     return;
 $first_name = sanitizeUserName($first_name);
-$setting = mirza_ensure_setting_ready();
+$setting = vira_ensure_setting_ready();
 $keyboard_check = json_decode((string) ($setting['keyboardmain'] ?? ''), true);
 $keyboard_first_text = $keyboard_check['keyboard'][0][0]['text'] ?? '';
 if (is_array($keyboard_check) && $keyboard_first_text !== ''
@@ -160,8 +160,8 @@ $channels_id = select("channels", "link", null, null, "FETCH_COLUMN");
 $pricepayment = select("Payment_report", "price", null, null, "FETCH_COLUMN");
 $listcard = select("card_number", "cardnumber", null, null, "FETCH_COLUMN");
 $topic_id = select("topicid", "*", null, null, "fetchAll");
-mirza_datatextbot_apply_db($datatextbot, $pdo);
-mirza_datatextbot_ensure_defaults($datatextbot, $textbotlang);
+vira_datatextbot_apply_db($datatextbot, $pdo);
+vira_datatextbot_ensure_defaults($datatextbot, $textbotlang);
 $statusnote = false;
 foreach ($topic_id as $topic) {
     if ($topic['report'] == "reportnight")
@@ -199,7 +199,7 @@ if ($setting['statusnoteforf'] == "0" && $user['agent'] == "f")
     $statusnote = false;
 $time_Start = jdate('Y/m/d');
 $date_start = jdate('H:i:s', time());
-$lang_array = ['fa', 'en', 'ru', 'zh'];
+$lang_array = ['fa'];
 if (!empty($user['id']) && !in_array($user['lang'] ?? '', $lang_array, true)) {
     update('user', 'lang', 'fa', 'id', $from_id);
     $user['lang'] = 'fa';
@@ -267,7 +267,7 @@ if (floor($TimeLastMessage / 60) >= 1) {
     }
 }
 
-mirza_card_cancel_if_user_left_payment_flow(
+vira_card_cancel_if_user_left_payment_flow(
     (string) $from_id,
     $user,
     $text ?? null,
@@ -320,7 +320,7 @@ if (strpos($text, "/start ") !== false && $user['step'] != "gettextSystemMessage
             $stmt->execute();
             $stmt->close();
         } else {
-            mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
+            vira_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
             update("user", "Processing_value", "0", "id", $from_id);
             update("user", "Processing_value_one", "0", "id", $from_id);
             update("user", "Processing_value_tow", "0", "id", $from_id);
@@ -364,7 +364,7 @@ if ($user['joinchannel'] != "active") {
         if ($datain == "confirmchannel") {
             if (count($channels) == 0) {
                 deletemessage($from_id, $message_id);
-                mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
+                vira_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
                 telegram('answerCallbackQuery', [
                     'callback_query_id' => $callback_query_id,
                     'text' => $textbotlang['users']['channel']['confirmed'],
@@ -418,7 +418,7 @@ if ($user['joinchannel'] != "active") {
                     $addbalancediscount = number_format($marzbanDiscountaffiliates['price_Discount'], 0);
                     sendmessage($affiliatesid, "🎁 مبلغ $addbalancediscount به موجودی شما از طرف زیر مجموعه با شناسه کاربری $from_id اضافه گردید.", null, 'html');
                 }
-                mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
+                vira_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
                 $addcountaffiliates = intval($useraffiliates['affiliatescount']) + 1;
                 update("user", "affiliates", $affiliatesid, "id", $from_id);
                 update("user", "Processing_value_four", "none", "id", $from_id);
@@ -451,14 +451,14 @@ if ($user['joinchannel'] != "active") {
     }
 }
 if ($text == "/start" || $datain == "start" || $text == "start") {
-    mirza_handle_bot_start_command($from_id, $datatextbot, $keyboard);
+    vira_handle_bot_start_command($from_id, $datatextbot, $keyboard);
     return;
 }
-if (in_array($from_id, $admin_ids) && mirza_admin_run_exclusive((string) ($user['step'] ?? 'home'))) {
+if (in_array($from_id, $admin_ids) && vira_admin_run_exclusive((string) ($user['step'] ?? 'home'))) {
     if (!defined('VIRA_BOT_BOOTSTRAP')) {
         define('VIRA_BOT_BOOTSTRAP', true);
-        if (!defined('MIRZA_BOT_BOOTSTRAP')) {
-            define('MIRZA_BOT_BOOTSTRAP', true);
+        if (!defined('VIRA_BOT_BOOTSTRAP')) {
+            define('VIRA_BOT_BOOTSTRAP', true);
         }
     }
     require_once 'admin.php';
@@ -495,10 +495,10 @@ if ($text == "version") {
         return;
     }
     sendmessage($from_id, $textbotlang['users']['number']['active'], json_encode(['inline_keyboard' => [], 'remove_keyboard' => true]), 'html');
-                mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
+                vira_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
     update("user", "number", $user_phone, "id", $from_id);
     step('home', $from_id);
-} elseif ($text == ($textbotlang['textbot']['purchasedServices'] ?? '') || mirza_textbot_matches($text, $datatextbot['text_Purchased_services'] ?? '') || $datain == "backorder" || $text == "/services") {
+} elseif ($text == ($textbotlang['textbot']['purchasedServices'] ?? '') || vira_textbot_matches($text, $datatextbot['text_Purchased_services'] ?? '') || $datain == "backorder" || $text == "/services") {
     $stmt = $pdo->prepare("SELECT * FROM invoice WHERE id_user = :id_user AND (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold')");
     $stmt->bindParam(':id_user', $from_id);
     $stmt->execute();
@@ -716,7 +716,7 @@ if ($text == "version") {
     }
     #-------------[ status ]----------------#
     $status = $DataUserOut['status'];
-    $status_var = mirza_service_status_label($status, $textbotlang);
+    $status_var = vira_service_status_label($status, $textbotlang);
     #--------------[ expire ]---------------#
     $expirationDate = $DataUserOut['expire'] ? jdate('Y/m/d', $DataUserOut['expire']) : $textbotlang['users']['stateus']['Unlimited'];
     #-------------[ data_limit ]----------------#
@@ -898,19 +898,19 @@ if ($text == "version") {
         return;
     }
     if ($DataUserOut['online_at'] == "online") {
-        $lastonline = mirza_online_status_label('online', $textbotlang);
+        $lastonline = vira_online_status_label('online', $textbotlang);
     } elseif ($DataUserOut['online_at'] == "offline") {
-        $lastonline = mirza_online_status_label('offline', $textbotlang);
+        $lastonline = vira_online_status_label('offline', $textbotlang);
     } else {
         if (isset($DataUserOut['online_at']) && $DataUserOut['online_at'] !== null) {
-            $lastonline = mirza_online_status_label($DataUserOut['online_at'], $textbotlang);
+            $lastonline = vira_online_status_label($DataUserOut['online_at'], $textbotlang);
         } else {
-            $lastonline = mirza_online_status_label(null, $textbotlang);
+            $lastonline = vira_online_status_label(null, $textbotlang);
         }
     }
     #-------------status----------------#
     $status = $DataUserOut['status'];
-    $status_var = mirza_service_status_label($status, $textbotlang);
+    $status_var = vira_service_status_label($status, $textbotlang);
     #--------------[ expire ]---------------#
     $expirationDate = $DataUserOut['expire'] ? jdate('Y/m/d', $DataUserOut['expire']) : $textbotlang['users']['stateus']['Unlimited'];
     #-------------[ data_limit ]----------------#
@@ -1065,7 +1065,7 @@ $nameconfig";
         $keyboardsetting['inline_keyboard'] = array_values($keyboardsetting['inline_keyboard']);
         $keyboardsetting = json_encode($keyboardsetting);
     } else {
-        $marzbancount = mirza_count_active_panels();
+        $marzbancount = vira_count_active_panels();
         if ($DataUserOut['status'] == "active") {
             $namestatus = '❌ خاموش کردن اکانت';
         } else {
@@ -1351,7 +1351,7 @@ $textconnect
         sendmessage($from_id, "❌  خطا در خواندن اطلاعات کانفیگ با پشتیبانی در ارتباط باشید.", null, 'html');
         return;
     }
-    $DataUserOut['links'] = mirza_filter_subscription_links($DataUserOut['links']);
+    $DataUserOut['links'] = vira_filter_subscription_links($DataUserOut['links']);
     if ($DataUserOut['links'] === []) {
         sendmessage($from_id, "❌ کانفیگی از ساب دریافت نشد. آدرس linksubx پنل را در ادمین بررسی کنید.", null, 'html');
         return;
@@ -1381,7 +1381,7 @@ $textconnect
         sendmessage($from_id, "❌ لینک ساب در دسترس نیست. آدرس ساب پنل (linksubx) یا اتصال به پنل را بررسی کنید.", null, 'html');
         return;
     }
-    $DataUserOut['links'] = mirza_filter_subscription_links($DataUserOut['links']);
+    $DataUserOut['links'] = vira_filter_subscription_links($DataUserOut['links']);
     if ($DataUserOut['links'] === []) {
         sendmessage($from_id, "❌ کانفیگی از ساب دریافت نشد. لینک ساب پنل را در ادمین چک کنید.", null, 'html');
         return;
@@ -1521,9 +1521,9 @@ $textconnect
         sendmessage($from_id, "❌ هنوز به سرویس متصل نشده اید برای تمدید سرویس ابتدا به سرویس متصل شوید سپس اقدام به تمدید کنید", null, 'html');
         return;
     }
-    $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-    $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-    $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+    $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $mainvolume = vira_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxvolume = vira_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
     $stmt = $pdo->prepare("SELECT * FROM product WHERE (Location = :service_location OR Location = '/all') AND agent = :agent AND one_buy_status = '0'");
     $stmt->execute([
         ':service_location' => $marzban_list_get['name_panel'],
@@ -1592,10 +1592,10 @@ $textconnect
     $userdate = json_decode($user['Processing_value'], true);
     $nameloc = select("invoice", "*", "id_invoice", $userdate['id_invoice'], "select");
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-    $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-    $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
-    $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-    $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+    $mainvolume = vira_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxvolume = vira_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+    $maintime = vira_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxtime = vira_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
     if (!ctype_digit($text)) {
         sendmessage($from_id, $textbotlang['Admin']['Product']['Invalidvolume'], $backuser, 'HTML');
         return;
@@ -1605,7 +1605,7 @@ $textconnect
         sendmessage($from_id, $texttime, $backuser, 'HTML');
         return;
     }
-    $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
     savedata("save", "volume", $text);
     $textcustom = "⌛️ زمان سرویس خود را انتخاب نمایید 
 📌 تعرفه هر روز  : $customtimevalueprice  تومان
@@ -1660,8 +1660,8 @@ $textconnect
             sendmessage($from_id, $textbotlang['Admin']['Product']['Invalidtime'], $backuser, 'HTML');
             return;
         }
-        $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-        $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+        $maintime = vira_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxtime = vira_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         if (intval($text) > intval($maxtime) || intval($text) < intval($maintime)) {
             $texttime = "❌ زمان ارسال شده نامعتبر است . زمان باید بین $maintime روز تا $maxtime روز باشد";
             sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -1692,8 +1692,8 @@ $textconnect
     } else {
         $codeproduct = $dataget[1];
     }
-    $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-    $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
     if ($user['step'] == "getvolumecustomuserforextend") {
         $product['name_product'] = $nameloc['name_product'];
         $product['code_product'] = "customvolume";
@@ -1800,8 +1800,8 @@ $textconnect
         }
     }
     sendmessage($from_id, "🤩 کد تخفیف شما درست بود و  {$SellDiscountlimit['price']} درصد تخفیف روی فاکتور شما اعمال شد.", $keyboard, 'HTML');
-    $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-    $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
     if ($nameloc['name_product'] == "🛍 حجم دلخواه" || $nameloc['name_product'] == "⚙️ سرویس دلخواه") {
         $info_product['code_product'] = "pre";
         $info_product['name_product'] = $nameloc['name_product'];
@@ -1858,8 +1858,8 @@ $textconnect
         sendmessage($from_id, "❌ امکان تمدید در این پنل وجود ندارد", null, 'html');
         return;
     }
-    $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-    $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
     $randomString = bin2hex(random_bytes(2));
     if ($nameloc['name_product'] == "🛍 حجم دلخواه" || $nameloc['name_product'] == "⚙️ سرویس دلخواه") {
         $prodcut['code_product'] = "custom_volume";
@@ -1956,7 +1956,7 @@ $textconnect
             }
         }
     }
-    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $pricelastextend, $step_payment, 'getextenduser')) {
+    if (vira_maxbuyagent_payment_redirect($from_id, $user, $pricelastextend, $step_payment, 'getextenduser')) {
         return;
     }
     if ($nameloc['name_product'] == "سرویس تست") {
@@ -2148,7 +2148,7 @@ $textconnect
         sendmessage($from_id, $textbotlang['users']['stateus']['error'], null, 'html');
         return;
     }
-    $extrapricevalue = (int) mirza_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $extrapricevalue = (int) vira_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
     update("user", "Processing_value", $nameloc['id_invoice'], "id", $from_id);
     $textextra = " ⭕️ مقدار حجمی که میخواهید خریداری کنید را ارسال کنید.
 ❌ مبلغ را به انگلیسی ارسال نمایید.
@@ -2173,7 +2173,7 @@ $textconnect
     }
     $nameloc = select("invoice", "*", "id_invoice", $user['Processing_value'], "select");
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-    $extrapricevalue = (int) mirza_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $extrapricevalue = (int) vira_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
     $priceextra = $extrapricevalue * $text;
     $keyboardsetting = json_encode([
         'inline_keyboard' => [
@@ -2201,7 +2201,7 @@ $textconnect
         return;
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-    $extrapricevalue = (int) mirza_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $extrapricevalue = (int) vira_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
     if ($user['Balance'] < $volume && $user['agent'] != "n2") {
         $marzbandirectpay = select('shopSetting', "*", "Namevalue", "statusdirectpabuy", "select")['value'];
         if ($marzbandirectpay == "offdirectbuy") {
@@ -2240,7 +2240,7 @@ $textconnect
         $volumepricelast = $volume - $result;
         sendmessage($from_id, sprintf($textbotlang['users']['Discount']['discountapplied'], $user['pricediscount']), null, 'HTML');
     }
-    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $volumepricelast, $step_payment, 'getvolumeuser')) {
+    if (vira_maxbuyagent_payment_redirect($from_id, $user, $volumepricelast, $step_payment, 'getvolumeuser')) {
         return;
     }
     $Balance_Low_user = $user['Balance'] - $volumepricelast;
@@ -2455,7 +2455,7 @@ $textconnect
         $Pricechange = $Pricechange - $result;
         sendmessage($from_id, sprintf($textbotlang['users']['Discount']['discountapplied'], $user['pricediscount']), null, 'HTML');
     }
-    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $Pricechange, $step_payment, 'changelocpay')) {
+    if (vira_maxbuyagent_payment_redirect($from_id, $user, $Pricechange, $step_payment, 'changelocpay')) {
         return;
     }
     $keyboardextend = json_encode([
@@ -2640,19 +2640,19 @@ $textconnect
 - توضیحات اختلال : {$user['Processing_value']}";
     $DataUserOut = $ManagePanel->DataUser($nameloc['Service_location'], $nameloc['username']);
     if ($DataUserOut['online_at'] == "online") {
-        $lastonline = mirza_online_status_label('online', $textbotlang);
+        $lastonline = vira_online_status_label('online', $textbotlang);
     } elseif ($DataUserOut['online_at'] == "offline") {
-        $lastonline = mirza_online_status_label('offline', $textbotlang);
+        $lastonline = vira_online_status_label('offline', $textbotlang);
     } else {
         if (isset($DataUserOut['online_at']) && $DataUserOut['online_at'] !== null) {
-            $lastonline = mirza_online_status_label($DataUserOut['online_at'], $textbotlang);
+            $lastonline = vira_online_status_label($DataUserOut['online_at'], $textbotlang);
         } else {
-            $lastonline = mirza_online_status_label(null, $textbotlang);
+            $lastonline = vira_online_status_label(null, $textbotlang);
         }
     }
     #-------------status----------------#
     $status = $DataUserOut['status'];
-    $status_var = mirza_service_status_label($status, $textbotlang);
+    $status_var = vira_service_status_label($status, $textbotlang);
     #--------------[ expire ]---------------#
     $expirationDate = $DataUserOut['expire'] ? jdate('Y/m/d', $DataUserOut['expire']) : $textbotlang['users']['stateus']['Unlimited'];
     #-------------[ data_limit ]----------------#
@@ -2729,7 +2729,7 @@ $textconnect
         sendmessage($from_id, "❌ هنوز به سرویس متصل نشده اید برای تمدید سرویس ابتدا به سرویس متصل شوید سپس اقدام به تمدید کنید", null, 'html');
         return;
     }
-    $extratimepricevalue = (int) mirza_pay_agent_value($marzban_list_get['priceextratime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $extratimepricevalue = (int) vira_pay_agent_value($marzban_list_get['priceextratime'] ?? 0, $user['agent'] ?? 'f', 0);
     update("user", "Processing_value", $nameloc['id_invoice'], "id", $from_id);
     $textextra = "📆 تعداد روز اضافه مورد نظر را وارد کنید ( برحسب روز ) :
         
@@ -2750,8 +2750,8 @@ $textconnect
     }
     $nameloc = select("invoice", "*", "id_invoice", $user['Processing_value'], "select");
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-    $extratimepricevalue = (int) mirza_pay_agent_value($marzban_list_get['priceextratime'] ?? 0, $user['agent'] ?? 'f', 0);
-    $extrapricevalue = (int) mirza_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $extratimepricevalue = (int) vira_pay_agent_value($marzban_list_get['priceextratime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $extrapricevalue = (int) vira_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
     $priceextratime = $extratimepricevalue * $text;
     $keyboardsetting = json_encode([
         'inline_keyboard' => [
@@ -2780,7 +2780,7 @@ $textconnect
         return;
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-    $extratimepricevalue = (int) mirza_pay_agent_value($marzban_list_get['priceextratime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $extratimepricevalue = (int) vira_pay_agent_value($marzban_list_get['priceextratime'] ?? 0, $user['agent'] ?? 'f', 0);
     if ($user['Balance'] < $tmieextra && $user['agent'] != "n2") {
         $marzbandirectpay = select('shopSetting', "*", "Namevalue", "statusdirectpabuy", "select")['value'];
         if ($marzbandirectpay == "offdirectbuy") {
@@ -2821,7 +2821,7 @@ $textconnect
         sendmessage($from_id, sprintf($textbotlang['users']['Discount']['discountapplied'], $user['pricediscount']), null, 'HTML');
     }
     $Balance_Low_user = $user['Balance'] - $pricelasttime;
-    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $pricelasttime, $step_payment, 'gettimeuser')) {
+    if (vira_maxbuyagent_payment_redirect($from_id, $user, $pricelasttime, $step_payment, 'gettimeuser')) {
         return;
     }
     update("invoice", "Status", "active", "id_invoice", $nameloc['id_invoice']);
@@ -2980,18 +2980,18 @@ $textconnect
     }
     #-------------status----------------#
     if ($DataUserOut['online_at'] == "online") {
-        $lastonline = mirza_online_status_label('online', $textbotlang);
+        $lastonline = vira_online_status_label('online', $textbotlang);
     } elseif ($DataUserOut['online_at'] == "offline") {
-        $lastonline = mirza_online_status_label('offline', $textbotlang);
+        $lastonline = vira_online_status_label('offline', $textbotlang);
     } else {
         if (isset($DataUserOut['online_at']) && $DataUserOut['online_at'] !== null) {
-            $lastonline = mirza_online_status_label($DataUserOut['online_at'], $textbotlang);
+            $lastonline = vira_online_status_label($DataUserOut['online_at'], $textbotlang);
         } else {
-            $lastonline = mirza_online_status_label(null, $textbotlang);
+            $lastonline = vira_online_status_label(null, $textbotlang);
         }
     }
     $status = $DataUserOut['status'];
-    $status_var = mirza_service_status_label($status, $textbotlang);
+    $status_var = vira_service_status_label($status, $textbotlang);
     #--------------[ expire ]---------------#
     $expirationDate = $DataUserOut['expire'] ? jdate('Y/m/d', $DataUserOut['expire']) : $textbotlang['users']['stateus']['Unlimited'];
     #-------------[ data_limit ]----------------#
@@ -3109,7 +3109,7 @@ $textconnect
     $stmt->bind_param("ssssss", $from_id, $nameloc['username'], $value, $type, $dateacc, $price);
     $stmt->execute();
     $stmt->close();
-} elseif (mirza_textbot_matches($text, $datatextbot['text_usertest'] ?? '') || $datain == "usertestbtn" || $text == "usertest") {
+} elseif (vira_textbot_matches($text, $datatextbot['text_usertest'] ?? '') || $datain == "usertestbtn" || $text == "usertest") {
     if (!check_active_btn($setting['keyboardmain'], "text_usertest")) {
         sendmessage($from_id, "📌 سرویس تست در حال حاضر در دسترس نیست .", null, 'HTML');
         return;
@@ -3134,7 +3134,7 @@ $textconnect
         return;
     }
 }
-$usertestBtnPressed = mirza_textbot_matches($text, $datatextbot['text_usertest'] ?? '') || $datain == "usertestbtn" || $text == "usertest";
+$usertestBtnPressed = vira_textbot_matches($text, $datatextbot['text_usertest'] ?? '') || $datain == "usertestbtn" || $text == "usertest";
 $usertestSinglePanel = (int) select("marzban_panel", "*", "TestAccount", "ONTestAccount", "count") === 1;
 if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $datain, $dataget) || ($usertestBtnPressed && $usertestSinglePanel)) {
     if (($setting['status_usertest'] ?? 'ontest') === 'offtest') {
@@ -3346,7 +3346,7 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
             'reply_markup' => $Response
         ]);
     }
-} elseif (mirza_textbot_matches($text, $datatextbot['text_help'] ?? '') || $datain == "helpbtn" || $datain == "helpbtns" || $text == "/help" || $text == "help") {
+} elseif (vira_textbot_matches($text, $datatextbot['text_help'] ?? '') || $datain == "helpbtn" || $datain == "helpbtns" || $text == "/help" || $text == "help") {
     if (!check_active_btn($setting['keyboardmain'], "text_help")) {
         sendmessage($from_id, $textbotlang['users']['help']['disablehelp'], null, 'HTML');
         return;
@@ -3456,7 +3456,7 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
             sendmessage($from_id, $helpdata['Description_os'], $backinfoss, 'HTML');
         }
     }
-} elseif (mirza_textbot_matches($text, $datatextbot['text_support'] ?? '') || $datain == "supportbtns" || $text == "/support") {
+} elseif (vira_textbot_matches($text, $datatextbot['text_support'] ?? '') || $datain == "supportbtns" || $text == "/support") {
     if (!check_active_btn($setting['keyboardmain'], "text_support")) {
         sendmessage($from_id, "❌ این دکمه غیرفعال می باشد", null, 'HTML');
         return;
@@ -3490,8 +3490,8 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
     $stmt->bindParam(':time', $time);
     $stmt->bindParam(':status', $status);
     $stmt->execute();
-    if (function_exists('mirza_site_admin_log_request')) {
-        mirza_site_admin_log_request((string) $from_id, $text . ' ' . $caption, $photoid ?: null);
+    if (function_exists('vira_site_admin_log_request')) {
+        vira_site_admin_log_request((string) $from_id, $text . ' ' . $caption, $photoid ?: null);
     }
     if ($photo) {
         sendphoto($departeman['idsupport'], $photoid, null);
@@ -3599,7 +3599,7 @@ $text";
     sendmessage($from_id, "✅  پیام شما برای این درخواست با موفقیت ارسال گردید پس از بررسی پاسخ داده خواهد شد.", null, 'HTML');
 } elseif ($datain == "fqQuestions") {
     sendmessage($from_id, $datatextbot['text_dec_fq'], null, 'HTML');
-} elseif (mirza_textbot_matches($text, $datatextbot['accountwallet'] ?? '') || $text == mirza_lang_str($textbotlang, 'textbot.accountWallet') || $datain == "account" || $text == "/wallet") {
+} elseif (vira_textbot_matches($text, $datatextbot['accountwallet'] ?? '') || $text == vira_lang_str($textbotlang, 'textbot.accountWallet') || $datain == "account" || $text == "/wallet") {
     $dateacc = jdate('Y/m/d');
     $current_time = time();
     $timeacc = jdate('H:i:s', $current_time);
@@ -3674,7 +3674,7 @@ $textinvite
     }
     step('home', $from_id);
     return;
-} elseif ((mirza_textbot_matches($text, $datatextbot['text_sell'] ?? '') || $datain == "buy" || $datain == "buyback" || $text == "/buy" || $text == "buy") && $statusnote) {
+} elseif ((vira_textbot_matches($text, $datatextbot['text_sell'] ?? '') || $datain == "buy" || $datain == "buyback" || $text == "/buy" || $text == "buy") && $statusnote) {
     if ($setting['get_number'] == "onAuthenticationphone" && $user['step'] != "get_number" && $user['number'] == "none") {
         sendmessage($from_id, $textbotlang['users']['number']['Confirming'], $request_contact, 'HTML');
         step('get_number', $from_id);
@@ -3686,21 +3686,21 @@ $textinvite
         return;
     }
     if ($datain == "buy") {
-        Editmessagetext($from_id, $message_id, mirza_bot_text($datatextbot, 'text_sell_notestep', $textbotlang['users']['sell']['notestep']), $backuser);
+        Editmessagetext($from_id, $message_id, vira_bot_text($datatextbot, 'text_sell_notestep', $textbotlang['users']['sell']['notestep']), $backuser);
     } elseif ($datain == "buyback") {
         deletemessage($from_id, $message_id);
-        sendmessage($from_id, mirza_bot_text($datatextbot, 'text_sell_notestep', $textbotlang['users']['sell']['notestep']), $backuser, 'HTML');
+        sendmessage($from_id, vira_bot_text($datatextbot, 'text_sell_notestep', $textbotlang['users']['sell']['notestep']), $backuser, 'HTML');
     } else {
-        sendmessage($from_id, mirza_bot_text($datatextbot, 'text_sell_notestep', $textbotlang['users']['sell']['notestep']), $backuser, 'HTML');
+        sendmessage($from_id, vira_bot_text($datatextbot, 'text_sell_notestep', $textbotlang['users']['sell']['notestep']), $backuser, 'HTML');
     }
     step("statusnamecustom", $from_id);
     return;
-} elseif (mirza_textbot_matches($text, $datatextbot['text_sell'] ?? '') || $datain == "buy" || $datain == "buybacktow" || $datain == "buyback" || $text == "/buy" || $text == "buy" || $user['step'] == "statusnamecustom") {
+} elseif (vira_textbot_matches($text, $datatextbot['text_sell'] ?? '') || $datain == "buy" || $datain == "buybacktow" || $datain == "buyback" || $text == "/buy" || $text == "buy" || $user['step'] == "statusnamecustom") {
     if (!check_active_btn($setting['keyboardmain'], "text_sell")) {
         sendmessage($from_id, "❌ این دکمه غیرفعال می باشد", null, 'HTML');
         return;
     }
-    $locationproduct = mysqli_query($connect, "SELECT * FROM marzban_panel WHERE " . mirza_panel_active_sql() . " AND (agent = '{$user['agent']}' OR agent = 'all')");
+    $locationproduct = mysqli_query($connect, "SELECT * FROM marzban_panel WHERE " . vira_panel_active_sql() . " AND (agent = '{$user['agent']}' OR agent = 'all')");
     if (mysqli_num_rows($locationproduct) == 0) {
         sendmessage($from_id, $textbotlang['Admin']['managepanel']['nullpanel'], null, 'HTML');
         return;
@@ -3743,9 +3743,9 @@ $textinvite
         }
         if ($setting['statuscategory'] == "offcategory") {
             $marzban_list_get = $locationproduct;
-            $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-            $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-            $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+            $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+            $mainvolume = vira_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+            $maxvolume = vira_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
             $nullproduct = select("product", "*", null, null, "count");
             if ($nullproduct == 0) {
                 $textcustom = "📌 حجم درخواستی خود را ارسال کنید.
@@ -3763,9 +3763,9 @@ $textinvite
                     $backuser = "backuser";
                 }
                 if ($datain == "buy") {
-                    Editmessagetext($from_id, $message_id, mirza_bot_text($datatextbot, 'text_select_category', $textbotlang['users']['sell']['selectCategory']), KeyboardCategory($location, $user['agent'], $backuser));
+                    Editmessagetext($from_id, $message_id, vira_bot_text($datatextbot, 'text_select_category', $textbotlang['users']['sell']['selectCategory']), KeyboardCategory($location, $user['agent'], $backuser));
                 } else {
-                    sendmessage($from_id, mirza_bot_text($datatextbot, 'text_select_category', $textbotlang['users']['sell']['selectCategory']), KeyboardCategory($location, $user['agent'], $backuser), 'HTML');
+                    sendmessage($from_id, vira_bot_text($datatextbot, 'text_select_category', $textbotlang['users']['sell']['selectCategory']), KeyboardCategory($location, $user['agent'], $backuser), 'HTML');
                 }
             } else {
                 $query = "SELECT * FROM product WHERE (Location = '$location' OR Location = '/all')AND agent= '{$user['agent']}'";
@@ -3781,7 +3781,7 @@ $textinvite
                 } else {
                     $statuscustom = false;
                 }
-                $textproduct = mirza_bot_text($datatextbot, 'text_service_select_first', $textbotlang['users']['sell']['serviceSelectFirst']);
+                $textproduct = vira_bot_text($datatextbot, 'text_service_select_first', $textbotlang['users']['sell']['serviceSelectFirst']);
                 if ($datain == "buy") {
                     Editmessagetext($from_id, $message_id, $textproduct, KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom));
                 } else {
@@ -3850,9 +3850,9 @@ $textinvite
     }
     $nullproduct = select("product", "*", null, null, "count");
     if ($nullproduct == 0) {
-        $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-        $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-        $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+        $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+        $mainvolume = vira_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxvolume = vira_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         $textcustom = "📌 حجم درخواستی خود را ارسال کنید.
 🔔قیمت هر گیگ حجم $custompricevalue تومان می باشد.
 🔔 حداقل حجم $mainvolume گیگابایت و حداکثر $maxvolume گیگابایت می باشد.";
@@ -3863,7 +3863,7 @@ $textinvite
     if ($setting['statuscategory'] == "offcategory") {
         if ($setting['statuscategorygenral'] == "oncategorys") {
             $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
-            Editmessagetext($from_id, $message_id, mirza_bot_text($datatextbot, 'text_select_category', $textbotlang['users']['sell']['selectCategory']), KeyboardCategory($location, $user['agent'], "buybacktow"));
+            Editmessagetext($from_id, $message_id, vira_bot_text($datatextbot, 'text_select_category', $textbotlang['users']['sell']['selectCategory']), KeyboardCategory($location, $user['agent'], "buybacktow"));
         } else {
             $query = "SELECT * FROM product WHERE (Location = '$location' OR Location = '/all')AND agent= '{$user['agent']}'";
             $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
@@ -3882,7 +3882,7 @@ $textinvite
             } else {
                 $back = "buyback";
             }
-            Editmessagetext($from_id, $message_id, mirza_bot_text($datatextbot, 'text_service_select', $textbotlang['users']['sell']['Service-select']), KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, $back));
+            Editmessagetext($from_id, $message_id, vira_bot_text($datatextbot, 'text_service_select', $textbotlang['users']['sell']['Service-select']), KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, $back));
         }
     } else {
         $nullproduct = select("product", "*", null, null, "count");
@@ -3918,7 +3918,7 @@ $textinvite
     } else {
         $statuscustom = false;
     }
-    Editmessagetext($from_id, $message_id, mirza_bot_text($datatextbot, 'text_service_select_first', $textbotlang['users']['sell']['serviceSelectFirst']), KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom));
+    Editmessagetext($from_id, $message_id, vira_bot_text($datatextbot, 'text_service_select_first', $textbotlang['users']['sell']['serviceSelectFirst']), KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom));
 } elseif (preg_match('/^productmonth_(\w+)/', $datain, $dataget)) {
     $monthenumber = $dataget[1];
     $userdate = json_decode($user['Processing_value'], true);
@@ -3926,7 +3926,7 @@ $textinvite
     if ($setting['statuscategorygenral'] == "oncategorys") {
         savedata("save", "monthproduct", $monthenumber);
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-        $stmt = $pdo->prepare('SELECT * FROM marzban_panel WHERE ' . mirza_panel_active_sql() . " AND (agent = '{$user['agent']}' OR agent = 'all')");
+        $stmt = $pdo->prepare('SELECT * FROM marzban_panel WHERE ' . vira_panel_active_sql() . " AND (agent = '{$user['agent']}' OR agent = 'all')");
         $stmt->execute();
         $count_panel = $stmt->rowCount();
         if ($count_panel == 1) {
@@ -3934,7 +3934,7 @@ $textinvite
         } else {
             $back = "location_{$marzban_list_get['code_panel']}";
         }
-        Editmessagetext($from_id, $message_id, mirza_bot_text($datatextbot, 'text_select_category', $textbotlang['users']['sell']['selectCategory']), KeyboardCategory($marzban_list_get['name_panel'], $user['agent'], $back));
+        Editmessagetext($from_id, $message_id, vira_bot_text($datatextbot, 'text_select_category', $textbotlang['users']['sell']['selectCategory']), KeyboardCategory($marzban_list_get['name_panel'], $user['agent'], $back));
     } else {
         $query = "SELECT * FROM product WHERE (Location = '{$userdate['name_panel']}' OR Location = '/all') AND agent= '{$user['agent']}' AND Service_time = '$monthenumber'";
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
@@ -3949,14 +3949,14 @@ $textinvite
         } else {
             $statuscustom = false;
         }
-        Editmessagetext($from_id, $message_id, mirza_bot_text($datatextbot, 'text_service_select_first', $textbotlang['users']['sell']['serviceSelectFirst']), KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom));
+        Editmessagetext($from_id, $message_id, vira_bot_text($datatextbot, 'text_service_select_first', $textbotlang['users']['sell']['serviceSelectFirst']), KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom));
     }
 } elseif ($datain == "customsellvolume") {
     $userdate = json_decode($user['Processing_value'], true);
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-    $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-    $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+    $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $mainvolume = vira_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxvolume = vira_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
     $textcustom = "📌 حجم درخواستی خود را ارسال کنید.
 🔔قیمت هر گیگ حجم $custompricevalue تومان می باشد.
 🔔 حداقل حجم $mainvolume گیگابایت و حداکثر $maxvolume گیگابایت می باشد.";
@@ -3966,10 +3966,10 @@ $textinvite
 } elseif ($user['step'] == "gettimecustomvol") {
     $userdate = json_decode($user['Processing_value'], true);
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-    $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
-    $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-    $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+    $mainvolume = vira_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxvolume = vira_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+    $maintime = vira_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxtime = vira_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
     if ($text > intval($maxvolume) || $text < intval($mainvolume)) {
         $texttime = "❌ حجم نامعتبر است.\n🔔 حداقل حجم $mainvolume گیگابایت و حداکثر $maxvolume گیگابایت می باشد";
         sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -3980,7 +3980,7 @@ $textinvite
         return;
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
     update("user", "Processing_value_one", $text, "id", $from_id);
     $textcustom = "⌛️ زمان سرویس خود را انتخاب نمایید 
 📌 تعرفه هر روز  : $customtimevalueprice  تومان
@@ -4000,8 +4000,8 @@ $textinvite
             return;
         }
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-        $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-        $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+        $maintime = vira_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxtime = vira_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         if (intval($text) > intval($maxtime) || intval($text) < intval($maintime)) {
             $texttime = "❌ زمان ارسال شده نامعتبر است . زمان باید بین $maintime روز تا $maxtime روز باشد";
             sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -4027,8 +4027,8 @@ $textinvite
             return;
         }
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-        $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-        $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+        $maintime = vira_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxtime = vira_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         if (intval($text) > intval($maxtime) || intval($text) < intval($maintime)) {
             $texttime = "❌ زمان ارسال شده نامعتبر است . زمان باید بین $maintime روز تا $maxtime روز باشد";
             sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -4041,7 +4041,7 @@ $textinvite
         $prodcut = $dataget[1];
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    if (!mirza_panel_is_active_status($marzban_list_get['status'] ?? '')) {
+    if (!vira_panel_is_active_status($marzban_list_get['status'] ?? '')) {
         sendmessage($from_id, "❌ این پنل در دسترس نیست لطفا از پنل دیگری خرید را انجام دهید.", $backuser, 'html');
         step("home", $from_id);
         return;
@@ -4056,8 +4056,8 @@ $textinvite
         $loc = $prodcut;
     }
     update("user", "Processing_value_one", $loc, "id", $from_id);
-    $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-    $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
     $parts = explode("_", $loc);
     if ($parts[0] == "customvolume") {
         $info_product['Volume_constraint'] = $parts[2];
@@ -4081,7 +4081,7 @@ $textinvite
     $username_ac = generateUsername($from_id, $marzban_list_get['MethodUsername'], $username, $randomString, $text, $marzban_list_get['namecustom'], $user['namecustom']);
     $username_ac = strtolower($username_ac);
     $random_number = rand(1000000, 9999999);
-    if (mirza_buy_username_is_taken($marzban_list_get['name_panel'], $username_ac, $usernameinvoice)) {
+    if (vira_buy_username_is_taken($marzban_list_get['name_panel'], $username_ac, $usernameinvoice)) {
         $username_ac = $random_number . "_" . $username_ac;
     }
     if (isset($username_ac))
@@ -4122,13 +4122,13 @@ $textinvite
     // $partsdic for discount value
     $partsdic = explode("_", $user['Processing_value_four']);
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    if (!mirza_panel_is_active_status($marzban_list_get['status'] ?? '')) {
+    if (!vira_panel_is_active_status($marzban_list_get['status'] ?? '')) {
         sendmessage($from_id, "❌ این پنل در دسترس نیست لطفا از پنل دیگری خرید را انجام دهید.", $backuser, 'html');
         step("home", $from_id);
         return;
     }
-    $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-    $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
     if ($parts[0] == "customvolume") {
         $info_product['Volume_constraint'] = $parts[2];
         $info_product['name_product'] = $textbotlang['users']['customsellvolume']['title'];
@@ -4157,7 +4157,7 @@ $textinvite
         $priceproduct = $info_product['price_product'];
     }
     $username_ac = strtolower($user['Processing_value_tow']);
-    if (mirza_buy_username_is_taken($marzban_list_get['name_panel'], $username_ac, $usernameinvoice)) {
+    if (vira_buy_username_is_taken($marzban_list_get['name_panel'], $username_ac, $usernameinvoice)) {
         sendmessage($from_id, "❌ لطفا مراحل خرید را مجددا انجام دهید", null, 'HTML');
         step('home', $from_id);
         return;
@@ -4222,12 +4222,12 @@ $textinvite
         }
         return;
     }
-    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $priceproduct, $step_payment, 'getconfigafterpay')) {
+    if (vira_maxbuyagent_payment_redirect($from_id, $user, $priceproduct, $step_payment, 'getconfigafterpay')) {
         return;
     }
     Editmessagetext($from_id, $message_id, "♻️ در حال ساختن سرویس شما...", null);
     $createStartedAt = microtime(true);
-    error_log('[mirza-buy] createUser start user=' . $from_id . ' panel=' . $marzban_list_get['name_panel'] . ' cfg=' . $username_ac);
+    error_log('[vira-buy] createUser start user=' . $from_id . ' panel=' . $marzban_list_get['name_panel'] . ' cfg=' . $username_ac);
     if ($datain == "confirmandgetserviceDiscount") {
         $SellDiscountlimit = select("DiscountSell", "*", "codeDiscount", $partsdic[0], "select");
         if ($SellDiscountlimit != false) {
@@ -4270,10 +4270,10 @@ $textinvite
     try {
         $dataoutput = $ManagePanel->createUser($marzban_list_get['name_panel'], $info_product['code_product'], $username_ac, $datac);
     } catch (Throwable $e) {
-        error_log('[mirza-buy] createUser exception: ' . $e->getMessage());
+        error_log('[vira-buy] createUser exception: ' . $e->getMessage());
         $dataoutput = array('status' => 'Unsuccessful', 'msg' => $e->getMessage());
     }
-    error_log('[mirza-buy] createUser done in ' . round(microtime(true) - $createStartedAt, 2) . 's status=' . ($dataoutput['status'] ?? 'n/a'));
+    error_log('[vira-buy] createUser done in ' . round(microtime(true) - $createStartedAt, 2) . 's status=' . ($dataoutput['status'] ?? 'n/a'));
     if (!isset($dataoutput['username']) || $dataoutput['username'] === null || $dataoutput['username'] === '') {
         $errorMessage = $dataoutput['msg'] ?? 'unknown error';
         if (is_array($errorMessage) || is_object($errorMessage)) {
@@ -4530,8 +4530,8 @@ $textonebuy
     sendmessage($from_id, "🤩 کد تخفیف شما درست بود و  {$SellDiscountlimit['price']} درصد تخفیف روی فاکتور شما اعمال شد.", null, 'HTML');
     step('payment', $from_id);
     $parts = explode("_", $user['Processing_value_one']);
-    $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-    $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
     if ($parts[0] == "customvolume") {
         $info_product['Volume_constraint'] = $parts[2];
         $info_product['name_product'] = $textbotlang['users']['customsellvolume']['title'];
@@ -4578,10 +4578,8 @@ $textonebuy
         return;
     }
     $agentWeb = 'https://' . ($domainhosts ?? 'localhost') . '/agent-panel/';
-    $agentWebMsg = "🌐 پنل وب نمایندگی:\n<a href=\"{$agentWeb}\">{$agentWeb}</a>\n\n"
-        . "برای ورود از آیدی عددی تلگرام استفاده کنید.\n\n"
-        . "آیدی عددی خود را می‌توانید از ربات زیر دریافت کنید:\n"
-        . '<a href="https://t.me/IDFindeerBot">@IDFindeerBot</a>';
+    $agentWebMsg = "🌐 پنل وب نمایندگی:\n<a href=\"{$agentWeb}\">{$agentWeb}</a>"
+        . vira_idfindeer_hint_html();
     sendmessage($from_id, $agentWebMsg, null, 'HTML');
     return;
 } elseif ($text == "🗂 خرید انبوه" || $datain == "kharidanbuh") {
@@ -4641,10 +4639,10 @@ $textonebuy
         $statuscustom = false;
     }
     $query = "SELECT * FROM product WHERE (Location = '$location' OR Location = '/all')AND agent= '{$user['agent']}'";
-    Editmessagetext($from_id, $message_id, mirza_bot_text($datatextbot, 'text_service_select', $textbotlang['users']['sell']['Service-select']), KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolumeom"));
+    Editmessagetext($from_id, $message_id, vira_bot_text($datatextbot, 'text_service_select', $textbotlang['users']['sell']['Service-select']), KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolumeom"));
 } elseif ($datain == "customsellvolumeom") {
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
-    $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
     $textcustom = "🔋 لطفا مقدار حجم سرویس مورد نظر را وارد کنید ( برحسب گیگابایت ) :
 📌 تعرفه هر گیگ :  $custompricevalue 
 🔔 حداقل حجم 1 گیگابایت و حداکثر 1000 گیگابایت می باشد.";
@@ -4653,11 +4651,11 @@ $textonebuy
     step('gettimecustomvolom', $from_id);
 } elseif ($user['step'] == "gettimecustomvolom") {
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
-    $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
-    $mainvolume = mirza_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-    $maxvolume = mirza_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
-    $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-    $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+    $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $mainvolume = vira_json_agent_scalar($marzban_list_get['mainvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxvolume = vira_json_agent_scalar($marzban_list_get['maxvolume'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+    $maintime = vira_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+    $maxtime = vira_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
     if ($text > intval($maxvolume) || $text < intval($mainvolume)) {
         $texttime = "❌ حجم نامعتبر است.\n🔔 حداقل حجم $mainvolume گیگابایت و حداکثر $maxvolume گیگابایت می باشد";
         sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -4686,8 +4684,8 @@ $textonebuy
             return;
         }
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
-        $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-        $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+        $maintime = vira_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxtime = vira_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         if (intval($text) > intval($maxtime) || intval($text) < intval($maintime)) {
             $texttime = "❌ زمان ارسال شده نامعتبر است . زمان باید بین $maintime روز تا $maxtime روز باشد";
             sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -4708,8 +4706,8 @@ $textonebuy
             return;
         }
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
-        $maintime = mirza_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
-        $maxtime = mirza_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
+        $maintime = vira_json_agent_scalar($marzban_list_get['maintime'] ?? null, (string) ($user['agent'] ?? 'f'), 1);
+        $maxtime = vira_json_agent_scalar($marzban_list_get['maxtime'] ?? null, (string) ($user['agent'] ?? 'f'), 1000);
         if (intval($text) > $maxtime || intval($text) < $maintime) {
             $texttime = "❌ زمان ارسال شده نامعتبر است . زمان باید بین $maintime روز تا $maxtime روز باشد";
             sendmessage($from_id, $texttime, $backuser, 'HTML');
@@ -4732,8 +4730,8 @@ $textonebuy
         $loc = $prodcut;
     }
     update("user", "Processing_value_one", $loc, "id", $from_id);
-    $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-    $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
     $parts = explode("_", $loc);
     if ($parts[0] == "customvolume") {
         $info_product['Volume_constraint'] = $parts[2];
@@ -4770,8 +4768,8 @@ $textonebuy
     step('payments', $from_id);
 } elseif ($user['step'] == "payments" && $datain == "confirmandgetservice") {
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
-    $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-    $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+    $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
     $parts = explode("_", $user['Processing_value_one']);
     if ($parts[0] == "customvolume") {
         $info_product['Volume_constraint'] = $parts[2];
@@ -4820,7 +4818,7 @@ $textonebuy
             return;
         }
     }
-    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $priceproduct, $step_payment, 'bulkbuy')) {
+    if (vira_maxbuyagent_payment_redirect($from_id, $user, $priceproduct, $step_payment, 'bulkbuy')) {
         return;
     }
     $datep = strtotime("+" . $info_product['Service_time'] . "days");
@@ -4978,12 +4976,12 @@ $textonebuy
     $agentKey = (string) ($user['agent'] ?? 'f');
     $minRaw = select("PaySetting", "ValuePay", "NamePay", "minbalance", "select")['ValuePay'] ?? '0';
     $maxRaw = select("PaySetting", "ValuePay", "NamePay", "maxbalance", "select")['ValuePay'] ?? '0';
-    $minbalance = number_format((float) mirza_pay_agent_value($minRaw, $agentKey, 1000));
-    $maxbalance = number_format((float) mirza_pay_agent_value($maxRaw, $agentKey, 10000000));
+    $minbalance = number_format((float) vira_pay_agent_value($minRaw, $agentKey, 1000));
+    $maxbalance = number_format((float) vira_pay_agent_value($maxRaw, $agentKey, 10000000));
     $bakinfos = json_encode([
         'inline_keyboard' => [
             [
-                ['text' => mirza_lang_str($textbotlang, 'users.stateus.backinfo', '↪️ بازگشت'), 'callback_data' => "account"],
+                ['text' => vira_lang_str($textbotlang, 'users.stateus.backinfo', '↪️ بازگشت'), 'callback_data' => "account"],
             ]
         ]
     ]);
@@ -5000,8 +4998,8 @@ $textonebuy
     if (!is_numeric($text))
         return sendmessage($from_id, $textbotlang['users']['Balance']['errorprice'], null, 'HTML');
     $agentKey = (string) ($user['agent'] ?? 'f');
-    $minbalance = (float) mirza_pay_agent_value(select("PaySetting", "ValuePay", "NamePay", "minbalance", "select")['ValuePay'] ?? '0', $agentKey, 1000);
-    $maxbalance = (float) mirza_pay_agent_value(select("PaySetting", "ValuePay", "NamePay", "maxbalance", "select")['ValuePay'] ?? '0', $agentKey, 10000000);
+    $minbalance = (float) vira_pay_agent_value(select("PaySetting", "ValuePay", "NamePay", "minbalance", "select")['ValuePay'] ?? '0', $agentKey, 1000);
+    $maxbalance = (float) vira_pay_agent_value(select("PaySetting", "ValuePay", "NamePay", "maxbalance", "select")['ValuePay'] ?? '0', $agentKey, 10000000);
     $balancelast = $text;
     if ($text > $maxbalance or $text < $minbalance) {
         $minbalance = number_format($minbalance);
@@ -5019,14 +5017,14 @@ $textonebuy
         }
     }
     update("user", "Processing_value", $balancelast, "id", $from_id);
-    sendmessage($from_id, mirza_lang_str($textbotlang, 'users.Balance.selectPayment', '💵 روش پرداخت خود را انتخاب نمایید'), $step_payment, 'HTML');
+    sendmessage($from_id, vira_lang_str($textbotlang, 'users.Balance.selectPayment', '💵 روش پرداخت خود را انتخاب نمایید'), $step_payment, 'HTML');
     step('get_step_payment', $from_id);
 } elseif ($user['step'] == "get_step_payment") {
-    if ($datain !== '' && $datain !== 'cart_to_offline' && mirza_is_payment_method_datain($datain)) {
-        mirza_card_cancel_unpaid_invoices((string) $from_id);
+    if ($datain !== '' && $datain !== 'cart_to_offline' && vira_is_payment_method_datain($datain)) {
+        vira_card_cancel_unpaid_invoices((string) $from_id);
     }
     if ($datain == "cart_to_offline") {
-        mirza_card_prepare_new_invoice((string) $from_id);
+        vira_card_prepare_new_invoice((string) $from_id);
         $mainbalance = select("PaySetting", "ValuePay", "NamePay", "minbalancecart", "select")['ValuePay'];
         $maxbalance = select("PaySetting", "ValuePay", "NamePay", "maxbalancecart", "select")['ValuePay'];
         if ($user['Processing_value'] < $mainbalance || $user['Processing_value'] > $maxbalance) {
@@ -5053,7 +5051,7 @@ $textonebuy
         $PaySettingname = $card_info['namecard'];
         mysqli_free_result($cardQuery);
         $price_copy = $user['Processing_value'];
-        $autoCardSms = mirza_card_sms_autoconfirm_enabled();
+        $autoCardSms = vira_card_sms_autoconfirm_enabled();
         if ($autoCardSms) {
             $random_number = rand(0, 2000);
             $user['Processing_value'] = intval($user['Processing_value']) + $random_number;
@@ -5066,11 +5064,11 @@ $textonebuy
                 '{price}' => $valueshow,
                 '{card_number}' => $card_number,
                 '{name_card}' => $PaySettingname,
-                '{receipt_delay}' => mirza_card_receipt_delay_label_fa(),
+                '{receipt_delay}' => vira_card_receipt_delay_label_fa(),
             ];
             $price_copy = $valueshow;
             $textcart = strtr(
-                mirza_resolve_cart_auto_text($datatextbot['text_cart_auto'] ?? '', $textbotlang),
+                vira_resolve_cart_auto_text($datatextbot['text_cart_auto'] ?? '', $textbotlang),
                 $replacements
             );
             update("user", "Processing_value", $user['Processing_value'], "id", $from_id);
@@ -5082,13 +5080,13 @@ $textonebuy
                 '{name_card}' => $PaySettingname,
             ];
             $price_copy = intval($user['Processing_value'] . "0");
-            $textcart = strtr($datatextbot['text_cart'] ?? mirza_lang_str($textbotlang, 'textbot.cart', ''), $replacements);
+            $textcart = strtr($datatextbot['text_cart'] ?? vira_lang_str($textbotlang, 'textbot.cart', ''), $replacements);
         }
         $invoice = ($autoCardSms ? 'card:' . $card_number . '|' : '')
             . "{$user['Processing_value_tow']}|{$user['Processing_value_one']}";
         $dateacc = date('Y/m/d H:i:s');
         $randomString = bin2hex(random_bytes(5));
-        $dec_not_confirmed = $autoCardSms ? mirza_card_sms_auto_pending_marker() : '';
+        $dec_not_confirmed = $autoCardSms ? vira_card_sms_auto_pending_marker() : '';
         $stmt = $connect->prepare("INSERT INTO Payment_report (id_user,id_order,time,price,payment_Status,Payment_Method,id_invoice,dec_not_confirmed,at_updated) VALUES (?,?,?,?,?,?,?,?,?)");
         $payment_Status = "Unpaid";
         $Payment_Method = "cart to cart";
@@ -5097,7 +5095,7 @@ $textonebuy
         deletemessage($from_id, $message_id);
         $showCopy = ($setting['statuscopycart'] == "1");
         $showReceipt = !$autoCardSms;
-        $sendresidcart = mirza_card_payment_inline_keyboard($randomString, $card_number, $price_copy, $showReceipt, $showCopy);
+        $sendresidcart = vira_card_payment_inline_keyboard($randomString, $card_number, $price_copy, $showReceipt, $showCopy);
         $gethelp = select("PaySetting", "ValuePay", "NamePay", "helpcart", "select")['ValuePay'];
         if ($gethelp != 2) {
             $data = json_decode($gethelp, true);
@@ -5765,7 +5763,7 @@ $textonebuy
             ]
         ]);
         $formatprice = number_format($user['Processing_value'], 0);
-        $textnowpayments = mirza_tron_offline_receipt_message($randomString, $affilnecurrency, $trxprice, $formatprice);
+        $textnowpayments = vira_tron_offline_receipt_message($randomString, $affilnecurrency, $trxprice, $formatprice);
         $gethelp = getPaySettingValue('helpofflinearze');
         if ($gethelp !== null && $gethelp != 2) {
             $data = json_decode($gethelp, true);
@@ -5987,17 +5985,17 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         return;
     }
     if ($payemntcheck['payment_Status'] == "waiting") {
-        sendmessage($from_id, mirza_card_receipt_submitted_user_message(), null, 'HTML');
+        sendmessage($from_id, vira_card_receipt_submitted_user_message(), null, 'HTML');
         return;
     }
-    mirza_card_receipt_prompt_for_order((string) $dataget[1]);
+    vira_card_receipt_prompt_for_order((string) $dataget[1]);
     $payemntcheck = select("Payment_report", "*", "id_order", $dataget[1], "select");
     if (
-        mirza_card_sms_autoconfirm_enabled()
-        && mirza_card_is_sms_auto_pending($payemntcheck['dec_not_confirmed'] ?? '')
-        && !mirza_card_sms_auto_receipt_due($payemntcheck['dec_not_confirmed'] ?? '', $payemntcheck)
+        vira_card_sms_autoconfirm_enabled()
+        && vira_card_is_sms_auto_pending($payemntcheck['dec_not_confirmed'] ?? '')
+        && !vira_card_sms_auto_receipt_due($payemntcheck['dec_not_confirmed'] ?? '', $payemntcheck)
     ) {
-        sendmessage($from_id, mirza_card_receipt_wait_user_message(), null, 'HTML');
+        sendmessage($from_id, vira_card_receipt_wait_user_message(), null, 'HTML');
         return;
     }
     deletemessage($from_id, $message_id);
@@ -6085,8 +6083,8 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         $service_other = json_decode($service_other['value'], true);
         $nameloc = select("invoice", "*", "username", $usernamepanel, "select");
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-        $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-        $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+        $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+        $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
         $codeproduct = $service_other['code_product'];
         if ($codeproduct == "custom_volume") {
             $prodcut['code_product'] = "custom_volume";
@@ -6223,8 +6221,8 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         sendmessage($from_id, '❌ خطایی در هنگام دریافت اطلاعات رخ داده است لطفا مراحل را از اول انجام دهید', $keyboard, 'HTML');
         return;
     }
-    if (!mirza_card_try_mark_receipt_waiting((string) $PaymentReport['id_order'])) {
-        mirza_card_receipt_submission_blocked_reply($from_id, (string) $PaymentReport['id_order']);
+    if (!vira_card_try_mark_receipt_waiting((string) $PaymentReport['id_order'])) {
+        vira_card_receipt_submission_blocked_reply($from_id, (string) $PaymentReport['id_order']);
         return;
     }
     $Confirm_pay = json_encode([
@@ -6240,7 +6238,7 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         ]
     ]);
     $format_price_cart = number_format($PaymentReport['price'], 0);
-    $split_data = explode('|', mirza_card_invoice_payment_payload((string) $PaymentReport['id_invoice']));
+    $split_data = explode('|', vira_card_invoice_payment_payload((string) $PaymentReport['id_invoice']));
     if ($split_data[0] == "getconfigafterpay") {
         $get_invoice = select("invoice", "*", "username", $split_data[1], "select");
         if ($get_invoice == false) {
@@ -6283,8 +6281,8 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
         $service_other = json_decode($service_other['value'], true);
         $nameloc = select("invoice", "*", "username", $usernamepanel, "select");
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $nameloc['Service_location'], "select");
-        $custompricevalue = (int) mirza_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
-        $customtimevalueprice = (int) mirza_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
+        $custompricevalue = (int) vira_pay_agent_value($marzban_list_get['pricecustomvolume'] ?? 0, $user['agent'] ?? 'f', 0);
+        $customtimevalueprice = (int) vira_pay_agent_value($marzban_list_get['pricecustomtime'] ?? 0, $user['agent'] ?? 'f', 0);
         $codeproduct = $service_other['code_product'];
         if ($codeproduct == "custom_volume") {
             $prodcut['code_product'] = "custom_volume";
@@ -6449,12 +6447,12 @@ if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
             'parse_mode' => "HTML"
         ]);
     }
-} elseif (mirza_textbot_matches($text, $datatextbot['text_Tariff_list'] ?? '') || $datain == "Tariff_list") {
+} elseif (vira_textbot_matches($text, $datatextbot['text_Tariff_list'] ?? '') || $datain == "Tariff_list") {
     sendmessage($from_id, $datatextbot['text_dec_Tariff_list'], null, 'HTML');
 } elseif ($datain == "colselist") {
     deletemessage($from_id, $message_id);
     sendmessage($from_id, $textbotlang['users']['back'], $keyboard, 'HTML');
-} elseif (mirza_textbot_matches($text, $datatextbot['text_affiliates'] ?? '') || $datain == "affiliatesbtn") {
+} elseif (vira_textbot_matches($text, $datatextbot['text_affiliates'] ?? '') || $datain == "affiliatesbtn") {
     if (!check_active_btn($setting['keyboardmain'], "text_affiliates")) {
         sendmessage($from_id, "❌ این دکمه غیرفعال می باشد", null, 'HTML');
         return;
@@ -6575,7 +6573,7 @@ $text_porsant
     $usernamepanel = $dataget[1];
     $locations = select("marzban_panel", "*", "code_panel", $dataget[2], "select");
     $location = $locations['name_panel'];
-    $extrapricevalue = (int) mirza_pay_agent_value($locations['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $extrapricevalue = (int) vira_pay_agent_value($locations['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
     update("user", "Processing_value", $usernamepanel, "id", $from_id);
     update("user", "Processing_value_one", $location, "id", $from_id);
 
@@ -6592,7 +6590,7 @@ $text_porsant
         return;
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value_one'], "select");
-    $extrapricevalue = (int) mirza_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $extrapricevalue = (int) vira_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
     $priceextra = $extrapricevalue * $text;
     $keyboardsetting = json_encode([
         'inline_keyboard' => [
@@ -6636,7 +6634,7 @@ $text_porsant
             return;
         }
     }
-    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $volume, $step_payment, 'customvolume')) {
+    if (vira_maxbuyagent_payment_redirect($from_id, $user, $volume, $step_payment, 'customvolume')) {
         return;
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value_one'], "select");
@@ -6644,7 +6642,7 @@ $text_porsant
         sendmessage($from_id, $textbotlang['users']['stateus']['error'], null, 'html');
         return;
     }
-    $extrapricevalue = (int) mirza_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
+    $extrapricevalue = (int) vira_pay_agent_value($marzban_list_get['priceextravolume'] ?? 0, $user['agent'] ?? 'f', 0);
     deletemessage($from_id, $message_id);
     if (intval($user['pricediscount']) != 0) {
         $result = ($volume * $user['pricediscount']) / 100;
@@ -6741,7 +6739,7 @@ $text_porsant
         }
     }
     step('home', $from_id);
-} elseif (mirza_textbot_matches($text, $datatextbot['textpanelagent'] ?? '') || $datain == "agentpanel") {
+} elseif (vira_textbot_matches($text, $datatextbot['textpanelagent'] ?? '') || $datain == "agentpanel") {
     if (($user['agent'] ?? 'f') === 'f') {
         sendmessage($from_id, '❌ این بخش فقط برای نمایندگان (n / n2) فعال است.', $keyboard, 'HTML');
         return;
@@ -6763,7 +6761,7 @@ $text_porsant
     sendmessage($from_id, $textbotlang['Admin']['agent']['submitUsername'], $keyboardagent, 'html');
     update("user", "namecustom", $text, "id", $from_id);
     step("home", $from_id);
-} elseif (mirza_textbot_matches($text, $datatextbot['textrequestagent'] ?? '') || $datain == "requestagent") {
+} elseif (vira_textbot_matches($text, $datatextbot['textrequestagent'] ?? '') || $datain == "requestagent") {
     if ($user['Balance'] < $setting['agentreqprice']) {
         $priceagent = number_format($setting['agentreqprice']);
         sendmessage($from_id, sprintf($textbotlang['users']['agent']['insufficientbalanceagent'], $priceagent), $backuser, 'HTML');
@@ -6862,7 +6860,7 @@ $text_porsant
     }
 } elseif ($text == "/privacy") {
     sendmessage($from_id, $datatextbot['text_roll'], null, 'HTML');
-} elseif (mirza_textbot_matches($text, $datatextbot['text_wheel_luck'] ?? '') || $datain == "wheel_luck" || $text == "/gift") {
+} elseif (vira_textbot_matches($text, $datatextbot['text_wheel_luck'] ?? '') || $datain == "wheel_luck" || $text == "/gift") {
     if (!check_active_btn($setting['keyboardmain'], "text_wheel_luck")) {
         sendmessage($from_id, "❌ این دکمه غیرفعال می باشد", null, 'HTML');
         return;
@@ -6971,7 +6969,7 @@ $text_porsant
     }
     $price = $rates['USD'];
     sendmessage($from_id, sprintf($textbotlang['users']['pricearze']['tether-price'], $price), null, 'HTML');
-} elseif (mirza_textbot_matches($text, $datatextbot['text_extend'] ?? '') or $datain == "extendbtn") {
+} elseif (vira_textbot_matches($text, $datatextbot['text_extend'] ?? '') or $datain == "extendbtn") {
     $stmt = $pdo->prepare("SELECT * FROM invoice WHERE id_user = :id_user AND (status = 'active' OR status = 'end_of_time'  OR status = 'end_of_volume' OR status = 'sendedwarn' OR Status = 'send_on_hold')");
     $stmt->bindParam(':id_user', $from_id);
     $stmt->execute();
@@ -7345,7 +7343,7 @@ if (isset($update['message']['successful_payment'])) {
             return;
         }
     }
-    if (mirza_maxbuyagent_payment_redirect($from_id, $user, $prodcut['price_product'], $step_payment, 'extendagent')) {
+    if (vira_maxbuyagent_payment_redirect($from_id, $user, $prodcut['price_product'], $step_payment, 'extendagent')) {
         return;
     }
     if (intval($user['pricediscount']) != 0) {
@@ -7411,42 +7409,8 @@ if (isset($update['message']['successful_payment'])) {
             'parse_mode' => "HTML"
         ]);
     }
-} elseif ($datain == "change_language") {
-    $keyboard_language = json_encode([
-        'inline_keyboard' => [
-            [
-                ['text' => $textbotlang['extracted']['index_php']['langBtnFa'] ?? '🇮🇷 فارسی', 'callback_data' => 'setlang:fa'],
-                ['text' => $textbotlang['extracted']['index_php']['langBtnEn'] ?? '🇬🇧 English', 'callback_data' => 'setlang:en'],
-            ],
-            [
-                ['text' => $textbotlang['extracted']['index_php']['langBtnZh'] ?? '🇨🇳 中文', 'callback_data' => 'setlang:zh'],
-                ['text' => $textbotlang['extracted']['index_php']['langBtnRu'] ?? '🇷🇺 Русский', 'callback_data' => 'setlang:ru'],
-            ],
-            [
-                ['text' => $textbotlang['users']['backbtn'] ?? '🏠 بازگشت', 'callback_data' => 'account']
-            ],
-        ]
-    ]);
-    $text_change_lang = $textbotlang['language']['selectPrompt'] ?? '🌐 زبان خود را انتخاب کنید:';
-    Editmessagetext($from_id, $message_id, $text_change_lang, $keyboard_language);
-} elseif (preg_match('/^setlang:(.*)/', $datain, $dataget)) {
-    $lang = $dataget[1];
-    if (in_array($lang, ['fa', 'en', 'ru', 'zh'], true)) {
-        update('user', 'lang', $lang, 'id', $from_id);
-        $textbotlang = languagechange();
-        mirza_datatextbot_apply_db($datatextbot, $pdo);
-        mirza_datatextbot_ensure_defaults($datatextbot, $textbotlang);
-    }
-    $keyboard_back = json_encode([
-        'inline_keyboard' => [
-            [
-                ['text' => $textbotlang['users']['backbtn'] ?? '🏠 بازگشت', 'callback_data' => 'account']
-            ],
-        ]
-    ]);
-    Editmessagetext($from_id, $message_id, $textbotlang['language']['setSuccess'] ?? '✅ زبان تنظیم شد.', $keyboard_back);
 } elseif (!empty($text) && empty($datain) && ($user['step'] ?? '') === 'home' && !in_array($from_id, $admin_ids)) {
-    if (function_exists('mirza_user_menu_text_is_known') && mirza_user_menu_text_is_known($text, $datatextbot, $textbotlang, $user)) {
+    if (function_exists('vira_user_menu_text_is_known') && vira_user_menu_text_is_known($text, $datatextbot, $textbotlang, $user)) {
         return;
     }
     if (($setting['unknowncommand_reply'] ?? '1') === '1') {
@@ -7460,8 +7424,8 @@ if (isset($update['message']['successful_payment'])) {
 if (in_array($from_id, $admin_ids)) {
     if (!defined('VIRA_BOT_BOOTSTRAP')) {
         define('VIRA_BOT_BOOTSTRAP', true);
-        if (!defined('MIRZA_BOT_BOOTSTRAP')) {
-            define('MIRZA_BOT_BOOTSTRAP', true);
+        if (!defined('VIRA_BOT_BOOTSTRAP')) {
+            define('VIRA_BOT_BOOTSTRAP', true);
         }
     }
     require_once 'admin.php';

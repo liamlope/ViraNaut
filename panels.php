@@ -10,7 +10,7 @@ require_once __DIR__ . '/WGDashboard.php';
 require_once __DIR__ . '/s_ui.php';
 require_once __DIR__ . '/ibsng.php';
 require_once __DIR__ . '/mikrotik.php';
-require_once __DIR__ . '/mirza_agent.php';
+require_once __DIR__ . '/vira_agent.php';
 require_once __DIR__ . '/ilan.php';
 require_once __DIR__ . '/ilan_panels_bridge.php';
 
@@ -146,46 +146,46 @@ class ManagePanel
                 $Output['configs'] = $links_user;
             }
         } elseif ($Get_Data_Panel['type'] == "x-ui_single") {
-            if (function_exists('mirza_xui_panel_budget_start')) {
-                mirza_xui_panel_budget_start(90);
+            if (function_exists('vira_xui_panel_budget_start')) {
+                vira_xui_panel_budget_start(90);
             }
             $subId = bin2hex(random_bytes(8));
-            $inbounds = mirza_xui_resolve_inbounds($Get_Data_Panel, $Get_Data_Product);
+            $inbounds = vira_xui_resolve_inbounds($Get_Data_Panel, $Get_Data_Product);
             $data_Output = addClient($Get_Data_Panel['name_panel'], $usernameC, $expire, $data_limit, generateUUID(), "", $subId, $inbounds, $Get_Data_Product['name_product'], $note);
             if (!empty($data_Output['error'])) {
-                if (function_exists('mirza_xui_panel_log')) {
-                    mirza_xui_panel_log('createUser x-ui error: ' . $data_Output['error']);
+                if (function_exists('vira_xui_panel_log')) {
+                    vira_xui_panel_log('createUser x-ui error: ' . $data_Output['error']);
                 }
                 return array(
                     'status' => 'Unsuccessful',
-                    'msg' => function_exists('mirza_xui_format_panel_error')
-                        ? mirza_xui_format_panel_error($data_Output)
+                    'msg' => function_exists('vira_xui_format_panel_error')
+                        ? vira_xui_format_panel_error($data_Output)
                         : $data_Output['error'],
                 );
             } elseif (!empty($data_Output['status']) && $data_Output['status'] != 200) {
-                if (function_exists('mirza_xui_panel_log')) {
-                    mirza_xui_panel_log('createUser x-ui HTTP ' . $data_Output['status']);
+                if (function_exists('vira_xui_panel_log')) {
+                    vira_xui_panel_log('createUser x-ui HTTP ' . $data_Output['status']);
                 }
                 return array(
                     'status' => 'Unsuccessful',
-                    'msg' => function_exists('mirza_xui_format_panel_error')
-                        ? mirza_xui_format_panel_error($data_Output)
-                        : mirza_xui_format_http_error($data_Output['status'], $data_Output['body'] ?? ''),
+                    'msg' => function_exists('vira_xui_format_panel_error')
+                        ? vira_xui_format_panel_error($data_Output)
+                        : vira_xui_format_http_error($data_Output['status'], $data_Output['body'] ?? ''),
                 );
             } else {
                 $data_Output = json_decode($data_Output['body'] ?? '', true);
-                $panelOk = mirza_xui_json_is_success($data_Output);
-                if (!$panelOk && function_exists('mirza_xui_user_exists_quick') && mirza_xui_user_exists_quick($Get_Data_Panel, $usernameC)) {
+                $panelOk = vira_xui_json_is_success($data_Output);
+                if (!$panelOk && function_exists('vira_xui_user_exists_quick') && vira_xui_user_exists_quick($Get_Data_Panel, $usernameC)) {
                     $panelOk = true;
-                    if (function_exists('mirza_xui_panel_log')) {
-                        mirza_xui_panel_log('createUser x-ui: panel success=false but client exists email=' . $usernameC);
+                    if (function_exists('vira_xui_panel_log')) {
+                        vira_xui_panel_log('createUser x-ui: panel success=false but client exists email=' . $usernameC);
                     }
                 }
                 if (!$panelOk) {
                     $Output['status'] = 'Unsuccessful';
                     $Output['msg'] = is_array($data_Output) ? ($data_Output['msg'] ?? 'پاسخ نامعتبر از پنل') : 'پاسخ خالی از پنل';
-                    if (function_exists('mirza_xui_panel_log')) {
-                        mirza_xui_panel_log('createUser x-ui rejected: ' . json_encode($data_Output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                    if (function_exists('vira_xui_panel_log')) {
+                        vira_xui_panel_log('createUser x-ui rejected: ' . json_encode($data_Output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
                     }
                 } else {
                     $subUrl = rtrim((string) $Get_Data_Panel['linksubx'], '/') . '/' . $subId;
@@ -377,8 +377,8 @@ class ManagePanel
                 $Output['subscription_url'] = $password;
                 $Output['configs'] = [];
             }
-        } elseif ($Get_Data_Panel['type'] == "mirza_agent") {
-            $ConnectToPanel = create_user_mirza($Get_Data_Panel, $data_limit / pow(1024, 3), ($expire - time()) / 86400, $usernameC);
+        } elseif ($Get_Data_Panel['type'] == "vira_agent") {
+            $ConnectToPanel = create_user_vira($Get_Data_Panel, $data_limit / pow(1024, 3), ($expire - time()) / 86400, $usernameC);
             if (!empty($ConnectToPanel['status']) && $ConnectToPanel['status'] != 200) {
                 return array(
                     'status' => 'Unsuccessful',
@@ -664,7 +664,7 @@ class ManagePanel
             if (isBase64($links_user))
                 $links_user = base64_decode($links_user);
             $links_user = explode("\n", trim((string) $links_user));
-            $links_user = mirza_filter_subscription_links($links_user);
+            $links_user = vira_filter_subscription_links($links_user);
             if ($inoice != false)
                 $linksub = "https://$domainhosts/sub/" . $inoice['id_invoice'];
             $user_data['lastOnline'] = $user_data['lastOnline'] == 0 ? "offline" : (new DateTime('@' . ($user_data['lastOnline'] / 1000)))->format('Y-m-d H:i:s');
@@ -937,8 +937,8 @@ class ManagePanel
                     'sub_last_user_agent' => null,
                 );
             }
-        } elseif ($Get_Data_Panel['type'] == "mirza_agent") {
-            $UsernameData = get_user_data_mirza($Get_Data_Panel, $username);
+        } elseif ($Get_Data_Panel['type'] == "vira_agent") {
+            $UsernameData = get_user_data_vira($Get_Data_Panel, $username);
             if (!empty($UsernameData['error'])) {
                 $Output = array(
                     'status' => 'Unsuccessful',
@@ -1214,8 +1214,8 @@ class ManagePanel
                     'subscription_url' => $url_sub,
                 );
             }
-        } elseif ($Get_Data_Panel['type'] == "mirza_agent") {
-            $revoke_sub = revoke_service_mirza($Get_Data_Panel, $username);
+        } elseif ($Get_Data_Panel['type'] == "vira_agent") {
+            $revoke_sub = revoke_service_vira($Get_Data_Panel, $username);
             if (!empty($revoke_sub['error'])) {
                 $Output = array(
                     'status' => 'Unsuccessful',
@@ -1376,8 +1376,8 @@ class ManagePanel
                     'username' => $username,
                 );
             }
-        } elseif ($Get_Data_Panel['type'] == "mirza_agent") {
-            $UsernameData = remove_service_mirza($Get_Data_Panel, $username);
+        } elseif ($Get_Data_Panel['type'] == "vira_agent") {
+            $UsernameData = remove_service_vira($Get_Data_Panel, $username);
             if (isset($UsernameData['error'])) {
                 $Output = array(
                     'status' => 'Unsuccessful',
@@ -1510,9 +1510,9 @@ class ManagePanel
                 );
             }
             $clients = $clients['obj'];
-            $targetInbounds = mirza_xui_resolve_inbounds($Get_Data_Panel, null);
+            $targetInbounds = vira_xui_resolve_inbounds($Get_Data_Panel, null);
             if (!empty($config['inboundIds'])) {
-                $targetInbounds = mirza_xui_parse_id_list($config['inboundIds']);
+                $targetInbounds = vira_xui_parse_id_list($config['inboundIds']);
             }
             $configs = array(
                 'id' => intval($clients['inboundId']),
@@ -1920,8 +1920,8 @@ class ManagePanel
             return array(
                 'status' => true
             );
-        } elseif ($panel['type'] == "mirza_agent") {
-            $reset = reset_usage_service_mirza($panel, $username);
+        } elseif ($panel['type'] == "vira_agent") {
+            $reset = reset_usage_service_vira($panel, $username);
             if (!empty($reset['error'])) {
                 return ['status' => false, 'msg' => $reset['error']];
             }
@@ -2034,7 +2034,7 @@ class ManagePanel
                 'data_limit' => $data_limit_new
             );
         } elseif ($panel['type'] == "x-ui_single") {
-            $xuiInbounds = mirza_xui_resolve_inbounds($panel, is_array($product) ? $product : null);
+            $xuiInbounds = vira_xui_resolve_inbounds($panel, is_array($product) ? $product : null);
             $data = array(
                 'inboundIds' => $xuiInbounds,
                 'settings' => json_encode(
@@ -2127,8 +2127,8 @@ class ManagePanel
                 "volume" => $data_limit_new,
                 "expiry" => $time_new
             );
-        } elseif ($panel['type'] == "mirza_agent") {
-            $extend = extend_service_mirza($panel, $new_limit, $time_day, $username);
+        } elseif ($panel['type'] == "vira_agent") {
+            $extend = extend_service_vira($panel, $new_limit, $time_day, $username);
             if (!in_array($extend['status'], [200, 400])) {
                 return array(
                     'status' => false,
@@ -2152,7 +2152,7 @@ class ManagePanel
                 'msg' => 'successful'
             );
         } elseif ($panel['type'] == "ilan") {
-            return ilan_bridge_mirza_style_result(ilan_extend_user($panel, $username, $new_limit, $time_day));
+            return ilan_bridge_vira_style_result(ilan_extend_user($panel, $username, $new_limit, $time_day));
         }
         $extend = $this->Modifyuser($username, $panel['name_panel'], $data);
         if ($extend['status'] == false) {
@@ -2266,8 +2266,8 @@ class ManagePanel
             $data = array(
                 "volume" => $new_limit,
             );
-        } elseif ($panel['type'] == "mirza_agent") {
-            $volume_add = add_volume_service_mirza($panel, $limit_volume_new, $username_account);
+        } elseif ($panel['type'] == "vira_agent") {
+            $volume_add = add_volume_service_vira($panel, $limit_volume_new, $username_account);
             if (!in_array($volume_add['status'], [200, 400])) {
                 return array(
                     'status' => false,
@@ -2291,7 +2291,7 @@ class ManagePanel
                 'msg' => 'successful'
             );
         } elseif ($panel['type'] == "ilan") {
-            return ilan_bridge_mirza_style_result(ilan_add_volume($panel, $username_account, $limit_volume_new));
+            return ilan_bridge_vira_style_result(ilan_add_volume($panel, $username_account, $limit_volume_new));
         }
         $extra_volume = $this->Modifyuser($username_account, $panel['name_panel'], $data);
         if ($extra_volume['status'] == false) {
@@ -2410,9 +2410,9 @@ class ManagePanel
             $data = array(
                 "expiry" => $new_limit,
             );
-        } elseif ($panel['type'] == "mirza_agent") {
+        } elseif ($panel['type'] == "vira_agent") {
             $new_limit = $limit_time_new;
-            $time_add = add_time_service_mirza($panel, $new_limit, $username_account);
+            $time_add = add_time_service_vira($panel, $new_limit, $username_account);
             if (!in_array($time_add['status'], [200, 400])) {
                 return array(
                     'status' => false,
@@ -2436,7 +2436,7 @@ class ManagePanel
                 'msg' => 'successful'
             );
         } elseif ($panel['type'] == "ilan") {
-            return ilan_bridge_mirza_style_result(ilan_add_time($panel, $username_account, $limit_time_new));
+            return ilan_bridge_vira_style_result(ilan_add_time($panel, $username_account, $limit_time_new));
         }
         $extra_time = $this->Modifyuser($username_account, $panel['name_panel'], $data);
         if ($extra_time['status'] == false) {

@@ -1,7 +1,7 @@
 (function () {
     function init() {
-        if (!window.mirzaBotTools) {
-            console.error('mirzaBotTools not loaded');
+        if (!window.viraBotTools) {
+            console.error('viraBotTools not loaded');
             return;
         }
 
@@ -61,7 +61,7 @@
             var d = getDays();
             updateDayLabels();
             setStatsLoading(true);
-            var url = window.mirzaBotTools.base() + 'api/bot_tools.php?action=optimize_stats'
+            var url = window.viraBotTools.base() + 'api/bot_tools.php?action=optimize_stats'
                 + '&days_expire=' + encodeURIComponent(d.days_expire)
                 + '&days_unpaid=' + encodeURIComponent(d.days_unpaid);
             fetch(url, { credentials: 'same-origin' })
@@ -98,7 +98,7 @@
         function runWithProgress(opts, apiCall) {
             setButtonsBusy(true, opts.which);
             showWorking('⏳ ' + opts.title + '\nلطفاً صبر کنید…');
-            window.mirzaBotTools.loadBar(true);
+            window.viraBotTools.loadBar(true);
 
             var PP = window.PanelProgress;
             var promise;
@@ -118,7 +118,7 @@
 
             return promise.finally(function () {
                 setButtonsBusy(false);
-                window.mirzaBotTools.loadBar(false);
+                window.viraBotTools.loadBar(false);
             });
         }
 
@@ -141,7 +141,7 @@
                     which: 'all',
                     doneTitle: 'بهینه‌سازی کامل شد'
                 }, function (opts) {
-                    return window.mirzaBotTools.post('optimize_run', payload, opts);
+                    return window.viraBotTools.post('optimize_run', payload, opts);
                 }).then(function (r) {
                     if (!r || !r.ok) {
                         showResult((r && r.msg) || 'خطا در بهینه‌سازی', false);
@@ -187,7 +187,7 @@
                     doneTitle: 'پاکسازی پرداخت انجام شد',
                     stepMs: 500
                 }, function (opts) {
-                    return window.mirzaBotTools.post('cleanup_expired', {
+                    return window.viraBotTools.post('cleanup_expired', {
                         confirm: 'yes',
                         days_expire: d.days_expire,
                         days_unpaid: d.days_unpaid

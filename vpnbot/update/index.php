@@ -125,7 +125,7 @@ if ($text == '🌐 پنل وب نمایندگی') {
         return;
     }
     $agentWeb = 'https://' . ($domainhosts ?? 'localhost') . '/agent-panel/';
-    sendmessage($from_id, "🌐 پنل وب نمایندگی:\n<a href=\"{$agentWeb}\">{$agentWeb}</a>\n\nآیدی عددی خود را از @IDFindeerBot بگیرید.", null, 'HTML');
+    sendmessage($from_id, "🌐 پنل وب نمایندگی:\n<a href=\"{$agentWeb}\">{$agentWeb}</a>" . vira_idfindeer_hint_html(), null, 'HTML');
     return;
 } elseif ($text == "/start") {
     $textstart = "✋سلام $first_name عزیز به ربات ما خوش اومدی.

@@ -4,9 +4,9 @@ require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/shop_settings_defs.php';
 require_auth();
 
-$groups = mirza_shop_settings_groups();
-$toggles = mirza_shop_toggle_options();
-$data = mirza_shop_load_values($pdo);
+$groups = vira_shop_settings_groups();
+$toggles = vira_shop_toggle_options();
+$data = vira_shop_load_values($pdo);
 $shop = $data['shop'];
 $setting = $data['setting'];
 

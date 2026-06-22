@@ -4,7 +4,7 @@ require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/optimize_ops.php';
 require_auth();
 
-$dayOptions = mirza_optimize_day_options();
+$dayOptions = vira_optimize_day_options();
 $daysExpireDefault = 90;
 $daysUnpaidDefault = 30;
 
@@ -17,14 +17,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['opt_action'])) {
         $optFlash = 'تأیید عملیات الزامی است.';
         $optFlashOk = false;
     } else {
-        $daysExpire = mirza_optimize_sanitize_days($_POST['days_expire'] ?? $daysExpireDefault, $daysExpireDefault);
-        $daysUnpaid = mirza_optimize_sanitize_days($_POST['days_unpaid'] ?? $daysUnpaidDefault, $daysUnpaidDefault);
+        $daysExpire = vira_optimize_sanitize_days($_POST['days_expire'] ?? $daysExpireDefault, $daysExpireDefault);
+        $daysUnpaid = vira_optimize_sanitize_days($_POST['days_unpaid'] ?? $daysUnpaidDefault, $daysUnpaidDefault);
         $act = (string) $_POST['opt_action'];
         try {
             if ($act === 'full') {
                 @ini_set('max_execution_time', '300');
                 $botRoot = realpath(__DIR__ . '/..') ?: dirname(__DIR__);
-                $details = mirza_optimize_run($pdo, $botRoot, $daysExpire, $daysUnpaid);
+                $details = vira_optimize_run($pdo, $botRoot, $daysExpire, $daysUnpaid);
                 $optFlashOk = true;
                 $optFlash = sprintf(
                     'بهینه‌سازی انجام شد — %d مورد حذف شد (%d سرویس تمام‌شده، %d سفارش بلااستفاده، %d پرداخت قدیمی، %d Unpaid)',
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['opt_action'])) {
                     (int) $details['unpaid_payments_deleted']
                 );
             } elseif ($act === 'cleanup') {
-                $cleanup = mirza_optimize_cleanup_payments($pdo, $daysExpire, $daysUnpaid);
+                $cleanup = vira_optimize_cleanup_payments($pdo, $daysExpire, $daysUnpaid);
                 $n = (int) $cleanup['payments_deleted'] + (int) $cleanup['unpaid_payments_deleted'];
                 $optFlashOk = true;
                 $optFlash = sprintf(
@@ -55,9 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['opt_action'])) {
     }
 }
 
-$previewDaysExpire = mirza_optimize_sanitize_days($_POST['days_expire'] ?? $daysExpireDefault, $daysExpireDefault);
-$previewDaysUnpaid = mirza_optimize_sanitize_days($_POST['days_unpaid'] ?? $daysUnpaidDefault, $daysUnpaidDefault);
-$preview = mirza_optimize_preview($pdo, $previewDaysExpire, $previewDaysUnpaid);
+$previewDaysExpire = vira_optimize_sanitize_days($_POST['days_expire'] ?? $daysExpireDefault, $daysExpireDefault);
+$previewDaysUnpaid = vira_optimize_sanitize_days($_POST['days_unpaid'] ?? $daysUnpaidDefault, $daysUnpaidDefault);
+$preview = vira_optimize_preview($pdo, $previewDaysExpire, $previewDaysUnpaid);
 $previewTotal = (int) $preview['expired_services']
     + (int) $preview['junk_orders']
     + (int) $preview['old_payments']
@@ -141,8 +141,8 @@ window.ViraOptimizePage = (function () {
     function runWithProgress(opts, apiCall) {
         setBusy(true, opts.which);
         showResult('⏳ ' + opts.title + '\nلطفاً صبر کنید…', true);
-        if (window.mirzaBotTools && window.mirzaBotTools.loadBar) {
-            window.mirzaBotTools.loadBar(true);
+        if (window.viraBotTools && window.viraBotTools.loadBar) {
+            window.viraBotTools.loadBar(true);
         }
         var PP = window.PanelProgress;
         var p;
@@ -161,8 +161,8 @@ window.ViraOptimizePage = (function () {
         }
         return Promise.resolve(p).finally(function () {
             setBusy(false);
-            if (window.mirzaBotTools && window.mirzaBotTools.loadBar) {
-                window.mirzaBotTools.loadBar(false);
+            if (window.viraBotTools && window.viraBotTools.loadBar) {
+                window.viraBotTools.loadBar(false);
             }
         });
     }
@@ -191,7 +191,7 @@ window.ViraOptimizePage = (function () {
 
     function runFullExecute(ev) {
         if (ev && ev.preventDefault) ev.preventDefault();
-        if (!window.mirzaBotTools) {
+        if (!window.viraBotTools) {
             askConfirm('بهینه‌سازی کامل (حالت ساده بدون AJAX) انجام شود؟', 'تأیید', function () {
                 submitFallback('full');
             });
@@ -215,7 +215,7 @@ window.ViraOptimizePage = (function () {
                     which: 'all',
                     doneTitle: 'بهینه‌سازی کامل شد'
                 }, function (opts) {
-                    return window.mirzaBotTools.post('optimize_run', {
+                    return window.viraBotTools.post('optimize_run', {
                         confirm: 'yes',
                         days_expire: d.days_expire,
                         days_unpaid: d.days_unpaid
@@ -246,7 +246,7 @@ window.ViraOptimizePage = (function () {
 
     function runCleanup(ev) {
         if (ev && ev.preventDefault) ev.preventDefault();
-        if (!window.mirzaBotTools) {
+        if (!window.viraBotTools) {
             askConfirm('پاکسازی پرداخت‌ها (حالت ساده) انجام شود؟', 'تأیید', function () {
                 submitFallback('cleanup');
             });
@@ -266,7 +266,7 @@ window.ViraOptimizePage = (function () {
                     doneTitle: 'پاکسازی انجام شد',
                     stepMs: 500
                 }, function (opts) {
-                    return window.mirzaBotTools.post('cleanup_expired', {
+                    return window.viraBotTools.post('cleanup_expired', {
                         confirm: 'yes',
                         days_expire: d.days_expire,
                         days_unpaid: d.days_unpaid
@@ -284,7 +284,7 @@ window.ViraOptimizePage = (function () {
     }
 
     function refreshPreview() {
-        if (!window.mirzaBotTools) return;
+        if (!window.viraBotTools) return;
         var d = getDays();
         var le = el('lblDaysExpire');
         var lu = el('lblDaysUnpaid');
@@ -292,7 +292,7 @@ window.ViraOptimizePage = (function () {
         if (lu) lu.textContent = d.days_unpaid;
         var statsBox = el('optStats');
         if (statsBox) statsBox.classList.add('is-loading');
-        var url = window.mirzaBotTools.base() + 'api/bot_tools.php?action=optimize_stats'
+        var url = window.viraBotTools.base() + 'api/bot_tools.php?action=optimize_stats'
             + '&days_expire=' + encodeURIComponent(d.days_expire)
             + '&days_unpaid=' + encodeURIComponent(d.days_unpaid);
         fetch(url, { credentials: 'same-origin' })
@@ -314,7 +314,7 @@ window.ViraOptimizePage = (function () {
         var su = el('daysUnpaid');
         if (se) se.addEventListener('change', refreshPreview);
         if (su) su.addEventListener('change', refreshPreview);
-        if (!window.mirzaBotTools) {
+        if (!window.viraBotTools) {
             showJsError('هشدار: اسکریپت API لود نشد. دکمه‌ها در حالت ساده (POST) کار می‌کنند.');
         }
     }

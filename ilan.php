@@ -1,6 +1,6 @@
 <?php
 /**
- * Ilan panel driver — generic REST (Mirza Pro 6.7 pattern).
+ * Ilan panel driver — generic REST (Vira Pro 6.7 pattern).
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/request.php';

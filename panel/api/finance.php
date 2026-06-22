@@ -45,7 +45,7 @@ function fin_bootstrap_bot_globals(): void
     if (!is_array($textbotlang)) {
         $textbotlang = [];
     }
-    mirza_apply_textbotlang_compat($textbotlang);
+    vira_apply_textbotlang_compat($textbotlang);
     $from_id = 0;
     $message_id = 0;
     $setting = select('setting', '*');
@@ -113,32 +113,32 @@ if ($action === 'overview') {
 if ($action === 'gateways') {
     try {
         $profiles = [];
-        foreach (mirza_pay_gateway_profiles() as $p) {
+        foreach (vira_pay_gateway_profiles() as $p) {
             $t = $p['toggle'];
-            $tval = mirza_pay_get_value($pdo, $t['key']);
+            $tval = vira_pay_get_value($pdo, $t['key']);
             $fields = [];
             foreach ($p['fields'] as $f) {
-                $fields[] = array_merge($f, ['value' => mirza_pay_get_value($pdo, $f['key'])]);
+                $fields[] = array_merge($f, ['value' => vira_pay_get_value($pdo, $f['key'])]);
             }
             $profiles[] = [
                 'id' => $p['id'],
                 'label' => $p['label'],
                 'toggle' => $t,
                 'toggle_value' => $tval,
-                'toggle_on' => mirza_pay_is_on($t, $tval),
+                'toggle_on' => vira_pay_is_on($t, $tval),
                 'fields' => $fields,
             ];
         }
         $general = [];
-        foreach (mirza_pay_general_defs() as $g) {
-            $val = mirza_pay_get_value($pdo, $g['key']);
+        foreach (vira_pay_general_defs() as $g) {
+            $val = vira_pay_get_value($pdo, $g['key']);
             if ($g['key'] === 'cardreceiptdelaymin' && ($val === '' || $val === '0')) {
                 $val = '10';
             }
             $general[] = array_merge($g, ['value' => $val]);
         }
         $cards = db_fetchAll($pdo, 'SELECT cardnumber, namecard FROM card_number ORDER BY cardnumber ASC');
-        $smsInfo = function_exists('mirza_card_sms_panel_info') ? mirza_card_sms_panel_info() : [];
+        $smsInfo = function_exists('vira_card_sms_panel_info') ? vira_card_sms_panel_info() : [];
         fin_json(true, '', ['profiles' => $profiles, 'general' => $general, 'cards' => $cards, 'sms' => $smsInfo]);
     } catch (Exception $e) {
         fin_json(false, $e->getMessage());
@@ -151,7 +151,7 @@ if ($action === 'gateway_profile_save' && $_SERVER['REQUEST_METHOD'] === 'POST')
     $fieldsJson = $_POST['fields'] ?? '{}';
     $fields = is_array($fieldsJson) ? $fieldsJson : (json_decode((string) $fieldsJson, true) ?: []);
     $profile = null;
-    foreach (mirza_pay_gateway_profiles() as $p) {
+    foreach (vira_pay_gateway_profiles() as $p) {
         if ($p['id'] === $profileId) {
             $profile = $p;
             break;
@@ -164,7 +164,7 @@ if ($action === 'gateway_profile_save' && $_SERVER['REQUEST_METHOD'] === 'POST')
     try {
         foreach ($fields as $k => $v) {
             if (in_array($k, $allowed, true)) {
-                mirza_pay_set_value($pdo, $k, trim((string) $v));
+                vira_pay_set_value($pdo, $k, trim((string) $v));
             }
         }
         fin_json(true, 'ذخیره شد');
@@ -177,7 +177,7 @@ if ($action === 'general_pay_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
     $fieldsJson = $_POST['fields'] ?? '{}';
     $fields = is_array($fieldsJson) ? $fieldsJson : (json_decode((string) $fieldsJson, true) ?: []);
-    $allowed = array_column(mirza_pay_general_defs(), 'key');
+    $allowed = array_column(vira_pay_general_defs(), 'key');
     try {
         foreach ($fields as $k => $v) {
             if (in_array($k, $allowed, true)) {
@@ -185,7 +185,7 @@ if ($action === 'general_pay_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($k === 'cardreceiptdelaymin') {
                     $val = (string) max(1, min(1440, (int) $val));
                 }
-                mirza_pay_set_value($pdo, $k, $val);
+                vira_pay_set_value($pdo, $k, $val);
             }
         }
         fin_json(true, 'تنظیمات عمومی ذخیره شد');
@@ -198,14 +198,14 @@ if ($action === 'gateway_toggle' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
     $key = trim((string) ($_POST['key'] ?? ''));
     $def = null;
-    foreach (mirza_pay_gateway_defs() as $g) {
+    foreach (vira_pay_gateway_defs() as $g) {
         if ($g['key'] === $key) {
             $def = $g;
             break;
         }
     }
     if (!$def) {
-        foreach (mirza_pay_gateway_profiles() as $p) {
+        foreach (vira_pay_gateway_profiles() as $p) {
             if (($p['toggle']['key'] ?? '') === $key) {
                 $def = $p['toggle'];
                 break;
@@ -218,14 +218,14 @@ if ($action === 'gateway_toggle' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $row = db_fetch($pdo, 'SELECT ValuePay FROM PaySetting WHERE NamePay = ?', [$key]);
         $cur = $row ? (string) $row['ValuePay'] : (string) $def['off'];
-        $next = mirza_pay_toggle_next($def, $cur);
+        $next = vira_pay_toggle_next($def, $cur);
         $exists = db_count($pdo, 'SELECT COUNT(*) FROM PaySetting WHERE NamePay = ?', [$key]);
         if ($exists > 0) {
             db_query($pdo, 'UPDATE PaySetting SET ValuePay = ? WHERE NamePay = ?', [$next, $key]);
         } else {
             db_query($pdo, 'INSERT INTO PaySetting (NamePay, ValuePay) VALUES (?, ?)', [$key, $next]);
         }
-        fin_json(true, 'وضعیت ذخیره شد', ['value' => $next, 'on' => mirza_pay_is_on($def, $next)]);
+        fin_json(true, 'وضعیت ذخیره شد', ['value' => $next, 'on' => vira_pay_is_on($def, $next)]);
     } catch (Exception $e) {
         fin_json(false, $e->getMessage());
     }
@@ -235,7 +235,7 @@ if ($action === 'gateway_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
     $key = trim((string) ($_POST['key'] ?? ''));
     $value = trim((string) ($_POST['value'] ?? ''));
-    $allowed = array_column(mirza_pay_secret_defs(), 'key');
+    $allowed = array_column(vira_pay_secret_defs(), 'key');
     if (!in_array($key, $allowed, true)) {
         fin_json(false, 'فیلد مجاز نیست');
     }
@@ -312,7 +312,7 @@ if ($action === 'transactions') {
             $r['method_label'] = $methodMap[$r['Payment_Method'] ?? ''] ?? ($r['Payment_Method'] ?? '—');
             $r['price'] = (int) ($r['price'] ?? 0);
             $r['time_label'] = panel_format_payment_time($r['time'] ?? '');
-            $inv = explode('|', mirza_card_invoice_payment_payload((string) ($r['id_invoice'] ?? '')));
+            $inv = explode('|', vira_card_invoice_payment_payload((string) ($r['id_invoice'] ?? '')));
             $r['invoice_type'] = $inv[0] ?? '';
         }
         unset($r);
@@ -341,7 +341,7 @@ if ($action === 'payment_approve' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (in_array($pay['payment_Status'], ['paid', 'reject'], true)) {
             fin_json(false, 'این تراکنش قبلاً بررسی شده است');
         }
-        $typepay = explode('|', mirza_card_invoice_payment_payload((string) ($pay['id_invoice'] ?? '')));
+        $typepay = explode('|', vira_card_invoice_payment_payload((string) ($pay['id_invoice'] ?? '')));
         $blockTypes = ['getconfigafterpay', 'getextenduser', 'getextravolumeuser', 'getextratimeuser'];
         if (!in_array($typepay[0] ?? '', $blockTypes, true)) {
             $cnt = db_count(

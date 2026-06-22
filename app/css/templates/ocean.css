@@ -1,17 +1,17 @@
-body.mirza-tpl-ocean {
-  --mirza-accent: #38bdf8;
-  --mirza-accent-2: #0ea5e9;
-  --mirza-surface: rgba(10, 22, 40, 0.96);
-  --mirza-surface-2: rgba(15, 52, 96, 0.55);
-  --mirza-border: rgba(56, 189, 248, 0.25);
-  --mirza-glow: rgba(14, 165, 233, 0.2);
-  --mirza-text: #f0f9ff;
-  --mirza-muted: #7dd3fc;
-  --mirza-success: #22d3ee;
-  --mirza-radius: 12px;
+body.vira-tpl-ocean {
+  --vira-accent: #38bdf8;
+  --vira-accent-2: #0ea5e9;
+  --vira-surface: rgba(10, 22, 40, 0.96);
+  --vira-surface-2: rgba(15, 52, 96, 0.55);
+  --vira-border: rgba(56, 189, 248, 0.25);
+  --vira-glow: rgba(14, 165, 233, 0.2);
+  --vira-text: #f0f9ff;
+  --vira-muted: #7dd3fc;
+  --vira-success: #22d3ee;
+  --vira-radius: 12px;
   background: #0a1628 !important;
 }
-body.mirza-tpl-ocean::after {
+body.vira-tpl-ocean::after {
   content: '';
   position: fixed;
   bottom: 72px;
@@ -21,23 +21,23 @@ body.mirza-tpl-ocean::after {
   z-index: 0;
   pointer-events: none;
   background: linear-gradient(0deg, rgba(14, 165, 233, 0.08), transparent);
-  animation: mirza-wave 8s ease-in-out infinite;
+  animation: vira-wave 8s ease-in-out infinite;
 }
-@keyframes mirza-wave {
+@keyframes vira-wave {
   0%, 100% { opacity: 0.6; transform: translateY(0); }
   50% { opacity: 1; transform: translateY(-6px); }
 }
-body.mirza-tpl-ocean #root {
+body.vira-tpl-ocean #root {
   position: relative;
   z-index: 1;
 }
-body.mirza-tpl-ocean .mirza-mini-topbar .mirza-brand {
+body.vira-tpl-ocean .vira-mini-topbar .vira-brand {
   font-size: 0.88rem;
 }
-body.mirza-tpl-ocean .mirza-mini-hint-card {
+body.vira-tpl-ocean .vira-mini-hint-card {
   font-size: 0.85rem;
   line-height: 1.75;
 }
-body.mirza-tpl-ocean .mirza-app-loader {
+body.vira-tpl-ocean .vira-app-loader {
   background: #0a1628;
 }

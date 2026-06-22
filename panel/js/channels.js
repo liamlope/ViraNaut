@@ -1,8 +1,8 @@
 (function () {
     var root = document.querySelector('[data-csrf]');
-    if (!root || !window.mirzaBotTools) return;
+    if (!root || !window.viraBotTools) return;
     function load() {
-        window.mirzaBotTools.get('channels_list').then(function (d) {
+        window.viraBotTools.get('channels_list').then(function (d) {
             var el = document.getElementById('channelsList');
             if (!d.ok) { el.textContent = d.msg; return; }
             if (!d.items.length) { el.innerHTML = '<p class="cf">کانالی ثبت نشده</p>'; return; }
@@ -14,7 +14,7 @@
             el.querySelectorAll('[data-del]').forEach(function (btn) {
                 btn.onclick = function () {
                     if (!confirm('حذف شود؟')) return;
-                    window.mirzaBotTools.post('channel_delete', { link: decodeURIComponent(btn.getAttribute('data-del')) }).then(function (r) {
+                    window.viraBotTools.post('channel_delete', { link: decodeURIComponent(btn.getAttribute('data-del')) }).then(function (r) {
                         if (window.toast) toast(r.msg, r.ok ? 'ok' : 'no');
                         if (r.ok) load();
                     });
@@ -25,7 +25,7 @@
     document.getElementById('channelForm').addEventListener('submit', function (e) {
         e.preventDefault();
         var fd = new FormData(e.target);
-        window.mirzaBotTools.post('channel_add', {
+        window.viraBotTools.post('channel_add', {
             remark: fd.get('remark'),
             link: fd.get('link'),
             linkjoin: fd.get('linkjoin'),

@@ -1,5 +1,5 @@
 (function () {
-    if (!window.mirzaBotTools) return;
+    if (!window.viraBotTools) return;
     document.getElementById('startBroadcast').onclick = function () {
         var msg = document.getElementById('broadcastMsg').value.trim();
         if (!msg) { if (window.toast) toast('متن را وارد کنید', 'no'); return; }
@@ -8,7 +8,7 @@
         var offset = 0;
         function step() {
             prog.textContent = 'در حال ارسال… offset ' + offset;
-            window.mirzaBotTools.post('broadcast_batch', { message: msg, offset: String(offset), batch: '25' }).then(function (d) {
+            window.viraBotTools.post('broadcast_batch', { message: msg, offset: String(offset), batch: '25' }).then(function (d) {
                 if (!d.ok) { prog.textContent = d.msg; return; }
                 offset = d.offset;
                 prog.textContent = 'ارسال شد: ' + offset + ' / ' + d.total;

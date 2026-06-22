@@ -83,8 +83,8 @@ function sendmessage($chat_id, $text, $keyboard, $parse_mode, $bot_token = null,
     if (intval($chat_id) == 0) {
         return ['ok' => false];
     }
-    if ($entities === null && is_string($text) && strpos($text, '{emoji:') !== false && function_exists('mirza_prepare_outgoing_text')) {
-        $prepared = mirza_prepare_outgoing_text($text, $parse_mode);
+    if ($entities === null && is_string($text) && strpos($text, '{emoji:') !== false && function_exists('vira_prepare_outgoing_text')) {
+        $prepared = vira_prepare_outgoing_text($text, $parse_mode);
         $text = $prepared['text'];
         $parse_mode = $prepared['parse_mode'];
         $entities = $prepared['entities'];
@@ -192,8 +192,8 @@ function senddocumentsid($chat_id,$documentid,$caption){
 function Editmessagetext($chat_id, $message_id, $text, $keyboard, $parse_mode = 'HTML')
 {
     $entities = null;
-    if (is_string($text) && strpos($text, '{emoji:') !== false && function_exists('mirza_prepare_outgoing_text')) {
-        $prepared = mirza_prepare_outgoing_text($text, $parse_mode);
+    if (is_string($text) && strpos($text, '{emoji:') !== false && function_exists('vira_prepare_outgoing_text')) {
+        $prepared = vira_prepare_outgoing_text($text, $parse_mode);
         $text = $prepared['text'];
         $parse_mode = $prepared['parse_mode'];
         $entities = $prepared['entities'];

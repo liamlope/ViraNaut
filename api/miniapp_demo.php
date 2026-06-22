@@ -20,9 +20,9 @@ echo json_encode([
         'count_payment' => 12,
         'group_type' => 'عادی',
         'time_join' => '1404/01/15',
-        'codeInvitation' => 'MIRZA-DEMO',
+        'codeInvitation' => 'VIRA-DEMO',
     ],
-    'invite_code' => 'MIRZA-DEMO',
+    'invite_code' => 'VIRA-DEMO',
     'countries' => [
         ['id' => 'de', 'name' => 'آلمان', 'flag' => '🇩🇪'],
         ['id' => 'nl', 'name' => 'هلند', 'flag' => '🇳🇱'],
@@ -45,7 +45,7 @@ echo json_encode([
         ['title' => 'سرور جدید فنلاند', 'text' => 'پینگ پایین برای بازی', 'cta' => 'خرید از فنلاند'],
     ],
     'meta' => [
-        'bot_username' => 'mirzabot_demo',
+        'bot_username' => 'viranaut_demo',
         'support_id' => 'support',
         'gateways' => ['zarinpalstatus' => 'onzarinpal', 'Cartstatus' => 'oncard'],
         'card_number' => '6037-****-****-1234',
@@ -55,5 +55,5 @@ echo json_encode([
             'card' => ['min' => 10000, 'max' => 2000000],
         ],
     ],
-    'invite_link' => 'https://t.me/mirzabot_demo?start=MIRZA-DEMO',
+    'invite_link' => 'https://t.me/viranaut_demo?start=VIRA-DEMO',
 ], JSON_UNESCAPED_UNICODE);

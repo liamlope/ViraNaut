@@ -1,4 +1,4 @@
--- ViraNaut migration from Mirza bot database
+-- ViraNaut migration from Vira bot database
 -- Safe to run multiple times (INSERT IGNORE / ON DUPLICATE KEY UPDATE)
 
 -- Crypto wallets (PaySetting)
@@ -12,7 +12,7 @@ INSERT INTO PaySetting (NamePay, ValuePay) VALUES
 ('wallet_doge', 'DFAfCU1LHdc7sKFVs9dD7MySA7Wt4EJQtX'),
 ('wallet_ton', 'UQDpQupJJM8bcxk19XmEZtwe-oQ4XmIbxM8SB88z0MXmXYsu'),
 ('donation_enabled', '1'),
-('donation_message', 'از حمایت شما برای توسعه ویرانات سپاسگزاریم 💎')
+('donation_message', 'از حمایت شما برای توسعه ویرا سپاسگزاریم 💎')
 ON DUPLICATE KEY UPDATE ValuePay = IF(ValuePay = '' OR ValuePay IS NULL, VALUES(ValuePay), ValuePay);
 
 -- Legacy TRON wallet alias
@@ -46,7 +46,7 @@ INSERT INTO textbot (id_text, text) VALUES
 ('text_sell_notestep', '📝 نام دلخواه سرویس خود را ارسال کنید')
 ON DUPLICATE KEY UPDATE text = IF(text = '' OR text IS NULL, VALUES(text), text);
 
--- متن کوتاه کارت خودکار (جایگزینی قالب قدیمی Mirza)
+-- متن کوتاه کارت خودکار (جایگزینی قالب قدیمی Vira)
 UPDATE textbot SET text = '💳 <b>شارژ کیف پول · تأیید خودکار</b>
 
 <b>مبلغ دقیق (ریال):</b> <code>{price}</code>

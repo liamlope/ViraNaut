@@ -4,7 +4,7 @@ require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/bot_emojis.php';
 require_auth();
 
-$emojiLibrary = mirza_custom_emoji_list($pdo);
+$emojiLibrary = vira_custom_emoji_list($pdo);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'delete') {
         $id = (int) ($_POST['id'] ?? 0);
-        if ($id > 0 && mirza_custom_emoji_delete($id)) {
+        if ($id > 0 && vira_custom_emoji_delete($id)) {
             flash('success', 'ایموجی حذف شد.');
         } else {
             flash('error', 'حذف انجام نشد.');
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'rename') {
         $id = (int) ($_POST['id'] ?? 0);
         $name = trim((string) ($_POST['emoji_name'] ?? ''));
-        if ($id > 0 && $name !== '' && mirza_custom_emoji_rename($id, $name)) {
+        if ($id > 0 && $name !== '' && vira_custom_emoji_rename($id, $name)) {
             flash('success', 'نام ایموجی به‌روز شد.');
         } else {
             flash('error', 'تغییر نام انجام نشد.');
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($names as $id => $name) {
                 $id = (int) $id;
                 $name = trim((string) $name);
-                if ($id > 0 && $name !== '' && mirza_custom_emoji_rename($id, $name)) {
+                if ($id > 0 && $name !== '' && vira_custom_emoji_rename($id, $name)) {
                     $saved++;
                 }
             }
@@ -118,7 +118,7 @@ include __DIR__ . '/inc/layout_head.php';
                         </thead>
                         <tbody>
                             <?php foreach ($emojiLibrary as $row):
-                                $placeholder = mirza_emoji_placeholder($row);
+                                $placeholder = vira_emoji_placeholder($row);
                                 ?>
                                 <tr>
                                     <td>

@@ -982,8 +982,8 @@ n2',
 ➖➖➖➖➖➖➖➖➖➖➖
 🔹 | همچنین اگر نیاز به <b>راهنمایی</b> یا کمک دارید، می‌توانید از طریق دایرکت با تیم پشتیبانی در ارتباط باشید.
 
-📩 | برای ارسال گزارش، پیشنهاد یا درخواست راهنمایی، در <b>گروه میرزا</b> پیام بگذارید:
-<a href="https://t.me/mirzapanelgroup" rel="nofollow" target="_blank">Mirza Group</a>',
+📩 | برای گزارش، پیشنهاد یا راهنمایی به مخزن پروژه مراجعه کنید:
+<a href="https://github.com/liamlope/ViraNaut" rel="nofollow" target="_blank">ViraNaut</a>',
                         'ask_select_panel' => '🪚 برای استفاده از این قابلیت یکی از پنل های زیر را انتخاب نمایید',
                         'err_admin' => '❌ این بخش فقط در دسترس ادمین اصلی است',
                         'err_notfound_set_settings' => '❌  امکان مشاهده تنظیمات نود ها وجود ندارد',
@@ -998,7 +998,7 @@ n2',
                         'ok_success_delete_1' => '✅ نود با موفقیت حذف گردید',
                         'msg_manage_gateway' => '📌 از لیست زیر میتوانید درگاه ها را مدیریت کنید.
 
-⚠️ تیم میرزا هیچ تضمینی برای درگاه ها نخواهد داشت و استفاده  و تمامی مسئولیت ها به عهده شما می باشد',
+⚠️ تیم ویرا هیچ تضمینی برای درگاه ها نخواهد داشت و استفاده  و تمامی مسئولیت ها به عهده شما می باشد',
                         'ask_send_user_sub_enable' => '📌 مقدار درصدی که می خواهید حساب کاربر بعد از تمدید به عنوان هدیه شارژ شود را ارسال کنید.
 ⚠️ در صورتی که میخواهید غیرفعال باشد عدد 0 را ارسال کنید',
                         'ask_select_user_2' => '📌 نوع کاربری را انتخاب نمایید
@@ -1244,7 +1244,7 @@ f,n.n2',
                         'msg_panel_admin_bot_report' => '💎 | Version Bot: %s
 📌 | Version Mini App: 0.1.1
 
-<blockquote>🔹 | این ربات کاملاً رایگان است و توسط تیم میرزا توسعه داده شده است</blockquote>
+<blockquote>🔹 | این ربات کاملاً رایگان است و توسط تیم ویرا توسعه داده شده است</blockquote>
 
 <blockquote>🔹 | هرگونه فروش یا دریافت وجه بابت این ربات تخلف محسوب می‌شود.</blockquote>
 
@@ -2560,7 +2560,7 @@ f,n.n2',
                 ],
                 'keyboard_php' => [
                         'panelSetting' => '🎛 تنظیم پنل',
-                        'mirzaAgentPanel' => 'نمایندگی میرزا',
+                        'viraAgentPanel' => 'پنل نمایندگی',
                         'setGroupName' => '🎛 تنظیم نام گروه',
                         'subLinkDomain' => '🔗 دامنه لینک ساب',
                         'panelTypeSanaei' => 'ثنایی تک پورت',
@@ -4039,10 +4039,10 @@ https://t.me/%s?start=%s',
                 'jsSidebarCollapsed' => 'منو جمع‌شده فعال شد',
                 'jsSidebarExpanded' => 'منو باز فعال شد',
                 'jsThemeActivated' => 'تم «{name}» فعال شد',
-                'keyboardManageTitle' => 'پنل مدیریت ربات میرزا',
+                'keyboardManageTitle' => 'پنل مدیریت ویرا',
                 'keyboardSaveBtn' => 'بازگشت به حالت پیشفرض',
                 'keyboardSortHint' => 'بازگشت به پنل کاربری',
-                'layoutBrandName' => 'پنل مدیریت میرزا بات',
+                'layoutBrandName' => 'ویرا · پنل',
                 'layoutDefaultAdminName' => 'ادمین',
                 'layoutFooterCopyright' => 'داشبورد',
                 'layoutFooterLinkDocs' => 'تنظیمات',
@@ -4059,7 +4059,7 @@ https://t.me/%s?start=%s',
                 'layoutNavLogout' => 'مدیریت',
                 'layoutNavOrders' => 'بله، ادامه',
                 'layoutNavPayments' => '· پنل',
-                'layoutNavProducts' => 'میرزا',
+                'layoutNavProducts' => 'محصولات',
                 'layoutNavServices' => 'انصراف',
                 'layoutNavSettings' => 'داشبورد',
                 'layoutNavUsers' => 'آیا اطمینان دارید؟ این عملیات قابل بازگشت نیست.',
@@ -4072,7 +4072,7 @@ https://t.me/%s?start=%s',
                 'layoutPageTitleProduct' => 'محصولات',
                 'layoutPageTitleService' => 'سرویس‌ها',
                 'layoutPageTitleSettings' => 'تنظیمات',
-                'layoutPageTitleSuffix' => 'میرزا',
+                'layoutPageTitleSuffix' => 'ویرا',
                 'layoutPageTitleUsers' => 'کاربران',
                 'layoutProfileMenuLabel' => 'تنظیمات',
                 'layoutSearchBoxPlaceholder' => 'تراکنش‌ها',
@@ -4082,11 +4082,11 @@ https://t.me/%s?start=%s',
                 'loginEnterCredentials' => 'نام کاربری و رمز عبور را وارد کنید.',
                 'loginErrorTitle' => 'رمز عبور',
                 'loginFooter' => 'نام کاربری',
-                'loginHeading' => 'پنل مدیریت میرزا',
+                'loginHeading' => 'پنل مدیریت ویرا',
                 'loginHidePassword' => 'دسترسی به این پنل فقط برای مدیران مجاز است.',
-                'loginPanelTitle' => 'ورود — پنل مدیریت میرزا',
-                'loginPasswordLabel' => 'پنل مدیریت میرزا',
-                'loginPasswordPlaceholder' => '· نسخه 1.0 میرزا',
+                'loginPanelTitle' => 'ورود — پنل مدیریت ویرا',
+                'loginPasswordLabel' => 'رمز عبور',
+                'loginPasswordPlaceholder' => '· ویرا',
                 'loginRememberMe' => 'برای مدیریت ربات، اطلاعات حساب خود را وارد کنید.',
                 'loginShowPassword' => 'ورود به پنل',
                 'loginSubtitle' => 'برای حمایت لطفا به',

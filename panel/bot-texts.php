@@ -5,9 +5,9 @@ require_once __DIR__ . '/inc/bot_data.php';
 require_once __DIR__ . '/inc/bot_emojis.php';
 require_auth();
 
-$catalog = mirza_panel_textbot_catalog();
-$globalVars = mirza_panel_textbot_global_vars();
-$emojiLibrary = mirza_custom_emoji_list($pdo);
+$catalog = vira_panel_textbot_catalog();
+$globalVars = vira_panel_textbot_global_vars();
+$emojiLibrary = vira_custom_emoji_list($pdo);
 $allIds = [];
 foreach ($catalog as $items) {
     foreach (array_keys($items) as $id) {
@@ -29,14 +29,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
     $updated = 0;
     $emojiTrimmed = 0;
-    $keyboardBtnIds = mirza_panel_keyboard_button_text_ids();
+    $keyboardBtnIds = vira_panel_keyboard_button_text_ids();
     foreach ($allIds as $id) {
         if (!array_key_exists('text_' . $id, $_POST)) {
             continue;
         }
         $val = (string) ($_POST['text_' . $id] ?? '');
-        if (in_array($id, $keyboardBtnIds, true) && function_exists('mirza_limit_button_emoji_placeholders')) {
-            $limited = mirza_limit_button_emoji_placeholders($val, 1);
+        if (in_array($id, $keyboardBtnIds, true) && function_exists('vira_limit_button_emoji_placeholders')) {
+            $limited = vira_limit_button_emoji_placeholders($val, 1);
             if ($limited['trimmed']) {
                 $emojiTrimmed++;
             }
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$keyboardBtnIds = mirza_panel_keyboard_button_text_ids();
+$keyboardBtnIds = vira_panel_keyboard_button_text_ids();
 $totalCount = count($allIds);
 $filledCount = 0;
 foreach ($allIds as $id) {
@@ -107,7 +107,7 @@ include __DIR__ . '/inc/layout_head.php';
             <div class="bt-emoji-bar-hint">در <b>دکمه‌های منو</b> فقط یک <code>{emoji:slug}</code> · در <b>پیام‌ها</b> نامحدود</div>
             <div class="bt-emoji-chips" id="btEmojiChips">
                 <?php foreach ($emojiLibrary as $emojiRow):
-                    $chip = mirza_emoji_panel_chip_meta($emojiRow);
+                    $chip = vira_emoji_panel_chip_meta($emojiRow);
                     if ($chip['placeholder'] === '') continue;
                     ?>
                     <div class="bt-emoji-chip" draggable="true" data-insert-emoji="<?= htmlspecialchars($chip['placeholder']) ?>"
@@ -169,7 +169,7 @@ include __DIR__ . '/inc/layout_head.php';
                                     <div class="bt-item-emojis">
                                         <span class="bt-item-emojis-label">ایموجی →</span>
                                         <?php foreach ($emojiLibrary as $emojiRow):
-                                            $chip = mirza_emoji_panel_chip_meta($emojiRow);
+                                            $chip = vira_emoji_panel_chip_meta($emojiRow);
                                             if ($chip['placeholder'] === '') continue;
                                             ?>
                                             <span class="bt-emoji-chip bt-emoji-chip-sm" draggable="true"

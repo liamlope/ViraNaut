@@ -5,8 +5,8 @@
   var API = (global.location && global.location.origin)
     ? global.location.origin + '/api/'
     : '../api/';
-  var STORAGE_TOKEN = 'mirza_mini_token';
-  var STORAGE_UID = 'mirza_mini_user_id';
+  var STORAGE_TOKEN = 'vira_mini_token';
+  var STORAGE_UID = 'vira_mini_user_id';
 
   function tg() {
     return global.Telegram && global.Telegram.WebApp;
@@ -310,7 +310,7 @@
       miniGet('invoices', { page: 1, limit: 10 }, ctx),
     ]).then(function (parts) {
       var rawUser = parts[0] || {};
-      var meta = (global.MIRZA_DEMO_DATA && global.MIRZA_DEMO_DATA.meta) || {};
+      var meta = (global.VIRA_DEMO_DATA && global.VIRA_DEMO_DATA.meta) || {};
       return {
         user: rawUser,
         invite_link: buildInviteLink(meta.bot_username, rawUser.codeInvitation),
@@ -354,7 +354,7 @@
     });
   }
 
-  global.MIRZA_MINIAPP_API = {
+  global.VIRA_MINIAPP_API = {
     load: loadAll,
     ensureContext: ensureContext,
     purchase: purchase,

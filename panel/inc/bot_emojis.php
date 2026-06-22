@@ -2,8 +2,8 @@
 
 /** Premium custom emoji library (Telegram Bot API icon_custom_emoji_id). */
 
-if (!function_exists('mirza_ensure_bot_custom_emoji_table')) {
-    function mirza_ensure_bot_custom_emoji_table(): void
+if (!function_exists('vira_ensure_bot_custom_emoji_table')) {
+    function vira_ensure_bot_custom_emoji_table(): void
     {
         global $pdo;
         if (!isset($pdo)) {
@@ -32,18 +32,18 @@ if (!function_exists('mirza_ensure_bot_custom_emoji_table')) {
             }
             $rows = $pdo->query('SELECT id, emoji_name, emoji_slug FROM bot_custom_emoji WHERE emoji_slug IS NULL OR emoji_slug = ""')->fetchAll(PDO::FETCH_ASSOC);
             foreach ($rows as $row) {
-                $slug = mirza_emoji_make_slug((string) $row['emoji_name'], (int) $row['id']);
+                $slug = vira_emoji_make_slug((string) $row['emoji_name'], (int) $row['id']);
                 $upd = $pdo->prepare('UPDATE bot_custom_emoji SET emoji_slug = ? WHERE id = ?');
                 $upd->execute([$slug, (int) $row['id']]);
             }
         } catch (Throwable $e) {
-            error_log('mirza_ensure_bot_custom_emoji_table: ' . $e->getMessage());
+            error_log('vira_ensure_bot_custom_emoji_table: ' . $e->getMessage());
         }
     }
 }
 
-if (!function_exists('mirza_emoji_make_slug')) {
-    function mirza_emoji_make_slug(string $name, ?int $excludeId = null): string
+if (!function_exists('vira_emoji_make_slug')) {
+    function vira_emoji_make_slug(string $name, ?int $excludeId = null): string
     {
         global $pdo;
         $slug = mb_strtolower(trim($name), 'UTF-8');
@@ -70,8 +70,8 @@ if (!function_exists('mirza_emoji_make_slug')) {
     }
 }
 
-if (!function_exists('mirza_utf16_strlen')) {
-    function mirza_utf16_strlen(string $text): int
+if (!function_exists('vira_utf16_strlen')) {
+    function vira_utf16_strlen(string $text): int
     {
         $len = 0;
         $chars = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY);
@@ -86,8 +86,8 @@ if (!function_exists('mirza_utf16_strlen')) {
     }
 }
 
-if (!function_exists('mirza_utf16_substring')) {
-    function mirza_utf16_substring(string $text, int $offset, int $length): string
+if (!function_exists('vira_utf16_substring')) {
+    function vira_utf16_substring(string $text, int $offset, int $length): string
     {
         $pos = 0;
         $out = '';
@@ -110,9 +110,9 @@ if (!function_exists('mirza_utf16_substring')) {
     }
 }
 
-if (!function_exists('mirza_message_extract_custom_emoji')) {
+if (!function_exists('vira_message_extract_custom_emoji')) {
     /** @return array{custom_emoji_id:string,emoji_utf8:string}|null */
-    function mirza_message_extract_custom_emoji(array $message): ?array
+    function vira_message_extract_custom_emoji(array $message): ?array
     {
         $entities = $message['entities'] ?? [];
         $text = (string) ($message['text'] ?? $message['caption'] ?? '');
@@ -129,7 +129,7 @@ if (!function_exists('mirza_message_extract_custom_emoji')) {
             }
             $offset = (int) ($entity['offset'] ?? 0);
             $length = (int) ($entity['length'] ?? 0);
-            $char = $length > 0 ? mirza_utf16_substring($text, $offset, $length) : '';
+            $char = $length > 0 ? vira_utf16_substring($text, $offset, $length) : '';
             return [
                 'custom_emoji_id' => $id,
                 'emoji_utf8' => $char,
@@ -139,31 +139,31 @@ if (!function_exists('mirza_message_extract_custom_emoji')) {
     }
 }
 
-if (!function_exists('mirza_custom_emoji_list')) {
-    function mirza_custom_emoji_list(?PDO $pdo = null): array
+if (!function_exists('vira_custom_emoji_list')) {
+    function vira_custom_emoji_list(?PDO $pdo = null): array
     {
         $pdo = $pdo ?? ($GLOBALS['pdo'] ?? null);
         if (!$pdo instanceof PDO) {
             return [];
         }
-        mirza_ensure_bot_custom_emoji_table();
+        vira_ensure_bot_custom_emoji_table();
         try {
             $stmt = $pdo->query('SELECT * FROM bot_custom_emoji ORDER BY emoji_name ASC, id ASC');
             return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
         } catch (Throwable $e) {
-            error_log('mirza_custom_emoji_list: ' . $e->getMessage());
+            error_log('vira_custom_emoji_list: ' . $e->getMessage());
             return [];
         }
     }
 }
 
-if (!function_exists('mirza_custom_emoji_lookup_maps')) {
-    function mirza_custom_emoji_lookup_maps(?PDO $pdo = null): array
+if (!function_exists('vira_custom_emoji_lookup_maps')) {
+    function vira_custom_emoji_lookup_maps(?PDO $pdo = null): array
     {
         $bySlug = [];
         $byName = [];
         $byId = [];
-        foreach (mirza_custom_emoji_list($pdo) as $row) {
+        foreach (vira_custom_emoji_list($pdo) as $row) {
             $byId[(int) $row['id']] = $row;
             $slug = mb_strtolower(trim((string) ($row['emoji_slug'] ?? '')), 'UTF-8');
             if ($slug !== '') {
@@ -178,14 +178,14 @@ if (!function_exists('mirza_custom_emoji_lookup_maps')) {
     }
 }
 
-if (!function_exists('mirza_emoji_lookup_row')) {
-    function mirza_emoji_lookup_row(string $ref, ?PDO $pdo = null): ?array
+if (!function_exists('vira_emoji_lookup_row')) {
+    function vira_emoji_lookup_row(string $ref, ?PDO $pdo = null): ?array
     {
         $ref = trim($ref);
         if ($ref === '') {
             return null;
         }
-        $maps = mirza_custom_emoji_lookup_maps($pdo);
+        $maps = vira_custom_emoji_lookup_maps($pdo);
         if (preg_match('/^#?(\d+)$/', $ref, $num)) {
             return $maps['id'][(int) $num[1]] ?? null;
         }
@@ -200,9 +200,9 @@ if (!function_exists('mirza_emoji_lookup_row')) {
     }
 }
 
-if (!function_exists('mirza_emoji_placeholder')) {
+if (!function_exists('vira_emoji_placeholder')) {
     /** کد ثابت — با rename نام نمایشی عوض نمی‌شود. */
-    function mirza_emoji_placeholder(array $emojiRow): string
+    function vira_emoji_placeholder(array $emojiRow): string
     {
         $slug = trim((string) ($emojiRow['emoji_slug'] ?? ''));
         if ($slug === '') {
@@ -212,9 +212,9 @@ if (!function_exists('mirza_emoji_placeholder')) {
     }
 }
 
-if (!function_exists('mirza_emoji_code_html')) {
+if (!function_exists('vira_emoji_code_html')) {
     /** نمایش literal ‎{emoji:slug}‎ در HTML بدون resolve شدن توسط sendmessage. */
-    function mirza_emoji_code_html(string $slug): string
+    function vira_emoji_code_html(string $slug): string
     {
         $slug = trim($slug);
         if ($slug === '') {
@@ -224,9 +224,9 @@ if (!function_exists('mirza_emoji_code_html')) {
     }
 }
 
-if (!function_exists('mirza_preserve_emoji_placeholders_html')) {
+if (!function_exists('vira_preserve_emoji_placeholders_html')) {
     /** متن را برای نمایش داخل &lt;code&gt; آماده می‌کند تا placeholderها resolve نشوند. */
-    function mirza_preserve_emoji_placeholders_html(string $text): string
+    function vira_preserve_emoji_placeholders_html(string $text): string
     {
         if (strpos($text, '{emoji:') === false) {
             return htmlspecialchars($text, ENT_NOQUOTES, 'UTF-8');
@@ -241,7 +241,7 @@ if (!function_exists('mirza_preserve_emoji_placeholders_html')) {
                 continue;
             }
             if (preg_match('/^\{emoji:([^}]+)\}$/u', $part, $m)) {
-                $out .= mirza_emoji_code_html($m[1]);
+                $out .= vira_emoji_code_html($m[1]);
             } else {
                 $out .= htmlspecialchars($part, ENT_NOQUOTES, 'UTF-8');
             }
@@ -250,13 +250,13 @@ if (!function_exists('mirza_preserve_emoji_placeholders_html')) {
     }
 }
 
-if (!function_exists('mirza_emoji_panel_chip_meta')) {
+if (!function_exists('vira_emoji_panel_chip_meta')) {
     /** برچسب پنل — نام/slug به‌جای نمایش glyph (ایموجی‌های مشابه). */
-    function mirza_emoji_panel_chip_meta(array $emojiRow): array
+    function vira_emoji_panel_chip_meta(array $emojiRow): array
     {
         $name = trim((string) ($emojiRow['emoji_name'] ?? ''));
         $slug = trim((string) ($emojiRow['emoji_slug'] ?? ''));
-        $placeholder = mirza_emoji_placeholder($emojiRow);
+        $placeholder = vira_emoji_placeholder($emojiRow);
         $label = $name !== '' ? $name : ($slug !== '' ? $slug : 'emoji');
         $titleParts = array_filter([$label, $slug !== '' && $slug !== $name ? $slug : '', $placeholder]);
         return [
@@ -268,20 +268,20 @@ if (!function_exists('mirza_emoji_panel_chip_meta')) {
     }
 }
 
-if (!function_exists('mirza_count_emoji_placeholders')) {
-    function mirza_count_emoji_placeholders(string $text): int
+if (!function_exists('vira_count_emoji_placeholders')) {
+    function vira_count_emoji_placeholders(string $text): int
     {
         return preg_match_all('/\{emoji:[^}]+\}/u', $text, $m) ? count($m[0]) : 0;
     }
 }
 
-if (!function_exists('mirza_limit_button_emoji_placeholders')) {
+if (!function_exists('vira_limit_button_emoji_placeholders')) {
     /**
      * برای دکمه کیبورد تلگرام: فقط اولین {emoji:…} نگه داشته می‌شود.
      *
      * @return array{text:string,trimmed:bool}
      */
-    function mirza_limit_button_emoji_placeholders(string $text, int $max = 1): array
+    function vira_limit_button_emoji_placeholders(string $text, int $max = 1): array
     {
         if ($max < 1 || strpos($text, '{emoji:') === false) {
             return ['text' => $text, 'trimmed' => false];
@@ -301,16 +301,16 @@ if (!function_exists('mirza_limit_button_emoji_placeholders')) {
     }
 }
 
-if (!function_exists('mirza_resolve_keyboard_button')) {
+if (!function_exists('vira_resolve_keyboard_button')) {
     /**
      * اولین {emoji:…} → icon_custom_emoji_id (پرمیوم متحرک چپ دکمه)
      * بقیه حذف می‌شوند (محدودیت API تلگرام — یک آیکون per دکمه)
      *
      * @return array{text:string,icon_custom_emoji_id:?string}
      */
-    function mirza_resolve_keyboard_button(string $raw, ?PDO $pdo = null): array
+    function vira_resolve_keyboard_button(string $raw, ?PDO $pdo = null): array
     {
-        $limited = mirza_limit_button_emoji_placeholders($raw, 1);
+        $limited = vira_limit_button_emoji_placeholders($raw, 1);
         $raw = $limited['text'];
         if (strpos($raw, '{emoji:') === false) {
             return ['text' => $raw, 'icon_custom_emoji_id' => null];
@@ -318,7 +318,7 @@ if (!function_exists('mirza_resolve_keyboard_button')) {
         $iconId = null;
         $usedIcon = false;
         $text = (string) preg_replace_callback('/\{emoji:([^}]+)\}/u', static function (array $m) use ($pdo, &$iconId, &$usedIcon) {
-            $row = mirza_emoji_lookup_row($m[1], $pdo);
+            $row = vira_emoji_lookup_row($m[1], $pdo);
             if (!$row) {
                 return '';
             }
@@ -334,9 +334,9 @@ if (!function_exists('mirza_resolve_keyboard_button')) {
     }
 }
 
-if (!function_exists('mirza_render_text_custom_emojis')) {
+if (!function_exists('vira_render_text_custom_emojis')) {
     /** همه placeholderها با entity پرمیوم (برای پیام متنی، نه دکمه). */
-    function mirza_render_text_custom_emojis(string $text, ?PDO $pdo = null): array
+    function vira_render_text_custom_emojis(string $text, ?PDO $pdo = null): array
     {
         if (strpos($text, '{emoji:') === false) {
             return ['text' => $text, 'entities' => null, 'has_placeholders' => false];
@@ -353,7 +353,7 @@ if (!function_exists('mirza_render_text_custom_emojis')) {
             $matchStart = (int) $m[0][1];
             $matchLen = strlen($m[0][0]);
             $out .= substr($text, $offset, $matchStart - $offset);
-            $row = mirza_emoji_lookup_row($m[1][0], $pdo);
+            $row = vira_emoji_lookup_row($m[1][0], $pdo);
             if ($row === null) {
                 $out .= $m[0][0];
             } else {
@@ -363,8 +363,8 @@ if (!function_exists('mirza_render_text_custom_emojis')) {
                 } else {
                     $entities[] = [
                         'type' => 'custom_emoji',
-                        'offset' => mirza_utf16_strlen($out),
-                        'length' => mirza_utf16_strlen($char),
+                        'offset' => vira_utf16_strlen($out),
+                        'length' => vira_utf16_strlen($char),
                         'custom_emoji_id' => (string) $row['custom_emoji_id'],
                     ];
                     $out .= $char;
@@ -380,10 +380,10 @@ if (!function_exists('mirza_render_text_custom_emojis')) {
     }
 }
 
-if (!function_exists('mirza_prepare_outgoing_text')) {
-    function mirza_prepare_outgoing_text(string $text, ?string $parse_mode = 'HTML'): array
+if (!function_exists('vira_prepare_outgoing_text')) {
+    function vira_prepare_outgoing_text(string $text, ?string $parse_mode = 'HTML'): array
     {
-        $rendered = mirza_render_text_custom_emojis($text);
+        $rendered = vira_render_text_custom_emojis($text);
         if (!$rendered['has_placeholders']) {
             return ['text' => $text, 'parse_mode' => $parse_mode, 'entities' => null];
         }
@@ -394,23 +394,23 @@ if (!function_exists('mirza_prepare_outgoing_text')) {
     }
 }
 
-if (!function_exists('mirza_keyboard_raw_label')) {
-    function mirza_keyboard_raw_label(array $datatextbot, string $key, string $fallback = ''): string
+if (!function_exists('vira_keyboard_raw_label')) {
+    function vira_keyboard_raw_label(array $datatextbot, string $key, string $fallback = ''): string
     {
         $raw = trim((string) ($datatextbot[$key] ?? ''));
         return $raw !== '' ? $raw : trim($fallback);
     }
 }
 
-if (!function_exists('mirza_textbot_display')) {
-    function mirza_textbot_display(string $raw): string
+if (!function_exists('vira_textbot_display')) {
+    function vira_textbot_display(string $raw): string
     {
-        return mirza_resolve_keyboard_button($raw)['text'];
+        return vira_resolve_keyboard_button($raw)['text'];
     }
 }
 
-if (!function_exists('mirza_textbot_matches')) {
-    function mirza_textbot_matches(?string $incoming, ?string $raw): bool
+if (!function_exists('vira_textbot_matches')) {
+    function vira_textbot_matches(?string $incoming, ?string $raw): bool
     {
         if ($incoming === null || $raw === null) {
             return false;
@@ -418,26 +418,26 @@ if (!function_exists('mirza_textbot_matches')) {
         if ($incoming === $raw) {
             return true;
         }
-        $resolved = mirza_resolve_keyboard_button($raw);
+        $resolved = vira_resolve_keyboard_button($raw);
         if ($incoming === $resolved['text']) {
             return true;
         }
-        return $incoming === mirza_render_text_custom_emojis($raw)['text'];
+        return $incoming === vira_render_text_custom_emojis($raw)['text'];
     }
 }
 
-if (!function_exists('mirza_custom_emoji_by_id_map')) {
-    function mirza_custom_emoji_by_id_map(?PDO $pdo = null): array
+if (!function_exists('vira_custom_emoji_by_id_map')) {
+    function vira_custom_emoji_by_id_map(?PDO $pdo = null): array
     {
-        return mirza_custom_emoji_lookup_maps($pdo)['id'];
+        return vira_custom_emoji_lookup_maps($pdo)['id'];
     }
 }
 
-if (!function_exists('mirza_custom_emoji_save')) {
-    function mirza_custom_emoji_save(string $name, string $customEmojiId, string $emojiUtf8 = '', ?string $createdBy = null): array
+if (!function_exists('vira_custom_emoji_save')) {
+    function vira_custom_emoji_save(string $name, string $customEmojiId, string $emojiUtf8 = '', ?string $createdBy = null): array
     {
         global $pdo;
-        mirza_ensure_bot_custom_emoji_table();
+        vira_ensure_bot_custom_emoji_table();
         $name = trim($name);
         $customEmojiId = trim($customEmojiId);
         if ($name === '' || $customEmojiId === '') {
@@ -453,7 +453,7 @@ if (!function_exists('mirza_custom_emoji_save')) {
             if ($existing) {
                 $slug = trim((string) ($existing['emoji_slug'] ?? ''));
                 if ($slug === '') {
-                    $slug = mirza_emoji_make_slug($name, (int) $existing['id']);
+                    $slug = vira_emoji_make_slug($name, (int) $existing['id']);
                 }
                 $stmt = $pdo->prepare(
                     'UPDATE bot_custom_emoji SET emoji_name = ?, emoji_slug = ?, emoji_utf8 = ? WHERE id = ?'
@@ -461,7 +461,7 @@ if (!function_exists('mirza_custom_emoji_save')) {
                 $stmt->execute([$name, $slug, $emojiUtf8, (int) $existing['id']]);
                 return ['ok' => true, 'id' => (int) $existing['id'], 'slug' => $slug];
             }
-            $slug = mirza_emoji_make_slug($name);
+            $slug = vira_emoji_make_slug($name);
             $stmt = $pdo->prepare(
                 'INSERT INTO bot_custom_emoji (emoji_name, emoji_slug, custom_emoji_id, emoji_utf8, created_at, created_by)
                  VALUES (?, ?, ?, ?, ?, ?)'
@@ -469,14 +469,14 @@ if (!function_exists('mirza_custom_emoji_save')) {
             $stmt->execute([$name, $slug, $customEmojiId, $emojiUtf8, time(), $createdBy]);
             return ['ok' => true, 'id' => (int) $pdo->lastInsertId(), 'slug' => $slug];
         } catch (Throwable $e) {
-            error_log('mirza_custom_emoji_save: ' . $e->getMessage());
+            error_log('vira_custom_emoji_save: ' . $e->getMessage());
             return ['ok' => false, 'error' => 'ذخیره در پایگاه داده ناموفق بود.'];
         }
     }
 }
 
-if (!function_exists('mirza_custom_emoji_delete')) {
-    function mirza_custom_emoji_delete(int $id): bool
+if (!function_exists('vira_custom_emoji_delete')) {
+    function vira_custom_emoji_delete(int $id): bool
     {
         global $pdo;
         if ($id <= 0) {
@@ -487,15 +487,15 @@ if (!function_exists('mirza_custom_emoji_delete')) {
             $stmt->execute([$id]);
             return $stmt->rowCount() > 0;
         } catch (Throwable $e) {
-            error_log('mirza_custom_emoji_delete: ' . $e->getMessage());
+            error_log('vira_custom_emoji_delete: ' . $e->getMessage());
             return false;
         }
     }
 }
 
-if (!function_exists('mirza_custom_emoji_rename')) {
+if (!function_exists('vira_custom_emoji_rename')) {
     /** فقط نام نمایشی — slug و {emoji:slug} ثابت می‌ماند. */
-    function mirza_custom_emoji_rename(int $id, string $name): bool
+    function vira_custom_emoji_rename(int $id, string $name): bool
     {
         global $pdo;
         $name = trim($name);
@@ -510,15 +510,15 @@ if (!function_exists('mirza_custom_emoji_rename')) {
             $stmt->execute([$name, $id]);
             return $stmt->rowCount() > 0;
         } catch (Throwable $e) {
-            error_log('mirza_custom_emoji_rename: ' . $e->getMessage());
+            error_log('vira_custom_emoji_rename: ' . $e->getMessage());
             return false;
         }
     }
 }
 
-if (!function_exists('mirza_keyboard_button_styles')) {
+if (!function_exists('vira_keyboard_button_styles')) {
     /** برچسب پنل — مقدار API ثابت می‌ماند (primary/success/danger). */
-    function mirza_keyboard_button_styles(): array
+    function vira_keyboard_button_styles(): array
     {
         return [
             '' => 'پیش‌فرض',
@@ -529,9 +529,9 @@ if (!function_exists('mirza_keyboard_button_styles')) {
     }
 }
 
-if (!function_exists('mirza_keyboard_style_colors')) {
+if (!function_exists('vira_keyboard_style_colors')) {
     /** رنگ‌های تقریبی دکمه در کلاینت تلگرام (Bot API 9.4+). */
-    function mirza_keyboard_style_colors(): array
+    function vira_keyboard_style_colors(): array
     {
         return [
             'primary' => '#3390ec',
@@ -541,8 +541,8 @@ if (!function_exists('mirza_keyboard_style_colors')) {
     }
 }
 
-if (!function_exists('mirza_keyboard_apply_custom_emojis')) {
-    function mirza_keyboard_apply_custom_emojis(array &$rows, ?PDO $pdo = null): void
+if (!function_exists('vira_keyboard_apply_custom_emojis')) {
+    function vira_keyboard_apply_custom_emojis(array &$rows, ?PDO $pdo = null): void
     {
         unset($pdo);
         foreach ($rows as $ri => $row) {
@@ -565,8 +565,8 @@ if (!function_exists('mirza_keyboard_apply_custom_emojis')) {
     }
 }
 
-if (!function_exists('mirza_keyboard_replace_text_keys')) {
-    function mirza_keyboard_replace_text_keys(array $rows, array $replacements): array
+if (!function_exists('vira_keyboard_replace_text_keys')) {
+    function vira_keyboard_replace_text_keys(array $rows, array $replacements): array
     {
         $out = [];
         foreach ($rows as $row) {
@@ -580,7 +580,7 @@ if (!function_exists('mirza_keyboard_replace_text_keys')) {
                 }
                 $key = (string) ($btn['text'] ?? '');
                 $raw = $replacements[$key] ?? $key;
-                $resolved = mirza_resolve_keyboard_button($raw);
+                $resolved = vira_resolve_keyboard_button($raw);
                 $newBtn = $btn;
                 $newBtn['text'] = $resolved['text'] !== '' ? $resolved['text'] : $raw;
                 if (!empty($resolved['icon_custom_emoji_id'])) {
@@ -599,8 +599,8 @@ if (!function_exists('mirza_keyboard_replace_text_keys')) {
     }
 }
 
-if (!function_exists('mirza_send_datatextbot_message')) {
-    function mirza_send_datatextbot_message($chat_id, string $idText, string $text, $keyboard, string $parse_mode = 'HTML', $bot_token = null)
+if (!function_exists('vira_send_datatextbot_message')) {
+    function vira_send_datatextbot_message($chat_id, string $idText, string $text, $keyboard, string $parse_mode = 'HTML', $bot_token = null)
     {
         return sendmessage($chat_id, $text, $keyboard, $parse_mode, $bot_token);
     }

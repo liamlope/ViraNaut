@@ -1,5 +1,5 @@
 (function () {
-    var P = window.MirzaInboundPicker;
+    var P = window.ViraInboundPicker;
     var base = document.body && document.body.getAttribute('data-panel-base') || '';
 
     window.PANEL_TYPE_LABELS = {

@@ -179,7 +179,7 @@
         return true;
     }
 
-    global.MirzaInboundPicker = {
+    global.ViraInboundPicker = {
         parseInboundValue: parseInboundValue,
         panelApiBase: panelApiBase,
         renderPicker: renderPicker,

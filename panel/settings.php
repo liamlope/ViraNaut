@@ -41,7 +41,7 @@ $themes = [
     'linen' => ['name' => $textbotlang['panel']['settingsThemeCreamPaper'], 'desc' => $textbotlang['panel']['settingsThemeCreamPaperDesc'], 'c' => ['#FAF7F2', '#FFFFFF', '#B87333', '#5D7C4A'], 'dark' => false],
     'mint' => ['name' => $textbotlang['panel']['settingsThemeMintGreen'], 'desc' => $textbotlang['panel']['settingsThemeMintGreenDesc'], 'c' => ['#F0FDF4', '#FFFFFF', '#166534', '#1D4ED8'], 'dark' => false],
     'lavender' => ['name' => $textbotlang['panel']['settingsThemeLavender'], 'desc' => $textbotlang['panel']['settingsThemeLavenderDesc'], 'c' => ['#FAF5FF', '#FFFFFF', '#6D28D9', '#15803D'], 'dark' => false],
-    'viranaut' => ['name' => 'ویرانات ViraNaut', 'desc' => 'تم برند اختصاصی ویرانات', 'c' => ['#0B1220', '#111827', '#38BDF8', '#22D3EE'], 'dark' => true],
+    'viranaut' => ['name' => 'ویرا ViraNaut', 'desc' => 'تم برند اختصاصی ویرا', 'c' => ['#0B1220', '#111827', '#38BDF8', '#22D3EE'], 'dark' => true],
 ];
 
 $tabs = [

@@ -39,13 +39,13 @@ function im_panel_snapshot(array $invoice): array
     if (empty($invoice['username']) || empty($invoice['Service_location'])) {
         return ['ok' => false, 'error' => 'missing_username'];
     }
-    if (!function_exists('mirza_ensure_manage_panel')) {
+    if (!function_exists('vira_ensure_manage_panel')) {
         require_once __DIR__ . '/../../function.php';
     }
     if (!function_exists('formatBytes')) {
         require_once __DIR__ . '/../../function.php';
     }
-    $panel = mirza_ensure_manage_panel();
+    $panel = vira_ensure_manage_panel();
     $data = $panel->DataUser((string) $invoice['Service_location'], (string) $invoice['username']);
     if (!is_array($data) || ($data['status'] ?? '') === 'Unsuccessful') {
         return ['ok' => false, 'error' => 'user_not_in_panel', 'raw' => is_array($data) ? $data : []];
@@ -87,16 +87,16 @@ function im_build_panel_fields(array $panelData, array $textbotlang): array
     $status = (string) ($panelData['status'] ?? 'Unknown');
     $online = (string) ($panelData['online_at'] ?? '');
     if ($online === 'online') {
-        $onlineLabel = function_exists('mirza_online_status_label')
-            ? mirza_online_status_label('online', $textbotlang)
+        $onlineLabel = function_exists('vira_online_status_label')
+            ? vira_online_status_label('online', $textbotlang)
             : 'آنلاین';
     } elseif ($online === 'offline') {
-        $onlineLabel = function_exists('mirza_online_status_label')
-            ? mirza_online_status_label('offline', $textbotlang)
+        $onlineLabel = function_exists('vira_online_status_label')
+            ? vira_online_status_label('offline', $textbotlang)
             : 'آفلاین';
     } elseif ($online !== '') {
-        $onlineLabel = function_exists('mirza_online_status_label')
-            ? mirza_online_status_label($online, $textbotlang)
+        $onlineLabel = function_exists('vira_online_status_label')
+            ? vira_online_status_label($online, $textbotlang)
             : $online;
     } else {
         $onlineLabel = '—';
@@ -186,10 +186,10 @@ function im_remove_service(PDO $pdo, string $idInvoice, bool $refund, string $ad
         return ['ok' => false, 'msg' => 'سرویس از قبل حذف شده است.'];
     }
 
-    if (!function_exists('mirza_ensure_manage_panel')) {
+    if (!function_exists('vira_ensure_manage_panel')) {
         require_once __DIR__ . '/../../function.php';
     }
-    $panel = mirza_ensure_manage_panel();
+    $panel = vira_ensure_manage_panel();
     $panel->RemoveUser((string) $invoice['Service_location'], (string) $invoice['username']);
     db_query($pdo, "UPDATE invoice SET Status = 'removebyadmin' WHERE id_invoice = ?", [$idInvoice]);
 
@@ -243,10 +243,10 @@ function im_toggle_status(PDO $pdo, string $idInvoice, string $adminUser): array
     if (!$invoice) {
         return ['ok' => false, 'msg' => 'سفارش یافت نشد.'];
     }
-    if (!function_exists('mirza_ensure_manage_panel')) {
+    if (!function_exists('vira_ensure_manage_panel')) {
         require_once __DIR__ . '/../../function.php';
     }
-    $panel = mirza_ensure_manage_panel();
+    $panel = vira_ensure_manage_panel();
     $before = $panel->DataUser((string) $invoice['Service_location'], (string) $invoice['username']);
     if (!is_array($before) || ($before['status'] ?? '') === 'Unsuccessful') {
         return ['ok' => false, 'msg' => 'کاربر در پنل یافت نشد.'];

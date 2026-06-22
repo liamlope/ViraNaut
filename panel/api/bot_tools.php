@@ -33,7 +33,7 @@ function bt_bootstrap(): void
     if (!is_array($textbotlang)) {
         $textbotlang = [];
     }
-    mirza_apply_textbotlang_compat($textbotlang);
+    vira_apply_textbotlang_compat($textbotlang);
     $from_id = 0;
     $message_id = 0;
     $setting = select('setting', '*');
@@ -179,9 +179,9 @@ if ($action === 'broadcast_batch' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($action === 'optimize_stats') {
     try {
-        $daysExpire = mirza_optimize_sanitize_days($_GET['days_expire'] ?? $_POST['days_expire'] ?? 90, 90);
-        $daysUnpaid = mirza_optimize_sanitize_days($_GET['days_unpaid'] ?? $_POST['days_unpaid'] ?? 30, 30);
-        bt_json(true, '', ['stats' => mirza_optimize_preview($pdo, $daysExpire, $daysUnpaid)]);
+        $daysExpire = vira_optimize_sanitize_days($_GET['days_expire'] ?? $_POST['days_expire'] ?? 90, 90);
+        $daysUnpaid = vira_optimize_sanitize_days($_GET['days_unpaid'] ?? $_POST['days_unpaid'] ?? 30, 30);
+        bt_json(true, '', ['stats' => vira_optimize_preview($pdo, $daysExpire, $daysUnpaid)]);
     } catch (Throwable $e) {
         bt_json(false, $e->getMessage());
     }
@@ -195,9 +195,9 @@ if ($action === 'optimize_run' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     @ini_set('max_execution_time', '300');
     try {
         $botRoot = realpath(__DIR__ . '/../..') ?: (__DIR__ . '/../..');
-        $daysExpire = mirza_optimize_sanitize_days($_POST['days_expire'] ?? 90, 90);
-        $daysUnpaid = mirza_optimize_sanitize_days($_POST['days_unpaid'] ?? 30, 30);
-        $details = mirza_optimize_run($pdo, $botRoot, $daysExpire, $daysUnpaid);
+        $daysExpire = vira_optimize_sanitize_days($_POST['days_expire'] ?? 90, 90);
+        $daysUnpaid = vira_optimize_sanitize_days($_POST['days_unpaid'] ?? 30, 30);
+        $details = vira_optimize_run($pdo, $botRoot, $daysExpire, $daysUnpaid);
         $msg = sprintf(
             'بهینه‌سازی انجام شد — %d مورد حذف شد (%d سرویس تمام‌شده، %d سفارش بلااستفاده)',
             (int) $details['total_removed'],
@@ -216,9 +216,9 @@ if ($action === 'cleanup_expired' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         bt_json(false, 'تأیید الزامی است');
     }
     try {
-        $daysExpire = mirza_optimize_sanitize_days($_POST['days_expire'] ?? 90, 90);
-        $daysUnpaid = mirza_optimize_sanitize_days($_POST['days_unpaid'] ?? 30, 30);
-        $cleanup = mirza_optimize_cleanup_payments($pdo, $daysExpire, $daysUnpaid);
+        $daysExpire = vira_optimize_sanitize_days($_POST['days_expire'] ?? 90, 90);
+        $daysUnpaid = vira_optimize_sanitize_days($_POST['days_unpaid'] ?? 30, 30);
+        $cleanup = vira_optimize_cleanup_payments($pdo, $daysExpire, $daysUnpaid);
         $n = (int) $cleanup['payments_deleted'] + (int) $cleanup['unpaid_payments_deleted'];
         bt_json(true, sprintf(
             'پاکسازی انجام شد (%d رکورد — منقضی/رد: %d روز، Unpaid: %d روز)',
@@ -236,7 +236,7 @@ if ($action === 'backup_full_zip') {
     @ini_set('max_execution_time', '600');
     @ini_set('memory_limit', '512M');
     try {
-        mirza_backup_send_zip_download();
+        vira_backup_send_zip_download();
     } catch (Throwable $e) {
         http_response_code(500);
         header('Content-Type: application/json; charset=utf-8');
@@ -259,10 +259,10 @@ if ($action === 'backup_restore' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     @ini_set('max_execution_time', '600');
     @ini_set('memory_limit', '512M');
     try {
-        $result = mirza_backup_restore_zip($_FILES['backup_zip']['tmp_name']);
+        $result = vira_backup_restore_zip($_FILES['backup_zip']['tmp_name']);
         $restartMsg = '';
         if (!empty($_POST['restart_after']) && $_POST['restart_after'] === '1') {
-            $rr = mirza_bot_restart();
+            $rr = vira_bot_restart();
             $restartMsg = $rr['ok'] ? ' — ' . $rr['msg'] : ' — ری‌استارت: ' . $rr['msg'];
         }
         bt_json(true, $result['msg'] . ' (' . ($result['files_restored'] ?? 0) . ' فایل)' . $restartMsg, $result);
@@ -274,7 +274,7 @@ if ($action === 'backup_restore' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'bot_restart' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
     try {
-        $rr = mirza_bot_restart();
+        $rr = vira_bot_restart();
         bt_json($rr['ok'], $rr['msg'], ['webhook_url' => $rr['webhook_url'] ?? '']);
     } catch (Throwable $e) {
         bt_json(false, $e->getMessage());
@@ -285,7 +285,7 @@ if ($action === 'backup_sql') {
     try {
         global $dbname, $dbhost, $usernamedb, $passworddb;
         $tables = ['user', 'invoice', 'product', 'Payment_report', 'PaySetting', 'setting', 'Discount', 'marzban_panel', 'admin', 'channels', 'topicid'];
-        $out = "-- Mirza backup " . date('c') . "\n";
+        $out = "-- Vira backup " . date('c') . "\n";
         foreach ($tables as $t) {
             try {
                 $rows = db_fetchAll($pdo, "SELECT * FROM `$t`");

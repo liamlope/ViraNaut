@@ -44,25 +44,25 @@ try {
     exit;
 }
 
-$list = mirza_xui_list_inbound_options($panelName);
+$list = vira_xui_list_inbound_options($panelName);
 $probeUrl = trim((string) ($_GET['probe_url'] ?? ''));
 $probeToken = trim((string) ($_GET['probe_token'] ?? ''));
 
-if ($probeUrl !== '' && $probeToken !== '' && function_exists('mirza_xui_verify_bearer')) {
-    $probe = mirza_xui_verify_bearer($probeUrl, $probeToken, true);
+if ($probeUrl !== '' && $probeToken !== '' && function_exists('vira_xui_verify_bearer')) {
+    $probe = vira_xui_verify_bearer($probeUrl, $probeToken, true);
     if (!empty($probe['success'])) {
-        $base = mirza_xui_public_base($probeUrl);
+        $base = vira_xui_public_base($probeUrl);
         $url = $base . '/panel/api/inbounds/options';
         $req = new CurlRequest($url);
         $req->setTimeout(30000);
         $req->setConnectTimeout(15000);
         $req->setBearerToken($probeToken);
-        $req->setHeaders(mirza_xui_spa_headers($probeUrl));
+        $req->setHeaders(vira_xui_spa_headers($probeUrl));
         $res = $req->get();
         if (empty($res['error']) && (int) ($res['status'] ?? 0) === 200) {
             $dec = json_decode((string) ($res['body'] ?? ''), true);
             if (is_array($dec) && !empty($dec['success']) && isset($dec['obj'])) {
-                $list = mirza_xui_normalize_inbound_options_obj($dec['obj']);
+                $list = vira_xui_normalize_inbound_options_obj($dec['obj']);
             }
         }
     } else {
@@ -74,8 +74,8 @@ if ($probeUrl !== '' && $probeToken !== '' && function_exists('mirza_xui_verify_
     }
 }
 
-$fetchErr = function_exists('mirza_xui_last_inbound_fetch_error')
-    ? trim(mirza_xui_last_inbound_fetch_error())
+$fetchErr = function_exists('vira_xui_last_inbound_fetch_error')
+    ? trim(vira_xui_last_inbound_fetch_error())
     : '';
 
 $items = [];

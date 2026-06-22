@@ -19,13 +19,13 @@ function vira_crypto_wallet_defs(): array
 
 function vira_wallet_get(PDO $pdo, string $key, string $default = ''): string
 {
-    $v = mirza_pay_get_value($pdo, $key);
+    $v = vira_pay_get_value($pdo, $key);
     return $v !== '' ? $v : $default;
 }
 
 function vira_wallet_set(PDO $pdo, string $key, string $value): void
 {
-    mirza_pay_set_value($pdo, $key, $value);
+    vira_pay_set_value($pdo, $key, $value);
 }
 
 function vira_wallet_qr_data_uri(string $text, int $size = 200): string

@@ -1,7 +1,7 @@
 <?php
 require_once 'config.php';
-$setting = mirza_ensure_setting_ready();
-$textbotlang = languagechange(null, mirza_resolve_bot_ui_lang('fa'));
+$setting = vira_ensure_setting_ready();
+$textbotlang = languagechange();
 if (!function_exists('getPaySettingValue')) {
     function getPaySettingValue($name)
     {
@@ -55,8 +55,8 @@ if ($stmt->fetch()) {
         }
     }
 }
-if (function_exists('mirza_datatextbot_ensure_defaults')) {
-    mirza_datatextbot_ensure_defaults($datatextbot, $textbotlang);
+if (function_exists('vira_datatextbot_ensure_defaults')) {
+    vira_datatextbot_ensure_defaults($datatextbot, $textbotlang);
 }
 $adminrulecheck = select("admin", "*", "id_admin", $from_id, "select");
 if (!$adminrulecheck) {
@@ -77,16 +77,16 @@ if ($users == false) {
     );
 }
 $replacements = [
-    'text_usertest' => mirza_keyboard_raw_label($datatextbot, 'text_usertest', $textbotlang['textbot']['userTest'] ?? ''),
-    'text_Purchased_services' => mirza_keyboard_raw_label($datatextbot, 'text_Purchased_services', $textbotlang['textbot']['purchasedServices'] ?? ''),
-    'text_support' => mirza_keyboard_raw_label($datatextbot, 'text_support', $textbotlang['textbot']['support'] ?? ''),
-    'text_help' => mirza_keyboard_raw_label($datatextbot, 'text_help', $textbotlang['textbot']['help'] ?? ''),
-    'accountwallet' => mirza_keyboard_raw_label($datatextbot, 'accountwallet', $textbotlang['textbot']['accountWallet'] ?? ''),
-    'text_sell' => mirza_keyboard_raw_label($datatextbot, 'text_sell', $textbotlang['textbot']['sell'] ?? ''),
-    'text_Tariff_list' => mirza_keyboard_raw_label($datatextbot, 'text_Tariff_list', $textbotlang['textbot']['tariffList'] ?? ''),
-    'text_affiliates' => mirza_keyboard_raw_label($datatextbot, 'text_affiliates', $textbotlang['textbot']['affiliates'] ?? ''),
-    'text_wheel_luck' => mirza_keyboard_raw_label($datatextbot, 'text_wheel_luck', $textbotlang['textbot']['wheelLuck'] ?? ''),
-    'text_extend' => mirza_keyboard_raw_label($datatextbot, 'text_extend', $textbotlang['textbot']['extend'] ?? ''),
+    'text_usertest' => vira_keyboard_raw_label($datatextbot, 'text_usertest', $textbotlang['textbot']['userTest'] ?? ''),
+    'text_Purchased_services' => vira_keyboard_raw_label($datatextbot, 'text_Purchased_services', $textbotlang['textbot']['purchasedServices'] ?? ''),
+    'text_support' => vira_keyboard_raw_label($datatextbot, 'text_support', $textbotlang['textbot']['support'] ?? ''),
+    'text_help' => vira_keyboard_raw_label($datatextbot, 'text_help', $textbotlang['textbot']['help'] ?? ''),
+    'accountwallet' => vira_keyboard_raw_label($datatextbot, 'accountwallet', $textbotlang['textbot']['accountWallet'] ?? ''),
+    'text_sell' => vira_keyboard_raw_label($datatextbot, 'text_sell', $textbotlang['textbot']['sell'] ?? ''),
+    'text_Tariff_list' => vira_keyboard_raw_label($datatextbot, 'text_Tariff_list', $textbotlang['textbot']['tariffList'] ?? ''),
+    'text_affiliates' => vira_keyboard_raw_label($datatextbot, 'text_affiliates', $textbotlang['textbot']['affiliates'] ?? ''),
+    'text_wheel_luck' => vira_keyboard_raw_label($datatextbot, 'text_wheel_luck', $textbotlang['textbot']['wheelLuck'] ?? ''),
+    'text_extend' => vira_keyboard_raw_label($datatextbot, 'text_extend', $textbotlang['textbot']['extend'] ?? ''),
 ];
 $admin_idss = select("admin", "*", "id_admin", $from_id, "count");
 $temp_addtional_key = [];
@@ -98,8 +98,8 @@ if (is_array($keyboardLayout) && isset($keyboardLayout['keyboard']) && is_array(
 
 if (($setting['inlinebtnmain'] ?? '') == "oninline" && !empty($keyboardRows)) {
     $trace_keyboard = $keyboardRows;
-    if (function_exists('mirza_keyboard_apply_custom_emojis')) {
-        mirza_keyboard_apply_custom_emojis($trace_keyboard);
+    if (function_exists('vira_keyboard_apply_custom_emojis')) {
+        vira_keyboard_apply_custom_emojis($trace_keyboard);
     }
     foreach ($trace_keyboard as $key => $callback_set) {
         foreach ($callback_set as $keyboard_key => $keyboard) {
@@ -145,8 +145,8 @@ if (($setting['inlinebtnmain'] ?? '') == "oninline" && !empty($keyboardRows)) {
         $temp_addtional_key[] = ['text' => $datatextbot['textrequestagent'], 'callback_data' => "requestagent"];
     }
     $keyboard = ['inline_keyboard' => []];
-    $keyboardcustom = function_exists('mirza_keyboard_replace_text_keys')
-        ? mirza_keyboard_replace_text_keys($trace_keyboard, $replacements)
+    $keyboardcustom = function_exists('vira_keyboard_replace_text_keys')
+        ? vira_keyboard_replace_text_keys($trace_keyboard, $replacements)
         : json_decode(strtr(strval(json_encode($trace_keyboard)), $replacements), true);
     $keyboardcustom[] = $temp_addtional_key;
     $keyboard['inline_keyboard'] = $keyboardcustom;
@@ -163,11 +163,11 @@ if (($setting['inlinebtnmain'] ?? '') == "oninline" && !empty($keyboardRows)) {
     }
     $keyboard = ['keyboard' => [], 'resize_keyboard' => true];
     $keyboardcustom = $keyboardRows;
-    if (function_exists('mirza_keyboard_apply_custom_emojis')) {
-        mirza_keyboard_apply_custom_emojis($keyboardcustom);
+    if (function_exists('vira_keyboard_apply_custom_emojis')) {
+        vira_keyboard_apply_custom_emojis($keyboardcustom);
     }
-    $keyboardcustom = function_exists('mirza_keyboard_replace_text_keys')
-        ? mirza_keyboard_replace_text_keys($keyboardcustom, $replacements)
+    $keyboardcustom = function_exists('vira_keyboard_replace_text_keys')
+        ? vira_keyboard_replace_text_keys($keyboardcustom, $replacements)
         : json_decode(strtr(strval(json_encode($keyboardcustom)), $replacements), true);
     $keyboardcustom[] = $temp_addtional_key;
     $keyboard['keyboard'] = $keyboardcustom;
@@ -180,10 +180,7 @@ $keyboardPanel = json_encode([
             ['text' => $datatextbot['text_Discount'], 'callback_data' => "Discount"],
             ['text' => $datatextbot['text_Add_Balance'], 'callback_data' => "Add_Balance"]
         ],
-        [
-            ['text' => $textbotlang['language']['changeBtn'] ?? '🌐 تغییر زبان', 'callback_data' => 'change_language']
-        ],
-        [['text' => (function_exists('mirza_lang_str') ? mirza_lang_str($textbotlang, 'users.backbtn', '🏠 بازگشت به منوی اصلی') : ($textbotlang['users']['backbtn'] ?? '🏠 بازگشت به منوی اصلی')), 'callback_data' => "backuser"]],
+        [['text' => (function_exists('vira_lang_str') ? vira_lang_str($textbotlang, 'users.backbtn', '🏠 بازگشت به منوی اصلی') : ($textbotlang['users']['backbtn'] ?? '🏠 بازگشت به منوی اصلی')), 'callback_data' => "backuser"]],
     ],
     'resize_keyboard' => true
 ]);
@@ -658,11 +655,11 @@ $helpappremove['keyboard'][] = [
 ];
 $json_list_remove_helpـlink = json_encode($helpappremove);
 //------------------  [ listpanelusers ]----------------//
-$stmt = $pdo->prepare('SELECT * FROM marzban_panel WHERE ' . mirza_panel_active_sql() . " AND (agent = :agent OR agent = 'all')");
+$stmt = $pdo->prepare('SELECT * FROM marzban_panel WHERE ' . vira_panel_active_sql() . " AND (agent = :agent OR agent = 'all')");
 $stmt->bindParam(':agent', $users['agent']);
 $stmt->execute();
 $list_marzban_panel_users = ['inline_keyboard' => []];
-$panelcount = mirza_count_active_panels();
+$panelcount = vira_count_active_panels();
 if ($panelcount > 10) {
     $temp_row = [];
     while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -730,7 +727,7 @@ $list_marzban_panel_user = json_encode($list_marzban_panel_users);
 
 
 //------------------  [ listpanelusers omdhe ]----------------//
-$stmt = $pdo->prepare('SELECT * FROM marzban_panel WHERE ' . mirza_panel_active_sql() . " AND (agent = :agent OR agent = 'all')");
+$stmt = $pdo->prepare('SELECT * FROM marzban_panel WHERE ' . vira_panel_active_sql() . " AND (agent = :agent OR agent = 'all')");
 $stmt->bindParam(':agent', $users['agent']);
 $stmt->execute();
 $list_marzban_panel_users_om = ['inline_keyboard' => []];
@@ -747,12 +744,12 @@ $list_marzban_panel_users_om['inline_keyboard'][] = [
 $list_marzban_panel_userom = json_encode($list_marzban_panel_users_om);
 
 //------------------  [ change location ]----------------//
-$stmt = $pdo->prepare('SELECT * FROM marzban_panel WHERE ' . mirza_panel_active_sql() . " AND (agent = :agent OR agent = 'all') AND name_panel != :name_panel");
+$stmt = $pdo->prepare('SELECT * FROM marzban_panel WHERE ' . vira_panel_active_sql() . " AND (agent = :agent OR agent = 'all') AND name_panel != :name_panel");
 $stmt->bindValue(':name_panel', $users['Processing_value_four'], PDO::PARAM_STR);
 $stmt->bindValue(':agent', $users['agent'], PDO::PARAM_STR);
 $stmt->execute();
 $list_marzban_panel_users_change = ['inline_keyboard' => []];
-$panelcount = mirza_count_active_panels();
+$panelcount = vira_count_active_panels();
 if ($panelcount > 10) {
     $temp_row = [];
     while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -1285,7 +1282,7 @@ $keyboardtypepanel = json_encode([
         ],
         [
             ['text' => $textbotlang['keyboard']['passargadPanel'] ?? 'پاسارگارد', 'callback_data' => "typepanel#pasarguard"],
-            ['text' => $textbotlang['extracted']['keyboard_php']['mirzaAgentPanel'] ?? 'پنل نمایندگی میرزا', 'callback_data' => "typepanel#mirza_agent"]
+            ['text' => $textbotlang['extracted']['keyboard_php']['viraAgentPanel'] ?? 'پنل نمایندگی', 'callback_data' => "typepanel#vira_agent"]
         ],
         [
             ['text' => 'Ilan', 'callback_data' => 'typepanel#ilan'],
@@ -1678,7 +1675,7 @@ function keyboard_config($config_split, $id_invoice, $back_active = true)
         ['text' => "⚙️ کانفیگ", 'callback_data' => "none"],
         ['text' => "✏️نام کانفیگ", 'callback_data' => "none"],
     ];
-    $config_split = mirza_filter_subscription_links($config_split);
+    $config_split = vira_filter_subscription_links($config_split);
     for ($i = 0; $i < count($config_split); $i++) {
         $config = $config_split[$i];
         $split_config = explode("://", $config);

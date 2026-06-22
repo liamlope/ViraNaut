@@ -10,11 +10,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         agent_panel_set_theme($pdo, $uid, $_POST['theme']);
         agent_flash('ok', 'تم ذخیره شد');
     }
-    if (isset($_POST['lang'])) {
-        agent_panel_ensure_token($pdo, $uid);
-        db_query($pdo, 'UPDATE agent_panel_tokens SET lang = ? WHERE id_user = ?', [$_POST['lang'], $uid]);
-        agent_flash('ok', 'زبان ذخیره شد');
-    }
     if (!empty($_POST['rotate_token'])) {
         agent_panel_rotate_token($pdo, $uid);
         agent_flash('ok', 'توکن چرخید');
@@ -43,7 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $token = agent_panel_ensure_token($pdo, $uid);
 $theme = agent_panel_get_theme($pdo, $uid);
-$lang = agent_lang($pdo, $uid);
 $row = db_fetch($pdo, 'SELECT twofa_enabled, notify_telegram FROM agent_panel_tokens WHERE id_user = ? LIMIT 1', [$uid]);
 $multi = agent_panel_list_tokens($pdo, $uid);
 $logins = db_fetchAll($pdo, 'SELECT ip, user_agent, created_at FROM agent_login_log WHERE id_user = ? ORDER BY created_at DESC LIMIT 20', [$uid]);
@@ -59,8 +53,6 @@ require __DIR__ . '/inc/layout_head.php';
 <option value="<?= $t ?>" <?= $theme === $t ? 'selected' : '' ?>><?= $t ?></option>
 <?php endforeach; ?>
 </select>
-<h3 style="margin-top:16px">زبان</h3>
-<select name="lang" class="input"><option value="fa" <?= $lang==='fa'?'selected':'' ?>>فارسی</option><option value="en" <?= $lang==='en'?'selected':'' ?>>English</option></select>
 <h3 style="margin-top:16px">API Token اصلی</h3>
 <div class="agent-token-row"><code><?= htmlspecialchars($token) ?></code></div>
 <button class="btn btn-ghost btn-sm" name="rotate_token" value="1" type="submit">چرخش توکن</button>

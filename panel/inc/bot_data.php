@@ -3,7 +3,7 @@
 /** Shared helpers for bot management pages in web panel. */
 require_once __DIR__ . '/bot_texts_defs.php';
 
-function mirza_panel_keyboard_catalog(): array
+function vira_panel_keyboard_catalog(): array
 {
     return [
         'text_sell' => 'خرید اشتراک',
@@ -20,42 +20,42 @@ function mirza_panel_keyboard_catalog(): array
 }
 
 /** id_textهایی که برچسب دکمه Reply/Inline کیبورد هستند — حداکثر یک {emoji:…} پرمیوم. */
-function mirza_panel_keyboard_button_text_ids(): array
+function vira_panel_keyboard_button_text_ids(): array
 {
-    $ids = array_keys(mirza_panel_keyboard_catalog());
+    $ids = array_keys(vira_panel_keyboard_catalog());
     foreach (['textrequestagent', 'textpanelagent', 'text_Discount', 'text_Add_Balance', 'text_fq'] as $extra) {
         $ids[] = $extra;
     }
     return array_values(array_unique($ids));
 }
 
-function mirza_panel_is_keyboard_button_text(string $idText): bool
+function vira_panel_is_keyboard_button_text(string $idText): bool
 {
-    return in_array($idText, mirza_panel_keyboard_button_text_ids(), true);
+    return in_array($idText, vira_panel_keyboard_button_text_ids(), true);
 }
 
-function mirza_panel_default_keyboard_json(): string
+function vira_panel_default_keyboard_json(): string
 {
     return '{"keyboard":[[{"text":"text_sell"},{"text":"text_extend"}],[{"text":"text_usertest"},{"text":"text_wheel_luck"}],[{"text":"text_Purchased_services"},{"text":"accountwallet"}],[{"text":"text_affiliates"},{"text":"text_Tariff_list"}],[{"text":"text_support"},{"text":"text_help"}]]}';
 }
 
-function mirza_panel_load_keyboardmain(PDO $pdo): array
+function vira_panel_load_keyboardmain(PDO $pdo): array
 {
     $row = db_fetch($pdo, "SELECT keyboardmain FROM setting LIMIT 1");
     $raw = $row['keyboardmain'] ?? '';
     if ($raw === '' || $raw === null) {
-        $raw = mirza_panel_default_keyboard_json();
+        $raw = vira_panel_default_keyboard_json();
     }
     $data = json_decode($raw, true);
     if (!is_array($data) || !isset($data['keyboard']) || !is_array($data['keyboard'])) {
-        $data = json_decode(mirza_panel_default_keyboard_json(), true);
+        $data = json_decode(vira_panel_default_keyboard_json(), true);
     }
     return $data;
 }
 
-function mirza_panel_load_datatextbot(PDO $pdo): array
+function vira_panel_load_datatextbot(PDO $pdo): array
 {
-    $catalog = mirza_panel_keyboard_catalog();
+    $catalog = vira_panel_keyboard_catalog();
     $out = array_fill_keys(array_keys($catalog), '');
     try {
         $rows = db_fetchAll($pdo, "SELECT id_text, text FROM textbot");
@@ -65,29 +65,29 @@ function mirza_panel_load_datatextbot(PDO $pdo): array
             }
         }
     } catch (Exception $e) {
-        error_log('mirza_panel_load_datatextbot: ' . $e->getMessage());
+        error_log('vira_panel_load_datatextbot: ' . $e->getMessage());
     }
     return $out;
 }
 
-function mirza_panel_keyboard_label(string $keyId, array $datatextbot, array $catalog): string
+function vira_panel_keyboard_label(string $keyId, array $datatextbot, array $catalog): string
 {
     $raw = trim($datatextbot[$keyId] ?? '');
     if ($raw !== '') {
-        if (function_exists('mirza_resolve_keyboard_button')) {
-            $resolved = mirza_resolve_keyboard_button($raw);
+        if (function_exists('vira_resolve_keyboard_button')) {
+            $resolved = vira_resolve_keyboard_button($raw);
             $label = $resolved['text'];
             if (!empty($resolved['icon_custom_emoji_id'])) {
                 $label = '◆ ' . $label;
             }
-            return $label !== '' ? $label : mirza_textbot_display($raw);
+            return $label !== '' ? $label : vira_textbot_display($raw);
         }
         return $raw;
     }
     return $catalog[$keyId] ?? $keyId;
 }
 
-function mirza_panel_save_keyboardmain(PDO $pdo, array $keyboardRows): bool
+function vira_panel_save_keyboardmain(PDO $pdo, array $keyboardRows): bool
 {
     $payload = json_encode(['keyboard' => $keyboardRows], JSON_UNESCAPED_UNICODE);
     $exists = db_count($pdo, "SELECT COUNT(*) FROM setting");

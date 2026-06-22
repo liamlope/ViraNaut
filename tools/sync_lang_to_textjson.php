@@ -22,7 +22,7 @@ if (!is_array($lang)) {
 $raw = file_get_contents($jsonFile);
 $all = json_decode($raw, true);
 if (!is_array($all)) {
-    $all = ['fa' => [], 'en' => [], 'ru' => []];
+    $all = ['fa' => []];
 }
 
 function deep_merge(array $base, array $over): array

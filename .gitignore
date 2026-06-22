@@ -23,7 +23,7 @@ storage/*
 !storage/.gitkeep
 
 # Server-side credentials (never commit)
-/root/confmirza/
+/root/confvira/
 
 # Backups created on server
 *.sql.gz

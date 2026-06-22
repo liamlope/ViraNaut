@@ -5,8 +5,8 @@ require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/brand.php';
 require_once __DIR__ . '/vira_compat.php';
 
-if (function_exists('mirza_ensure_user_lang_column')) {
-    mirza_ensure_user_lang_column();
+if (function_exists('vira_ensure_user_lang_column')) {
+    vira_ensure_user_lang_column();
 }
 
 if (!isset($pdo)) {
@@ -32,7 +32,7 @@ try {
 }
 if (!is_array($textbotlang)) {
     $textbotlang = ['panel' => []];
-    mirza_apply_textbotlang_compat($textbotlang);
+    vira_apply_textbotlang_compat($textbotlang);
 }
 
 function db_query(PDO $pdo, string $sql, array $params = []): PDOStatement

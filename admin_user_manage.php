@@ -1,13 +1,13 @@
 <?php
 
-if (!defined('VIRA_BOT_BOOTSTRAP') && !defined('MIRZA_BOT_BOOTSTRAP')) {
+if (!defined('VIRA_BOT_BOOTSTRAP') && !defined('VIRA_BOT_BOOTSTRAP')) {
     return;
 }
 
 /**
  * Parse admin user lookup: /id, /@user, /user, t.me links, legacy /user /id.
  */
-function mirza_admin_parse_user_lookup(string $text): ?string
+function vira_admin_parse_user_lookup(string $text): ?string
 {
     $text = trim($text);
     if ($text === '') {
@@ -37,7 +37,7 @@ function mirza_admin_parse_user_lookup(string $text): ?string
     return null;
 }
 
-function mirza_admin_resolve_user_id(string $lookup, $pdo = null): ?string
+function vira_admin_resolve_user_id(string $lookup, $pdo = null): ?string
 {
     $lookup = trim($lookup);
     if ($lookup === '') {
@@ -63,7 +63,7 @@ function mirza_admin_resolve_user_id(string $lookup, $pdo = null): ?string
     return null;
 }
 
-function mirza_admin_user_manage_keyboard(string $id_user, array $userRow, array $setting, array $textbotlang, string $category = 'main'): string
+function vira_admin_user_manage_keyboard(string $id_user, array $userRow, array $setting, array $textbotlang, string $category = 'main'): string
 {
     $id = $id_user;
     $backMain = [['text' => '⬅️ بازگشت', 'callback_data' => 'manageuser_' . $id]];
@@ -163,7 +163,7 @@ function mirza_admin_user_manage_keyboard(string $id_user, array $userRow, array
     return json_encode(['inline_keyboard' => $rows], JSON_UNESCAPED_UNICODE);
 }
 
-function mirza_admin_user_manage_category_title(string $category): string
+function vira_admin_user_manage_category_title(string $category): string
 {
     $map = [
         'fin' => '💰 مالی و موجودی',
@@ -176,7 +176,7 @@ function mirza_admin_user_manage_category_title(string $category): string
     return $map[$category] ?? '';
 }
 
-function mirza_admin_show_user_manage($from_id, string $id_user, array $opts = []): bool
+function vira_admin_show_user_manage($from_id, string $id_user, array $opts = []): bool
 {
     global $connect, $pdo, $textbotlang, $setting, $users_ids, $keyboardadmin, $message_id, $callback_query_id;
 
@@ -209,7 +209,7 @@ function mirza_admin_show_user_manage($from_id, string $id_user, array $opts = [
         $subbuyuser['SUM(price_product)'] = 0;
     }
 
-    $keyboardmanage = mirza_admin_user_manage_keyboard($id_user, $userRow, $setting, $textbotlang, $category);
+    $keyboardmanage = vira_admin_user_manage_keyboard($id_user, $userRow, $setting, $textbotlang, $category);
     $balanceFmt = number_format((int) $userRow['Balance']);
 
     if ($userRow['register'] != 'none' && $userRow['register'] != null) {
@@ -293,7 +293,7 @@ $text_expie_agent
 ";
 
     if ($category !== 'main') {
-        $catTitle = mirza_admin_user_manage_category_title($category);
+        $catTitle = vira_admin_user_manage_category_title($category);
         $textinfouser = "👤 کاربر <a href=\"tg://user?id=$id_user\">$id_user</a> · @$uname\n\n<b>$catTitle</b>\n\nیک گزینه را انتخاب کنید:";
     } else {
         $textinfouser .= "\n📂 گزینه مورد نظر را از دسته‌بندی زیر انتخاب کنید.";

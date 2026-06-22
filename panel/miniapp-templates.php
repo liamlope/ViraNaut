@@ -4,13 +4,13 @@ require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/miniapp_templates_defs.php';
 require_auth();
 
-$current = mirza_miniapp_get_template($pdo);
-$templates = mirza_miniapp_templates();
+$current = vira_miniapp_get_template($pdo);
+$templates = vira_miniapp_templates();
 $domain = '';
 $dh = $GLOBALS['domainhosts'] ?? '';
 if ($dh !== '' && strpos((string) $dh, '{') === false) {
-    $domain = function_exists('mirza_normalize_domainhosts_value')
-        ? mirza_normalize_domainhosts_value($dh)
+    $domain = function_exists('vira_normalize_domainhosts_value')
+        ? vira_normalize_domainhosts_value($dh)
         : preg_replace('#^https?://#i', '', trim((string) $dh));
 }
 

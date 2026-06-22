@@ -18,8 +18,8 @@ $adminnumber = 'YOUR_TELEGRAM_ID';
 $domainhosts = 'your-domain.com';
 $usernamebot = 'YourBotUsername';
 
-if (!function_exists('mirza_normalize_domainhosts_value')) {
-    function mirza_normalize_domainhosts_value($h)
+if (!function_exists('vira_normalize_domainhosts_value')) {
+    function vira_normalize_domainhosts_value($h)
     {
         $h = trim(str_replace("\r", '', (string) $h));
         $h = preg_replace('#^https?://#i', '', $h);
@@ -28,13 +28,13 @@ if (!function_exists('mirza_normalize_domainhosts_value')) {
 }
 
 if (isset($domainhosts) && $domainhosts !== '' && strpos((string) $domainhosts, '{') === false) {
-    $domainhosts = mirza_normalize_domainhosts_value($domainhosts);
+    $domainhosts = vira_normalize_domainhosts_value($domainhosts);
 }
 
 if (!function_exists('select')) {
     require_once __DIR__ . '/function.php';
 }
 
-if (function_exists('mirza_ensure_user_lang_column')) {
-    mirza_ensure_user_lang_column();
+if (function_exists('vira_ensure_user_lang_column')) {
+    vira_ensure_user_lang_column();
 }

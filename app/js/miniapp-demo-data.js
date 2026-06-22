@@ -1,4 +1,4 @@
-window.MIRZA_DEMO_DATA = {
+window.VIRA_DEMO_DATA = {
   user: {
     balance: 1250000,
     name: 'کاربر نمونه',

@@ -1,6 +1,6 @@
 <?php
 
-function mirza_pay_gateway_defs(): array
+function vira_pay_gateway_defs(): array
 {
     return [
         ['key' => 'Cartstatus', 'label' => 'کارت به کارت', 'group' => 'gateway', 'type' => 'toggle', 'on' => 'oncard', 'off' => 'offcard'],
@@ -17,7 +17,7 @@ function mirza_pay_gateway_defs(): array
 }
 
 /** پروفایل کامل هر درگاه برای UI */
-function mirza_pay_gateway_profiles(): array
+function vira_pay_gateway_profiles(): array
 {
     return [
         [
@@ -122,7 +122,7 @@ function mirza_pay_gateway_profiles(): array
     ];
 }
 
-function mirza_pay_general_defs(): array
+function vira_pay_general_defs(): array
 {
     return [
         ['key' => 'statuscardautoconfirm', 'label' => 'تأیید خودکار SMS', 'input' => 'select', 'options' => ['onautoconfirm' => 'روشن', 'offautoconfirm' => 'خاموش'], 'hint' => 'پیامک واریز بانک → کانال تلگرام → تطبیق با مبلغ ریالی فاکتور'],
@@ -134,13 +134,13 @@ function mirza_pay_general_defs(): array
     ];
 }
 
-function mirza_pay_get_value(PDO $pdo, string $key): string
+function vira_pay_get_value(PDO $pdo, string $key): string
 {
     $row = db_fetch($pdo, 'SELECT ValuePay FROM PaySetting WHERE NamePay = ?', [$key]);
     return $row ? (string) ($row['ValuePay'] ?? '') : '';
 }
 
-function mirza_pay_set_value(PDO $pdo, string $key, string $value): void
+function vira_pay_set_value(PDO $pdo, string $key, string $value): void
 {
     $exists = db_count($pdo, 'SELECT COUNT(*) FROM PaySetting WHERE NamePay = ?', [$key]);
     if ($exists > 0) {
@@ -150,7 +150,7 @@ function mirza_pay_set_value(PDO $pdo, string $key, string $value): void
     }
 }
 
-function mirza_pay_is_on(array $def, string $val): bool
+function vira_pay_is_on(array $def, string $val): bool
 {
     if (($def['type'] ?? '') === 'toggle01') {
         return $val === '1' || $val === 1;
@@ -158,12 +158,12 @@ function mirza_pay_is_on(array $def, string $val): bool
     return isset($def['on']) && (string) $val === (string) $def['on'];
 }
 
-function mirza_pay_toggle_next(array $def, string $val): string
+function vira_pay_toggle_next(array $def, string $val): string
 {
-    return mirza_pay_is_on($def, $val) ? (string) $def['off'] : (string) $def['on'];
+    return vira_pay_is_on($def, $val) ? (string) $def['off'] : (string) $def['on'];
 }
 
-function mirza_pay_secret_defs(): array
+function vira_pay_secret_defs(): array
 {
     return [];
 }

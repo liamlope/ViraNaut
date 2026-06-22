@@ -5,11 +5,11 @@
   var apiBase = '../api/';
 
   function toast(msg) {
-    var el = document.getElementById('mirza-mini-toast');
+    var el = document.getElementById('vira-mini-toast');
     if (!el) {
       el = document.createElement('div');
-      el.id = 'mirza-mini-toast';
-      el.className = 'mirza-mini-toast';
+      el.id = 'vira-mini-toast';
+      el.className = 'vira-mini-toast';
       document.body.appendChild(el);
     }
     el.textContent = msg;
@@ -54,41 +54,41 @@
 
   function getStoredToken() {
     try {
-      return localStorage.getItem('mirza_mini_token') || sessionStorage.getItem('mirza_mini_token') || '';
+      return localStorage.getItem('vira_mini_token') || sessionStorage.getItem('vira_mini_token') || '';
     } catch (e) {
       return '';
     }
   }
 
   function injectUI() {
-    if (document.getElementById('mirza-mini-topbar')) return;
-    document.body.classList.add('mirza-miniapp-enhanced');
+    if (document.getElementById('vira-mini-topbar')) return;
+    document.body.classList.add('vira-miniapp-enhanced');
 
     var top = document.createElement('div');
-    top.id = 'mirza-mini-topbar';
-    top.className = 'mirza-mini-topbar';
-    var tplLabel = meta.template_label || window.MIRZA_MINIAPP_TEMPLATE_LABEL || '';
+    top.id = 'vira-mini-topbar';
+    top.className = 'vira-mini-topbar';
+    var tplLabel = meta.template_label || window.VIRA_MINIAPP_TEMPLATE_LABEL || '';
     var brand = '🛍 فروشگاه VPN';
     if (tplLabel) brand += ' · ' + tplLabel;
     top.innerHTML =
-      '<div class="mirza-brand">' + brand + '</div>' +
-      '<div class="mirza-balance" id="mirzaBalancePill">موجودی: <strong>—</strong></div>';
+      '<div class="vira-brand">' + brand + '</div>' +
+      '<div class="vira-balance" id="viraBalancePill">موجودی: <strong>—</strong></div>';
 
     var dock = document.createElement('div');
-    dock.className = 'mirza-mini-dock';
+    dock.className = 'vira-mini-dock';
     dock.innerHTML =
-      '<button type="button" class="mirza-dock-btn active" data-nav="buy"><span>🛒</span><span>خرید</span></button>' +
-      '<button type="button" class="mirza-dock-btn" data-nav="services"><span>📡</span><span>سرویس‌ها</span></button>' +
-      '<button type="button" class="mirza-dock-btn" data-nav="account"><span>👤</span><span>حساب</span></button>' +
-      '<button type="button" class="mirza-dock-btn" data-nav="support"><span>💬</span><span>پشتیبانی</span></button>';
+      '<button type="button" class="vira-dock-btn active" data-nav="buy"><span>🛒</span><span>خرید</span></button>' +
+      '<button type="button" class="vira-dock-btn" data-nav="services"><span>📡</span><span>سرویس‌ها</span></button>' +
+      '<button type="button" class="vira-dock-btn" data-nav="account"><span>👤</span><span>حساب</span></button>' +
+      '<button type="button" class="vira-dock-btn" data-nav="support"><span>💬</span><span>پشتیبانی</span></button>';
 
     document.body.appendChild(top);
     document.body.appendChild(dock);
 
-    dock.querySelectorAll('.mirza-dock-btn').forEach(function (btn) {
+    dock.querySelectorAll('.vira-dock-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         haptic('light');
-        dock.querySelectorAll('.mirza-dock-btn').forEach(function (b) { b.classList.remove('active'); });
+        dock.querySelectorAll('.vira-dock-btn').forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
         var nav = btn.getAttribute('data-nav');
         var path = { buy: '/buy', services: '/services', account: '/account', support: '' }[nav] || '/buy';
@@ -120,10 +120,10 @@
 
   function injectHintCard() {
     var root = document.getElementById('root');
-    if (!root || root.querySelector('.mirza-mini-hint-card')) return;
+    if (!root || root.querySelector('.vira-mini-hint-card')) return;
     var plisioOn = (meta.gateways.nowpaymentstatus || '').indexOf('on') === 0;
     var card = document.createElement('div');
-    card.className = 'mirza-mini-hint-card';
+    card.className = 'vira-mini-hint-card';
     card.innerHTML =
       '<h4>راهنمای سریع</h4>' +
       '<p>• پلن را انتخاب کنید و از موجودی یا درگاه پرداخت کنید.<br>' +
@@ -139,18 +139,18 @@
 
   function syncDockRoute() {
     var p = window.location.pathname || '';
-    var dock = document.querySelector('.mirza-mini-dock');
+    var dock = document.querySelector('.vira-mini-dock');
     if (!dock) return;
     var key = 'buy';
     if (p.indexOf('services') >= 0) key = 'services';
     else if (p.indexOf('account') >= 0) key = 'account';
-    dock.querySelectorAll('.mirza-dock-btn').forEach(function (b) {
+    dock.querySelectorAll('.vira-dock-btn').forEach(function (b) {
       b.classList.toggle('active', b.getAttribute('data-nav') === key);
     });
   }
 
   function updateBalancePill() {
-    var pill = document.getElementById('mirzaBalancePill');
+    var pill = document.getElementById('viraBalancePill');
     if (!pill) return;
     if (userBalance !== null) {
       pill.innerHTML = 'موجودی: <strong>' + fmt(userBalance) + ' ت</strong>';
@@ -188,11 +188,11 @@
     function ready() {
       injectUI();
     }
-    if (document.body.classList.contains('mirza-miniapp-ready')) {
+    if (document.body.classList.contains('vira-miniapp-ready')) {
       ready();
     } else {
       var obs = new MutationObserver(function () {
-        if (document.body.classList.contains('mirza-miniapp-ready')) {
+        if (document.body.classList.contains('vira-miniapp-ready')) {
           obs.disconnect();
           ready();
         }

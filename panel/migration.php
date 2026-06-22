@@ -38,11 +38,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             }
-            if (function_exists('mirza_ensure_user_lang_column')) {
-                mirza_ensure_user_lang_column();
+            if (function_exists('vira_ensure_user_lang_column')) {
+                vira_ensure_user_lang_column();
             }
             vira_seed_default_wallets($pdo);
-            flash('success', 'مهاجرت داخلی ویرانات (2.1 + 3.0 + 3.1 + 3.2) با موفقیت اجرا شد.');
+            flash('success', 'مهاجرت داخلی ویرا (2.1 + 3.0 + 3.1 + 3.2) با موفقیت اجرا شد.');
         } catch (Throwable $e) {
             flash('error', 'خطا: ' . $e->getMessage());
         }
@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = 'مهاجرت دیتابیس';
-$pageLede = 'ارتقای دیتابیس میرزا به ویرانات بدون از دست رفتن داده.';
+$pageLede = 'ارتقای دیتابیس نسخه‌های قدیمی به ویرا بدون از دست رفتن داده.';
 $activeNav = 'migration';
 include __DIR__ . '/inc/layout_head.php';
 ?>
@@ -103,7 +103,7 @@ include __DIR__ . '/inc/layout_head.php';
     </div>
 
     <div class="card" style="margin-top:16px">
-        <div class="card-head"><div class="card-title">آپلود فایل .sql میرزا</div></div>
+        <div class="card-head"><div class="card-title">آپلود فایل .sql پشتیبان</div></div>
         <div class="card-body">
             <p class="field-hint">اگر بکاپ SQL از نسخهٔ قبلی دارید، ابتدا آن را import کنید؛ سپس مهاجرت ViraNaut اعمال می‌شود.</p>
             <form method="post" enctype="multipart/form-data" style="margin-top:12px;display:grid;gap:12px;max-width:420px">

@@ -5,8 +5,8 @@ require_once __DIR__ . '/../inc/panel_web_helpers.php';
 header('Content-Type: application/json; charset=utf-8');
 require_auth_api();
 
-if (function_exists('mirza_ensure_marzban_panel_columns')) {
-    mirza_ensure_marzban_panel_columns();
+if (function_exists('vira_ensure_marzban_panel_columns')) {
+    vira_ensure_marzban_panel_columns();
 }
 
 $action = trim((string) ($_GET['action'] ?? $_POST['action'] ?? ''));

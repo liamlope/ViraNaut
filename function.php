@@ -4,13 +4,13 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/panel/inc/bot_emojis.php';
 ini_set('error_log', 'error_log');
 
-if (function_exists('mirza_ensure_bot_custom_emoji_table')) {
-    mirza_ensure_bot_custom_emoji_table();
+if (function_exists('vira_ensure_bot_custom_emoji_table')) {
+    vira_ensure_bot_custom_emoji_table();
 }
 
-if (!function_exists('mirza_normalize_panel_status')) {
+if (!function_exists('vira_normalize_panel_status')) {
     /** وضعیت پنل: فقط active یا deactive (مقادیر قدیمی یک‌بار نرمال می‌شوند). */
-    function mirza_normalize_panel_status($status): string
+    function vira_normalize_panel_status($status): string
     {
         $s = strtolower(trim((string) $status));
         if (in_array($s, ['active', 'activepanel'], true)) {
@@ -20,36 +20,36 @@ if (!function_exists('mirza_normalize_panel_status')) {
     }
 }
 
-if (!function_exists('mirza_panel_is_active_status')) {
-    function mirza_panel_is_active_status($status): bool
+if (!function_exists('vira_panel_is_active_status')) {
+    function vira_panel_is_active_status($status): bool
     {
-        return mirza_normalize_panel_status($status) === 'active';
+        return vira_normalize_panel_status($status) === 'active';
     }
 }
 
-if (!function_exists('mirza_panel_active_sql')) {
-    function mirza_panel_active_sql(string $prefix = ''): string
+if (!function_exists('vira_panel_active_sql')) {
+    function vira_panel_active_sql(string $prefix = ''): string
     {
         $col = ($prefix !== '' ? rtrim($prefix, '.') . '.' : '') . 'status';
         return "{$col} = 'active'";
     }
 }
 
-if (!function_exists('mirza_count_active_panels')) {
-    function mirza_count_active_panels(): int
+if (!function_exists('vira_count_active_panels')) {
+    function vira_count_active_panels(): int
     {
         global $pdo;
         try {
-            return (int) $pdo->query('SELECT COUNT(*) FROM marzban_panel WHERE ' . mirza_panel_active_sql())->fetchColumn();
+            return (int) $pdo->query('SELECT COUNT(*) FROM marzban_panel WHERE ' . vira_panel_active_sql())->fetchColumn();
         } catch (Throwable $e) {
             return 0;
         }
     }
 }
 
-if (!function_exists('mirza_bot_text')) {
+if (!function_exists('vira_bot_text')) {
     /** متن از textbot با fallback امن */
-    function mirza_bot_text(array $datatextbot, string $key, $fallback = ''): string
+    function vira_bot_text(array $datatextbot, string $key, $fallback = ''): string
     {
         $t = trim((string) ($datatextbot[$key] ?? ''));
         $fb = trim((string) ($fallback ?? ''));
@@ -57,9 +57,9 @@ if (!function_exists('mirza_bot_text')) {
     }
 }
 
-if (!function_exists('mirza_lang_str')) {
+if (!function_exists('vira_lang_str')) {
     /** دسترسی امن به متن‌های تو در تو text.json */
-    function mirza_lang_str(array $lang, string $path, string $default = ''): string
+    function vira_lang_str(array $lang, string $path, string $default = ''): string
     {
         $cur = $lang;
         foreach (explode('.', $path) as $segment) {
@@ -72,9 +72,195 @@ if (!function_exists('mirza_lang_str')) {
     }
 }
 
-if (!function_exists('mirza_datatextbot_lang_map')) {
+if (!function_exists('vira_idfindeer_hint_html')) {
+    /** راهنمای دریافت آیدی عددی تلگرام (HTML) */
+    function vira_idfindeer_hint_html(): string
+    {
+        return "\n\n🆔 آیدی عددی را از <a href=\"https://t.me/IDFindeerBot\">@IDFindeerBot</a> دریافت کنید.";
+    }
+}
+
+if (!function_exists('vira_idfindeer_hint_plain')) {
+    /** راهنمای دریافت آیدی عددی تلگرام (متن ساده) */
+    function vira_idfindeer_hint_plain(): string
+    {
+        return "\n\n🆔 آیدی عددی را از @IDFindeerBot بگیرید.";
+    }
+}
+
+if (!function_exists('vira_prompt_with_idfindeer')) {
+    /** افزودن پیشنهاد @IDFindeerBot به پیام‌هایی که آیدی عددی می‌خواهند */
+    function vira_prompt_with_idfindeer(string $prompt): string
+    {
+        if ($prompt === '' || stripos($prompt, 'IDFindeerBot') !== false) {
+            return $prompt;
+        }
+        return rtrim($prompt) . vira_idfindeer_hint_html();
+    }
+}
+
+if (!function_exists('vira_lang_patch_string_by_path')) {
+    function vira_lang_patch_string_by_path(array &$lang, array $path, callable $patcher): void
+    {
+        $ref = &$lang;
+        foreach ($path as $i => $segment) {
+            if (!is_array($ref) || !array_key_exists($segment, $ref)) {
+                return;
+            }
+            if ($i === count($path) - 1) {
+                if (is_string($ref[$segment])) {
+                    $ref[$segment] = $patcher($ref[$segment]);
+                }
+                return;
+            }
+            $ref = &$ref[$segment];
+        }
+    }
+}
+
+if (!function_exists('vira_textbotlang_append_idfindeer_hints')) {
+    /** افزودن راهنمای @IDFindeerBot به promptهای زبان که آیدی عددی می‌خواهند */
+    function vira_textbotlang_append_idfindeer_hints(array &$lang): void
+    {
+        $paths = [
+            ['Admin', 'manageadmin', 'getId'],
+            ['Admin', 'manageadmin', 'getid'],
+            ['Admin', 'manageUser', 'getIdMessage'],
+            ['Admin', 'ManageUser', 'GetIDMessage'],
+            ['Admin', 'manageUser', 'getIdUserUnblock'],
+            ['Admin', 'ManageUser', 'GetIdUserunblock'],
+            ['Admin', 'Balance', 'negativeBalance'],
+            ['Admin', 'Balance', 'NegativeBalance'],
+            ['Admin', 'transfer', 'description'],
+            ['Admin', 'transfor', 'discription'],
+            ['Admin', 'adminphp', 'ask_send_user_balance_2'],
+            ['Admin', 'adminphp', 'ask_send_panel_user_number'],
+            ['Admin', 'adminphp', 'ask_send_admin_number'],
+            ['Admin', 'adminphp', 'ask_send_user_number_2'],
+            ['Admin', 'adminphp', 'ask_send_user_delete_number'],
+            ['extracted', 'admin_php', 'ask_send_user_balance_2'],
+            ['extracted', 'admin_php', 'ask_send_panel_user_number'],
+            ['extracted', 'admin_php', 'ask_send_admin_number'],
+            ['extracted', 'admin_php', 'ask_send_user_number_2'],
+            ['extracted', 'admin_php', 'ask_send_user_delete_number'],
+        ];
+        foreach ($paths as $path) {
+            vira_lang_patch_string_by_path($lang, $path, 'vira_prompt_with_idfindeer');
+        }
+    }
+}
+
+if (!function_exists('vira_branding_replacements')) {
+    /** جایگزینی نام/لینک legacy در متن‌های نمایشی */
+    function vira_branding_replacements(): array
+    {
+        $brandEn = defined('VIRA_BRAND_NAME') ? VIRA_BRAND_NAME : 'ViraNaut';
+        $brandFa = defined('VIRA_BRAND_NAME_FA') ? VIRA_BRAND_NAME_FA : 'ویرا';
+        $panelTitle = defined('VIRA_PANEL_TITLE') ? VIRA_PANEL_TITLE : 'پنل مدیریت ویرا';
+        $panelShort = defined('VIRA_PANEL_SHORT') ? VIRA_PANEL_SHORT : 'ویرا · پنل';
+        $supportUrl = (defined('VIRA_SUPPORT_GROUP') && VIRA_SUPPORT_GROUP !== '')
+            ? VIRA_SUPPORT_GROUP
+            : (defined('VIRA_GITHUB_URL') ? VIRA_GITHUB_URL : 'https://github.com/liamlope/ViraNaut');
+
+        return [
+            'https://t.me/viranaut' => $supportUrl,
+            'پنل مدیریت میرزا بات' => $panelTitle,
+            'پنل مدیریت ربات میرزا' => $panelTitle,
+            'پنل مدیریت میرزا' => $panelTitle,
+            'Панель администратора Vira Bot' => $panelTitle,
+            'Панель администратора Vira' => $panelTitle,
+            '· نسخه 1.0 میرزا' => '· ' . $brandFa,
+            '· Версия 1.0 Vira' => '· ' . $brandEn,
+            '· نسخه میرزا' => '· ' . $brandFa,
+            'پنل نمایندگی میرزا' => 'پنل نمایندگی',
+            'نمایندگی میرزا' => 'پنل نمایندگی',
+            'Vira Agent' => $brandEn . ' Agent',
+            'Vira 代理' => $brandEn,
+            'Агент Vira' => $brandEn . ' Agent',
+            'Vira Group' => $brandEn,
+            'Vira group' => $brandEn,
+            'Vira 群组' => $brandEn,
+            'группе Vira' => $brandEn,
+            'گروه میرزا' => 'پشتیبانی ' . $brandFa,
+            'تیم میرزا' => 'تیم ' . $brandFa,
+            'Vira team' => $brandEn . ' team',
+            'Vira 团队' => $brandEn,
+            'Команда Vira' => $brandEn,
+            'Vira Bot' => $brandEn,
+            'Vira Pro' => $brandEn,
+            'Vira' => $brandEn,
+            'میرزا' => $brandFa,
+            'پنل میرزا' => $panelShort,
+        ];
+    }
+}
+
+if (!function_exists('vira_replace_vira_branding_in_text')) {
+    function vira_replace_vira_branding_in_text(string $text): string
+    {
+        if ($text === '') {
+            return $text;
+        }
+        $lower = strtolower($text);
+        if (strpos($lower, 'mirza') === false && mb_strpos($text, 'میرزا') === false && strpos($lower, 'legacypanel') === false) {
+            return $text;
+        }
+        $map = vira_branding_replacements();
+        uksort($map, static fn($a, $b) => strlen($b) <=> strlen($a));
+        foreach ($map as $from => $to) {
+            $text = str_replace($from, $to, $text);
+        }
+        return $text;
+    }
+}
+
+if (!function_exists('vira_sanitize_lang_branding_recursive')) {
+    function vira_sanitize_lang_branding_recursive(array &$node): void
+    {
+        foreach ($node as &$v) {
+            if (is_array($v)) {
+                vira_sanitize_lang_branding_recursive($v);
+            } elseif (is_string($v)) {
+                $v = vira_replace_vira_branding_in_text($v);
+            }
+        }
+    }
+}
+
+if (!function_exists('vira_apply_viranaut_branding')) {
+    /** حذف نام legacy از تمام رشته‌های زبان + override برند پنل */
+    function vira_apply_viranaut_branding(array &$lang): void
+    {
+        if (!defined('VIRA_BRAND_NAME') && is_file(__DIR__ . '/panel/inc/brand.php')) {
+            require_once __DIR__ . '/panel/inc/brand.php';
+        }
+
+        vira_sanitize_lang_branding_recursive($lang);
+
+        $panelTitle = defined('VIRA_PANEL_TITLE') ? VIRA_PANEL_TITLE : 'پنل مدیریت ویرا';
+        $panelShort = defined('VIRA_PANEL_SHORT') ? VIRA_PANEL_SHORT : 'ویرا · پنل';
+        $brandFa = defined('VIRA_BRAND_NAME_FA') ? VIRA_BRAND_NAME_FA : 'ویرا';
+
+        if (!isset($lang['panel']) || !is_array($lang['panel'])) {
+            $lang['panel'] = [];
+        }
+        $lang['panel']['loginHeading'] = $panelTitle;
+        $lang['panel']['loginPanelTitle'] = 'ورود — ' . $panelTitle;
+        $lang['panel']['loginPasswordLabel'] = $panelTitle;
+        $lang['panel']['loginPasswordPlaceholder'] = '· ' . $brandFa;
+        $lang['panel']['layoutBrandName'] = $panelShort;
+        $lang['panel']['layoutPageTitleSuffix'] = $brandFa;
+        $lang['panel']['keyboardManageTitle'] = $panelTitle;
+
+        if (isset($lang['extracted']['keyboard_php']['viraAgentPanel'])) {
+            $lang['extracted']['keyboard_php']['viraAgentPanel'] = 'پنل نمایندگی';
+        }
+    }
+}
+
+if (!function_exists('vira_datatextbot_lang_map')) {
     /** نگاشت id_text → مسیر text.json (textbot) */
-    function mirza_datatextbot_lang_map(): array
+    function vira_datatextbot_lang_map(): array
     {
         return [
             'accountwallet' => 'textbot.accountWallet',
@@ -108,15 +294,15 @@ if (!function_exists('mirza_datatextbot_lang_map')) {
     }
 }
 
-if (!function_exists('mirza_datatextbot_ensure_defaults')) {
+if (!function_exists('vira_datatextbot_ensure_defaults')) {
     /** پر کردن کلیدهای خالی datatextbot از text.json */
-    function mirza_datatextbot_ensure_defaults(array &$datatextbot, array $textbotlang): void
+    function vira_datatextbot_ensure_defaults(array &$datatextbot, array $textbotlang): void
     {
-        foreach (mirza_datatextbot_lang_map() as $id => $path) {
+        foreach (vira_datatextbot_lang_map() as $id => $path) {
             if (trim((string) ($datatextbot[$id] ?? '')) !== '') {
                 continue;
             }
-            $fallback = mirza_lang_str($textbotlang, $path);
+            $fallback = vira_lang_str($textbotlang, $path);
             if ($fallback !== '') {
                 $datatextbot[$id] = $fallback;
             }
@@ -124,9 +310,9 @@ if (!function_exists('mirza_datatextbot_ensure_defaults')) {
     }
 }
 
-if (!function_exists('mirza_datatextbot_apply_db')) {
+if (!function_exists('vira_datatextbot_apply_db')) {
     /** ادغام متن‌های دیتابیس روی datatextbot — بدون حذف fallbackهای keyboard.php */
-    function mirza_datatextbot_apply_db(array &$datatextbot, $pdo): void
+    function vira_datatextbot_apply_db(array &$datatextbot, $pdo): void
     {
         try {
             $rows = $pdo->query('SELECT id_text, text FROM textbot')->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -139,14 +325,14 @@ if (!function_exists('mirza_datatextbot_apply_db')) {
                 }
             }
         } catch (Throwable $e) {
-            error_log('mirza_datatextbot_apply_db: ' . $e->getMessage());
+            error_log('vira_datatextbot_apply_db: ' . $e->getMessage());
         }
     }
 }
 
-if (!function_exists('mirza_pay_agent_value')) {
+if (!function_exists('vira_pay_agent_value')) {
     /** مقدار PaySetting به‌ازای گروه کاربر (f/n/n2) */
-    function mirza_pay_agent_value($raw, string $agent, $default = 0)
+    function vira_pay_agent_value($raw, string $agent, $default = 0)
     {
         if (is_numeric($raw)) {
             return $raw;
@@ -166,16 +352,16 @@ if (!function_exists('mirza_pay_agent_value')) {
     }
 }
 
-if (!function_exists('mirza_user_menu_text_is_known')) {
+if (!function_exists('vira_user_menu_text_is_known')) {
     /** آیا متن، برچسب یکی از دکمه‌های منوی اصلی / نمایندگی است؟ */
-    function mirza_user_menu_text_is_known(?string $text, array $datatextbot, array $textbotlang, array $user = []): bool
+    function vira_user_menu_text_is_known(?string $text, array $datatextbot, array $textbotlang, array $user = []): bool
     {
         if ($text === null || trim($text) === '') {
             return false;
         }
-        if (function_exists('mirza_textbot_matches')) {
-            foreach (array_keys(mirza_datatextbot_lang_map()) as $key) {
-                if (mirza_textbot_matches($text, $datatextbot[$key] ?? '')) {
+        if (function_exists('vira_textbot_matches')) {
+            foreach (array_keys(vira_datatextbot_lang_map()) as $key) {
+                if (vira_textbot_matches($text, $datatextbot[$key] ?? '')) {
                     return true;
                 }
             }
@@ -197,7 +383,7 @@ if (!function_exists('mirza_user_menu_text_is_known')) {
             if ($text === $label) {
                 return true;
             }
-            if (function_exists('mirza_textbot_matches') && mirza_textbot_matches($text, $label)) {
+            if (function_exists('vira_textbot_matches') && vira_textbot_matches($text, $label)) {
                 return true;
             }
         }
@@ -205,9 +391,9 @@ if (!function_exists('mirza_user_menu_text_is_known')) {
     }
 }
 
-if (!function_exists('mirza_product_name_taken')) {
+if (!function_exists('vira_product_name_taken')) {
     /** نام تکراری فقط در همان دسته ممنوع — دسته‌های مختلف می‌توانند نام یکسان داشته باشند. */
-    function mirza_product_name_taken(PDO $pdo, string $name, ?string $category = null, ?int $excludeId = null): bool
+    function vira_product_name_taken(PDO $pdo, string $name, ?string $category = null, ?int $excludeId = null): bool
     {
         $name = trim($name);
         if ($name === '') {
@@ -230,11 +416,11 @@ if (!function_exists('mirza_product_name_taken')) {
     }
 }
 
-if (!function_exists('mirza_buy_username_is_taken')) {
+if (!function_exists('vira_buy_username_is_taken')) {
     /**
      * آیا نام کاربری در دیتابیس ربات یا پنل قبلاً استفاده شده؟ (سبک‌تر از DataUser کامل)
      */
-    function mirza_buy_username_is_taken($name_panel, $username_ac, array $usernameinvoice_list)
+    function vira_buy_username_is_taken($name_panel, $username_ac, array $usernameinvoice_list)
     {
         if (in_array($username_ac, $usernameinvoice_list, true)) {
             return true;
@@ -243,8 +429,8 @@ if (!function_exists('mirza_buy_username_is_taken')) {
         if (!$panel) {
             return false;
         }
-        if (($panel['type'] ?? '') === 'x-ui_single' && function_exists('mirza_xui_user_exists_quick')) {
-            return mirza_xui_user_exists_quick($panel, $username_ac);
+        if (($panel['type'] ?? '') === 'x-ui_single' && function_exists('vira_xui_user_exists_quick')) {
+            return vira_xui_user_exists_quick($panel, $username_ac);
         }
         global $ManagePanel;
         $out = $ManagePanel->DataUser($name_panel, $username_ac);
@@ -252,9 +438,9 @@ if (!function_exists('mirza_buy_username_is_taken')) {
     }
 }
 
-if (!function_exists('mirza_user_tg_username')) {
+if (!function_exists('vira_user_tg_username')) {
     /** نام کاربری تلگرام از ردیف user — برای کاربران قدیمی بدون ستون username. */
-    function mirza_user_tg_username($userRow)
+    function vira_user_tg_username($userRow)
     {
         if (!is_array($userRow)) {
             return 'NOT_USERNAME';
@@ -267,12 +453,12 @@ if (!function_exists('mirza_user_tg_username')) {
     }
 }
 
-if (!function_exists('mirza_normalize_panel_url')) {
+if (!function_exists('vira_normalize_panel_url')) {
     /**
      * نرمال‌سازی آدرس پنل (۳x-ui و غیره).
      * پورت پیش‌فرض https:443 و http:80 حذف می‌شود — وارد کردن :443 اغلب باعث گیر کردن/خطای WAF می‌شود.
      */
-    function mirza_normalize_panel_url($url)
+    function vira_normalize_panel_url($url)
     {
         $url = trim(str_replace("\r", '', (string) $url));
         if ($url === '' || $url === 'null') {
@@ -309,14 +495,14 @@ if (!function_exists('mirza_normalize_panel_url')) {
     }
 }
 
-if (!function_exists('mirza_normalize_xui_panel_url')) {
+if (!function_exists('vira_normalize_xui_panel_url')) {
     /**
      * آدرس پایه ۳x-ui = …/RandomPath (بدون /panel در انتها).
      * API خودش مسیر /panel/api/... را اضافه می‌کند.
      */
-    function mirza_normalize_xui_panel_url($url)
+    function vira_normalize_xui_panel_url($url)
     {
-        $url = mirza_normalize_panel_url($url);
+        $url = vira_normalize_panel_url($url);
         if (preg_match('#/panel/?$#i', $url)) {
             $url = preg_replace('#/panel/?$#i', '', $url);
             $url = rtrim($url, '/');
@@ -325,10 +511,10 @@ if (!function_exists('mirza_normalize_xui_panel_url')) {
     }
 }
 
-if (!function_exists('mirza_panel_url_is_valid')) {
-    function mirza_panel_url_is_valid($url)
+if (!function_exists('vira_panel_url_is_valid')) {
+    function vira_panel_url_is_valid($url)
     {
-        $url = mirza_normalize_panel_url($url);
+        $url = vira_normalize_panel_url($url);
         if ($url === '' || $url === 'null') {
             return false;
         }
@@ -346,8 +532,8 @@ if (!function_exists('bot_site_https_url')) {
     function bot_site_https_url($path = '')
     {
         global $domainhosts;
-        $host = function_exists('mirza_normalize_domainhosts_value')
-            ? mirza_normalize_domainhosts_value($domainhosts ?? '')
+        $host = function_exists('vira_normalize_domainhosts_value')
+            ? vira_normalize_domainhosts_value($domainhosts ?? '')
             : trim((string) ($domainhosts ?? ''));
         if ($host === '') {
             return '';
@@ -625,11 +811,11 @@ function step($step, $from_id, array $options = [])
     if (empty($options['skip_card_cancel'])) {
         $prev = select('user', 'step', 'id', $from_id, 'select');
         $prevStep = is_array($prev) ? (string) ($prev['step'] ?? '') : '';
-        $paymentSteps = mirza_card_payment_flow_steps();
+        $paymentSteps = vira_card_payment_flow_steps();
         $leavingPayment = in_array($prevStep, $paymentSteps, true)
             && !in_array($step, $paymentSteps, true);
         if ($leavingPayment) {
-            mirza_card_cancel_unpaid_invoices((string) $from_id);
+            vira_card_cancel_unpaid_invoices((string) $from_id);
         }
     }
 
@@ -924,7 +1110,7 @@ function getPaySettingValue($name, $default = null)
 }
 
 /** تأیید خودکار کارت از طریق SMS بانک (statuscardautoconfirm) */
-function mirza_card_sms_autoconfirm_enabled(?string $value = null): bool
+function vira_card_sms_autoconfirm_enabled(?string $value = null): bool
 {
     if ($value === null) {
         $value = (string) getPaySettingValue('statuscardautoconfirm', 'offautoconfirm');
@@ -932,10 +1118,10 @@ function mirza_card_sms_autoconfirm_enabled(?string $value = null): bool
     return $value === 'onautoconfirm';
 }
 
-function mirza_card_sms_autoconfirm_inline_keyboard(?string $value = null): string
+function vira_card_sms_autoconfirm_inline_keyboard(?string $value = null): string
 {
     global $textbotlang;
-    $on = mirza_card_sms_autoconfirm_enabled($value);
+    $on = vira_card_sms_autoconfirm_enabled($value);
     $label = $on
         ? ($textbotlang['Admin']['Status']['statuson'] ?? '✅ روشن')
         : ($textbotlang['Admin']['Status']['statusoff'] ?? '❌ خاموش');
@@ -949,7 +1135,7 @@ function mirza_card_sms_autoconfirm_inline_keyboard(?string $value = null): stri
 }
 
 /** آیدی کانال تلگرام برای SMS Forwarder (DB key: card_sms_telegram_group_id) */
-function mirza_card_sms_effective_channel_id(): ?int
+function vira_card_sms_effective_channel_id(): ?int
 {
     $raw = trim((string) getPaySettingValue('card_sms_telegram_group_id', ''));
     if ($raw === '' || !preg_match('/^-?\d+$/', $raw)) {
@@ -959,12 +1145,12 @@ function mirza_card_sms_effective_channel_id(): ?int
 }
 
 /** @deprecated alias */
-function mirza_card_sms_effective_group_id(): ?int
+function vira_card_sms_effective_group_id(): ?int
 {
-    return mirza_card_sms_effective_channel_id();
+    return vira_card_sms_effective_channel_id();
 }
 
-function mirza_card_sms_normalize_digits(string $text): string
+function vira_card_sms_normalize_digits(string $text): string
 {
     static $from = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     static $to   = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -972,34 +1158,34 @@ function mirza_card_sms_normalize_digits(string $text): string
 }
 
 /** رشته عددی (با کاما) → ریال صحیح */
-function mirza_card_sms_amount_string_to_rial(string $amountStr): int
+function vira_card_sms_amount_string_to_rial(string $amountStr): int
 {
-    $amountStr = mirza_card_sms_normalize_digits($amountStr);
+    $amountStr = vira_card_sms_normalize_digits($amountStr);
     return (int) preg_replace('/\D/u', '', $amountStr);
 }
 
 /** ریال → تومان (فقط برای نمایش — تطبیق فاکتور همیشه با ریال است) */
-function mirza_card_sms_rial_to_toman(int $rial): int
+function vira_card_sms_rial_to_toman(int $rial): int
 {
     return intdiv($rial, 10);
 }
 
 /** مبلغ فاکتور (تومان در DB) → ریال مورد انتظار برای واریز */
-function mirza_card_sms_invoice_expected_rial(int $priceToman): int
+function vira_card_sms_invoice_expected_rial(int $priceToman): int
 {
     return $priceToman * 10;
 }
 
-function mirza_card_sms_normalize_whitespace(string $text): string
+function vira_card_sms_normalize_whitespace(string $text): string
 {
     $text = preg_replace('/[\x{200C}\x{200B}\x{00A0}\x{202F}\x{FEFF}]/u', ' ', $text);
     return preg_replace('/[ \t]+/u', ' ', $text);
 }
 
-function mirza_card_sms_clean_text(string $smsText): string
+function vira_card_sms_clean_text(string $smsText): string
 {
-    $smsText = mirza_card_sms_normalize_digits($smsText);
-    $smsText = mirza_card_sms_normalize_whitespace($smsText);
+    $smsText = vira_card_sms_normalize_digits($smsText);
+    $smsText = vira_card_sms_normalize_whitespace($smsText);
     $lines = [];
     foreach (preg_split('/\R/u', $smsText) as $line) {
         $stripped = trim($line);
@@ -1033,7 +1219,7 @@ function mirza_card_sms_clean_text(string $smsText): string
 }
 
 /** مبلغ ریالی خط «21,000,000+» (مهر / قرض‌الحسنه و مشابه) */
-function mirza_card_sms_parse_amount_suffix_plus(string $text): ?int
+function vira_card_sms_parse_amount_suffix_plus(string $text): ?int
 {
     foreach (preg_split('/\R/u', $text) as $line) {
         $line = trim($line);
@@ -1041,14 +1227,14 @@ function mirza_card_sms_parse_amount_suffix_plus(string $text): ?int
             continue;
         }
         if (preg_match('/^([\d,]+)\+$/u', $line, $m)) {
-            $rial = mirza_card_sms_amount_string_to_rial($m[1]);
+            $rial = vira_card_sms_amount_string_to_rial($m[1]);
             if ($rial > 0) {
                 return $rial;
             }
         }
     }
     if (preg_match('/(\d{1,3}(?:,\d{3})*)\+/u', $text, $m)) {
-        $rial = mirza_card_sms_amount_string_to_rial($m[1]);
+        $rial = vira_card_sms_amount_string_to_rial($m[1]);
         if ($rial > 0) {
             return $rial;
         }
@@ -1057,13 +1243,13 @@ function mirza_card_sms_parse_amount_suffix_plus(string $text): ?int
 }
 
 /** بانک‌هایی که مبلغ با «+» در انتهای خط مشخص است — فیلتر 000 اعمال نشود */
-function mirza_card_sms_skip_round_toman_reject(string $bankCode): bool
+function vira_card_sms_skip_round_toman_reject(string $bankCode): bool
 {
     return in_array(strtolower($bankCode), ['gharz', 'mehr', 'parsian'], true);
 }
 
 /** بلو — فقط خط واریز با «ریال … به حساب شما نشست» (نه موجودی) */
-function mirza_card_sms_parse_blu_amount(string $text): ?int
+function vira_card_sms_parse_blu_amount(string $text): ?int
 {
     $patterns = [
         '/(\d[\d,،٬]+)\s*ریال\s*به\s*حساب\s*شما\s*نشست/u',
@@ -1080,7 +1266,7 @@ function mirza_card_sms_parse_blu_amount(string $text): ?int
         }
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $line, $m)) {
-                $rial = mirza_card_sms_amount_string_to_rial($m[1]);
+                $rial = vira_card_sms_amount_string_to_rial($m[1]);
                 if ($rial > 0) {
                     return $rial;
                 }
@@ -1088,7 +1274,7 @@ function mirza_card_sms_parse_blu_amount(string $text): ?int
         }
     }
     if (preg_match('/(\d[\d,،٬]+)\s*ریال[^.\n]{0,120}?به\s*حساب[^.\n]{0,40}?نشست/u', $text, $m)) {
-        $rial = mirza_card_sms_amount_string_to_rial($m[1]);
+        $rial = vira_card_sms_amount_string_to_rial($m[1]);
         if ($rial > 0) {
             return $rial;
         }
@@ -1097,7 +1283,7 @@ function mirza_card_sms_parse_blu_amount(string $text): ?int
 }
 
 /** +مبلغ در انتهای خط — فقط خطوط مبلغ (نه شماره From/SMS Forwarder) */
-function mirza_card_sms_parse_plus_amount_line(string $text): ?int
+function vira_card_sms_parse_plus_amount_line(string $text): ?int
 {
     foreach (preg_split('/\R/u', $text) as $line) {
         $line = trim($line);
@@ -1105,7 +1291,7 @@ function mirza_card_sms_parse_plus_amount_line(string $text): ?int
             continue;
         }
         if (preg_match('/\+([\d,]+)/u', $line, $m)) {
-            $digits = mirza_card_sms_amount_string_to_rial($m[1]);
+            $digits = vira_card_sms_amount_string_to_rial($m[1]);
             if ($digits > 0 && strlen((string) $digits) <= 12) {
                 return $digits;
             }
@@ -1114,9 +1300,9 @@ function mirza_card_sms_parse_plus_amount_line(string $text): ?int
     return null;
 }
 
-function mirza_card_sms_parse_bank_rial(string $bankCode, string $smsText): ?int
+function vira_card_sms_parse_bank_rial(string $bankCode, string $smsText): ?int
 {
-    $text = mirza_card_sms_clean_text($smsText);
+    $text = vira_card_sms_clean_text($smsText);
     if ($text === '') {
         return null;
     }
@@ -1124,99 +1310,99 @@ function mirza_card_sms_parse_bank_rial(string $bankCode, string $smsText): ?int
     $amountRial = null;
     switch (strtolower($bankCode)) {
         case 'blu':
-            $amountRial = mirza_card_sms_parse_blu_amount($text);
+            $amountRial = vira_card_sms_parse_blu_amount($text);
             break;
         case 'meli':
             if (preg_match('/انتقال:(.*?)[+\-]/u', $text, $m)) {
-                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
+                $amountRial = vira_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'grdsh':
             if (preg_match('/مبلغ:\s*([0-9,]+)/u', $text, $m)) {
-                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
+                $amountRial = vira_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'sadhrat':
             if (preg_match('/انتقال:\s*([\d,]+)/u', $text, $m)) {
-                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
+                $amountRial = vira_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'melet':
             if (preg_match('/واریز(\d{1,3}(?:,\d{3})*)/u', $text, $m)) {
-                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
+                $amountRial = vira_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'terjart':
             if (preg_match('/واریز\s*:\s*([\d,]+)/u', $text, $m)) {
-                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
+                $amountRial = vira_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'keshavarsi':
             if (preg_match('/واريز(\d+(?:,\d+)*)/u', $text, $m)) {
-                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
+                $amountRial = vira_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'resalet':
-            $amountRial = mirza_card_sms_parse_plus_amount_line($text);
+            $amountRial = vira_card_sms_parse_plus_amount_line($text);
             break;
         case 'sheahr':
             if (preg_match('/مبلغ:(\d+(?:,\d+)*)ريال/u', $text, $m)) {
-                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
+                $amountRial = vira_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'maskan':
             if (preg_match('/انتقال اينترنت:\D*([\d,]+)/u', $text, $m)) {
-                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
+                $amountRial = vira_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'parsian':
             if (preg_match('/مبلغ:(\d{1,3}(?:,\d{3})*)\+/u', $text, $m)) {
-                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
+                $amountRial = vira_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'sphe':
             if (preg_match('/مبلغ:\s*([\d,]+)\s*ريال/u', $text, $m)) {
-                $amountRial = mirza_card_sms_amount_string_to_rial($m[1]);
+                $amountRial = vira_card_sms_amount_string_to_rial($m[1]);
             }
             break;
         case 'paselc':
-            $amountRial = mirza_card_sms_parse_plus_amount_line($text);
+            $amountRial = vira_card_sms_parse_plus_amount_line($text);
             break;
         case 'gharz':
         case 'mehr':
-            $amountRial = mirza_card_sms_parse_amount_suffix_plus($text);
+            $amountRial = vira_card_sms_parse_amount_suffix_plus($text);
             break;
     }
 
     if ($amountRial === null || $amountRial <= 0) {
         return null;
     }
-    $toman = mirza_card_sms_rial_to_toman($amountRial);
-    if (!mirza_card_sms_skip_round_toman_reject($bankCode) && substr((string) $toman, -3) === '000') {
+    $toman = vira_card_sms_rial_to_toman($amountRial);
+    if (!vira_card_sms_skip_round_toman_reject($bankCode) && substr((string) $toman, -3) === '000') {
         return null;
     }
     return $amountRial;
 }
 
 /** @deprecated alias */
-function mirza_card_sms_parse_bank_amount(string $bankCode, string $smsText): ?int
+function vira_card_sms_parse_bank_amount(string $bankCode, string $smsText): ?int
 {
-    $rial = mirza_card_sms_parse_bank_rial($bankCode, $smsText);
-    return $rial !== null ? mirza_card_sms_rial_to_toman($rial) : null;
+    $rial = vira_card_sms_parse_bank_rial($bankCode, $smsText);
+    return $rial !== null ? vira_card_sms_rial_to_toman($rial) : null;
 }
 
-function mirza_card_sms_parsed_result(string $bank, int $amountRial): array
+function vira_card_sms_parsed_result(string $bank, int $amountRial): array
 {
     return [
         'bank' => $bank,
         'amount_rial' => $amountRial,
-        'amount_toman' => mirza_card_sms_rial_to_toman($amountRial),
+        'amount_toman' => vira_card_sms_rial_to_toman($amountRial),
     ];
 }
 
-function mirza_card_sms_parse_from_text(string $smsText, ?string $bankCode = null): ?array
+function vira_card_sms_parse_from_text(string $smsText, ?string $bankCode = null): ?array
 {
-    $text = mirza_card_sms_clean_text($smsText);
+    $text = vira_card_sms_clean_text($smsText);
     if ($text === '') {
         return null;
     }
@@ -1225,9 +1411,9 @@ function mirza_card_sms_parse_from_text(string $smsText, ?string $bankCode = nul
 
     // اگر نام بلو در متن باشد اول بلو را امتحان کن
     if ($bankCode === null && preg_match('/بلو/ui', $text)) {
-        $rial = mirza_card_sms_parse_bank_rial('blu', $text);
+        $rial = vira_card_sms_parse_bank_rial('blu', $text);
         if ($rial !== null) {
-            return mirza_card_sms_parsed_result('blu', $rial);
+            return vira_card_sms_parsed_result('blu', $rial);
         }
     }
 
@@ -1236,30 +1422,30 @@ function mirza_card_sms_parse_from_text(string $smsText, ?string $bankCode = nul
         if ($code === 'gharz') {
             $code = 'mehr';
         }
-        $rial = mirza_card_sms_parse_bank_rial($code, $text);
-        return $rial !== null ? mirza_card_sms_parsed_result($code, $rial) : null;
+        $rial = vira_card_sms_parse_bank_rial($code, $text);
+        return $rial !== null ? vira_card_sms_parsed_result($code, $rial) : null;
     }
 
     // مهر / قرض‌الحسنه: «21,000,000+» + «مانده:» — اولویت parse
     if (preg_match('/مانده\s*:/u', $text) && preg_match('/[\d,]+\+/u', $text)) {
         foreach (['mehr', 'gharz'] as $code) {
-            $rial = mirza_card_sms_parse_bank_rial($code, $text);
+            $rial = vira_card_sms_parse_bank_rial($code, $text);
             if ($rial !== null) {
-                return mirza_card_sms_parsed_result($code, $rial);
+                return vira_card_sms_parsed_result($code, $rial);
             }
         }
     }
 
     foreach ($banks as $code) {
-        $rial = mirza_card_sms_parse_bank_rial($code, $text);
+        $rial = vira_card_sms_parse_bank_rial($code, $text);
         if ($rial !== null) {
-            return mirza_card_sms_parsed_result($code, $rial);
+            return vira_card_sms_parsed_result($code, $rial);
         }
     }
     return null;
 }
 
-function mirza_card_sms_extract_update_text(array $update): string
+function vira_card_sms_extract_update_text(array $update): string
 {
     $msg = $update['channel_post'] ?? $update['message'] ?? null;
     if (!is_array($msg)) {
@@ -1277,7 +1463,7 @@ function mirza_card_sms_extract_update_text(array $update): string
     return trim(implode("\n", array_filter($parts)));
 }
 
-function mirza_card_sms_get_update_chat(array $update): ?array
+function vira_card_sms_get_update_chat(array $update): ?array
 {
     $msg = $update['channel_post'] ?? $update['message'] ?? null;
     if (!is_array($msg) || empty($msg['chat']) || !is_array($msg['chat'])) {
@@ -1290,19 +1476,19 @@ function mirza_card_sms_get_update_chat(array $update): ?array
  * پردازش SMS و تأیید خودکار فاکتور کارت — کانال تلگرام + payment/card.php
  * @return array{ok:bool,reason?:string,order_id?:string,amount_rial?:int,amount_toman?:int,bank?:string}
  */
-function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode = null): array
+function vira_card_sms_process_and_approve(string $smsText, ?string $bankCode = null): array
 {
     global $connect, $setting, $textbotlang;
 
-    if (!mirza_card_sms_autoconfirm_enabled()) {
+    if (!vira_card_sms_autoconfirm_enabled()) {
         return ['ok' => false, 'reason' => 'disabled'];
     }
 
-    mirza_card_expire_abandoned_unpaid();
+    vira_card_expire_abandoned_unpaid();
 
-    $parsed = mirza_card_sms_parse_from_text($smsText, $bankCode);
+    $parsed = vira_card_sms_parse_from_text($smsText, $bankCode);
     if ($parsed === null) {
-        $snippet = mb_substr(mirza_card_sms_clean_text($smsText), 0, 280);
+        $snippet = mb_substr(vira_card_sms_clean_text($smsText), 0, 280);
         error_log('[card-sms] parse_failed snippet=' . $snippet);
         return ['ok' => false, 'reason' => 'parse_failed'];
     }
@@ -1311,10 +1497,10 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
     $amountToman = (int) $parsed['amount_toman'];
     global $pdo;
     $orderId = null;
-    $matchCutoff = date('Y/m/d H:i:s', time() - mirza_card_sms_match_max_age_sec());
+    $matchCutoff = date('Y/m/d H:i:s', time() - vira_card_sms_match_max_age_sec());
     try {
         $pdo->beginTransaction();
-        $decSql = mirza_card_sms_match_dec_sql_clause();
+        $decSql = vira_card_sms_match_dec_sql_clause();
         $matchStmt = $pdo->prepare(
             "SELECT id_order, id_user FROM Payment_report
              WHERE Payment_Method = 'cart to cart'
@@ -1345,7 +1531,7 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        error_log('mirza_card_sms_process_and_approve: ' . $e->getMessage());
+        error_log('vira_card_sms_process_and_approve: ' . $e->getMessage());
         return ['ok' => false, 'reason' => 'db_error'];
     }
 
@@ -1353,7 +1539,7 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
     if (!is_array($Payment_report) || empty($Payment_report['price'])) {
         return ['ok' => false, 'reason' => 'order_missing'];
     }
-    if (!mirza_card_sms_may_auto_approve($Payment_report)) {
+    if (!vira_card_sms_may_auto_approve($Payment_report)) {
         return [
             'ok' => false,
             'reason' => 'manual_receipt_only',
@@ -1363,7 +1549,7 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
             'bank' => $parsed['bank'],
         ];
     }
-    $expectedRial = mirza_card_sms_invoice_expected_rial((int) $Payment_report['price']);
+    $expectedRial = vira_card_sms_invoice_expected_rial((int) $Payment_report['price']);
     if ($amountRial !== $expectedRial) {
         return [
             'ok' => false,
@@ -1377,12 +1563,12 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
         return ['ok' => false, 'reason' => 'already_reviewed', 'order_id' => $orderId];
     }
 
-    if (!mirza_payment_try_claim($orderId)) {
+    if (!vira_payment_try_claim($orderId)) {
         return ['ok' => false, 'reason' => 'already_reviewed', 'order_id' => $orderId];
     }
 
     if (!DirectPayment($orderId, __DIR__ . '/images.jpg', true)) {
-        mirza_payment_revert_claim($orderId);
+        vira_payment_revert_claim($orderId);
         error_log('[card-sms] process_failed order=' . $orderId);
         return ['ok' => false, 'reason' => 'process_failed', 'order_id' => $orderId];
     }
@@ -1422,17 +1608,17 @@ function mirza_card_sms_process_and_approve(string $smsText, ?string $bankCode =
 }
 
 /** Handler کانال تلگرام برای SMS Forwarder — فقط channel_post (نه گروه) */
-function mirza_try_handle_card_sms_telegram_update(?array $update): bool
+function vira_try_handle_card_sms_telegram_update(?array $update): bool
 {
     if ($update === null || $update === []) {
         return false;
     }
 
-    if (!mirza_card_sms_autoconfirm_enabled()) {
+    if (!vira_card_sms_autoconfirm_enabled()) {
         return false;
     }
 
-    $channelId = mirza_card_sms_effective_channel_id();
+    $channelId = vira_card_sms_effective_channel_id();
     if ($channelId === null) {
         return false;
     }
@@ -1449,36 +1635,36 @@ function mirza_try_handle_card_sms_telegram_update(?array $update): bool
         return false;
     }
 
-    $smsText = mirza_card_sms_extract_update_text($update);
+    $smsText = vira_card_sms_extract_update_text($update);
     if ($smsText === '') {
         error_log('[card-sms-telegram] empty channel_post text chat=' . ($chat['id'] ?? ''));
         return true;
     }
 
-    $result = mirza_card_sms_process_and_approve($smsText);
+    $result = vira_card_sms_process_and_approve($smsText);
     $level = !empty($result['ok']) ? 'OK' : ($result['reason'] ?? 'fail');
     error_log('[card-sms-telegram] ' . $level . ' ' . json_encode($result, JSON_UNESCAPED_UNICODE));
 
     return true;
 }
 
-function mirza_card_sms_panel_info(): array
+function vira_card_sms_panel_info(): array
 {
-    $channelId = mirza_card_sms_effective_channel_id();
+    $channelId = vira_card_sms_effective_channel_id();
     global $domainhosts;
     $domain = trim((string) ($domainhosts ?? ''));
     return [
-        'sms_enabled' => mirza_card_sms_autoconfirm_enabled(),
+        'sms_enabled' => vira_card_sms_autoconfirm_enabled(),
         'channel_configured' => $channelId !== null,
         'group_configured' => $channelId !== null,
-        'receipt_delay_label' => mirza_card_receipt_delay_label_fa(),
+        'receipt_delay_label' => vira_card_receipt_delay_label_fa(),
         'forwarder_note' => 'کانال خصوصی بسازید → ربات فروش + SMS Forwarder هر دو ادمین کانال → Forwarder را به همین کانال وصل کنید (نه گروه).',
         'http_path' => $domain !== '' ? ('https://' . $domain . '/payment/card.php') : '',
     ];
 }
 
 /** تأخیر نمایش دکمه «ارسال رسید» — دقیقه (پیش‌فرض ۱۰، از PaySetting: cardreceiptdelaymin) */
-function mirza_card_receipt_delay_minutes(): int
+function vira_card_receipt_delay_minutes(): int
 {
     $min = (int) getPaySettingValue('cardreceiptdelaymin', '10');
     if ($min < 1) {
@@ -1490,15 +1676,15 @@ function mirza_card_receipt_delay_minutes(): int
     return $min;
 }
 
-function mirza_card_autoconfirm_receipt_delay_sec(): int
+function vira_card_autoconfirm_receipt_delay_sec(): int
 {
-    return mirza_card_receipt_delay_minutes() * 60;
+    return vira_card_receipt_delay_minutes() * 60;
 }
 
 /** برچسب فارسی تأخیر برای پیام‌های ربات، مثلاً «10 دقیقه» */
-function mirza_card_receipt_delay_label_fa(): string
+function vira_card_receipt_delay_label_fa(): string
 {
-    $min = mirza_card_receipt_delay_minutes();
+    $min = vira_card_receipt_delay_minutes();
     if ($min >= 60 && $min % 60 === 0) {
         $hours = intdiv($min, 60);
         return $hours === 1 ? '۱ ساعت' : ($hours . ' ساعت');
@@ -1506,45 +1692,45 @@ function mirza_card_receipt_delay_label_fa(): string
     return $min . ' دقیقه';
 }
 
-function mirza_card_receipt_wait_user_message(): string
+function vira_card_receipt_wait_user_message(): string
 {
-    $delay = mirza_card_receipt_delay_label_fa();
+    $delay = vira_card_receipt_delay_label_fa();
     return "⏳ تأیید خودکار در حال انجام است.\nلطفاً تا {$delay} صبر کنید — بعد از آن دکمه «ارسال رسید» ظاهر می‌شود.";
 }
 
-function mirza_card_sms_auto_pending_marker(): string
+function vira_card_sms_auto_pending_marker(): string
 {
-    return 'sms_auto:' . (time() + mirza_card_autoconfirm_receipt_delay_sec());
+    return 'sms_auto:' . (time() + vira_card_autoconfirm_receipt_delay_sec());
 }
 
-function mirza_card_is_sms_auto_pending(?string $dec): bool
+function vira_card_is_sms_auto_pending(?string $dec): bool
 {
     $dec = trim((string) $dec);
     return $dec === 'sms_auto' || str_starts_with($dec, 'sms_auto:');
 }
 
 /** SQL: فقط فاکتورهای با مارکر sms_auto — نه legacy خالی */
-function mirza_card_sms_match_dec_sql_clause(): string
+function vira_card_sms_match_dec_sql_clause(): string
 {
     return "(dec_not_confirmed = 'sms_auto' OR dec_not_confirmed LIKE 'sms_auto:%')";
 }
 
 /** حداکثر سن فاکتور برای تطبیق SMS (۷۲ ساعت) */
-function mirza_card_sms_match_max_age_sec(): int
+function vira_card_sms_match_max_age_sec(): int
 {
     return 72 * 3600;
 }
 
 /** آیا این فاکتور هنوز واجد تأیید خودکار SMS است؟ */
-function mirza_card_sms_may_auto_approve(array $row): bool
+function vira_card_sms_may_auto_approve(array $row): bool
 {
     if ((string) ($row['payment_Status'] ?? '') !== 'Unpaid') {
         return false;
     }
-    return mirza_card_is_sms_auto_pending($row['dec_not_confirmed'] ?? '');
+    return vira_card_is_sms_auto_pending($row['dec_not_confirmed'] ?? '');
 }
 
-function mirza_card_sms_auto_receipt_due(?string $dec, array $row): bool
+function vira_card_sms_auto_receipt_due(?string $dec, array $row): bool
 {
     $dec = trim((string) $dec);
     if (str_starts_with($dec, 'sms_auto:')) {
@@ -1554,23 +1740,23 @@ function mirza_card_sms_auto_receipt_due(?string $dec, array $row): bool
         }
     }
     if ($dec === 'sms_auto') {
-        $ts = mirza_parse_payment_report_time($row['time'] ?? null)
-            ?? mirza_parse_payment_report_time($row['at_updated'] ?? null);
+        $ts = vira_parse_payment_report_time($row['time'] ?? null)
+            ?? vira_parse_payment_report_time($row['at_updated'] ?? null);
         if ($ts === null) {
             return true;
         }
-        return $ts <= time() - mirza_card_autoconfirm_receipt_delay_sec();
+        return $ts <= time() - vira_card_autoconfirm_receipt_delay_sec();
     }
     return false;
 }
 
-function mirza_card_receipt_prompt_sql_pending(): string
+function vira_card_receipt_prompt_sql_pending(): string
 {
-    return mirza_card_sms_match_dec_sql_clause();
+    return vira_card_sms_match_dec_sql_clause();
 }
 
 /** فاکتورهایی که زمان تأخیر دکمه رسیدشان رسیده (برای cron) */
-function mirza_card_receipt_prompt_sql_due(): string
+function vira_card_receipt_prompt_sql_due(): string
 {
     $now = time();
     return "(dec_not_confirmed = 'sms_auto'
@@ -1578,17 +1764,17 @@ function mirza_card_receipt_prompt_sql_due(): string
 }
 
 /** آیا این فاکتور هنوز در فاز «فقط SMS» است؟ */
-function mirza_card_receipt_awaiting_sms_window(array $row): bool
+function vira_card_receipt_awaiting_sms_window(array $row): bool
 {
     $dec = trim((string) ($row['dec_not_confirmed'] ?? ''));
     if (in_array($dec, ['receipt_ready', 'receipt_submitted', 'sms_auto_confirmed'], true)) {
         return false;
     }
-    return mirza_card_is_sms_auto_pending($dec);
+    return vira_card_is_sms_auto_pending($dec);
 }
 
 /** شماره کارت ذخیره‌شده در id_invoice — card:NUMBER|... */
-function mirza_card_invoice_stored_card(array $row): string
+function vira_card_invoice_stored_card(array $row): string
 {
     $inv = (string) ($row['id_invoice'] ?? '');
     if (preg_match('/^card:(\d+)\|/u', $inv, $m)) {
@@ -1598,7 +1784,7 @@ function mirza_card_invoice_stored_card(array $row): string
 }
 
 /** بخش پرداخت id_invoice بدون پیشوند card: — برای DirectPayment و parse نوع فاکتور */
-function mirza_card_invoice_payment_payload(string $idInvoice): string
+function vira_card_invoice_payment_payload(string $idInvoice): string
 {
     $idInvoice = trim($idInvoice);
     if (preg_match('/^card:\d+\|(.+)$/u', $idInvoice, $m)) {
@@ -1608,7 +1794,7 @@ function mirza_card_invoice_payment_payload(string $idInvoice): string
 }
 
 /** فاکتورهای رها‌شده Unpaid را expire می‌کند تا SMS روی فاکتور قدیمی نخورد */
-function mirza_card_expire_abandoned_unpaid(int $maxAgeHours = 72): int
+function vira_card_expire_abandoned_unpaid(int $maxAgeHours = 72): int
 {
     global $pdo;
     $cutoff = date('Y/m/d H:i:s', time() - ($maxAgeHours * 3600));
@@ -1624,13 +1810,13 @@ function mirza_card_expire_abandoned_unpaid(int $maxAgeHours = 72): int
 }
 
 /** اتمیک: فقط یک worker دکمه رسید را فعال می‌کند */
-function mirza_card_try_claim_receipt_prompt(string $orderId): bool
+function vira_card_try_claim_receipt_prompt(string $orderId): bool
 {
     global $pdo;
     if ($orderId === '') {
         return false;
     }
-    $pending = mirza_card_sms_match_dec_sql_clause();
+    $pending = vira_card_sms_match_dec_sql_clause();
     $stmt = $pdo->prepare(
         "UPDATE Payment_report SET dec_not_confirmed = 'receipt_ready'
          WHERE id_order = :oid
@@ -1642,7 +1828,7 @@ function mirza_card_try_claim_receipt_prompt(string $orderId): bool
 }
 
 /** پیام یادآور ارسال رسید دستی (بعد از تأخیر SMS) */
-function mirza_card_receipt_fallback_user_message(): string
+function vira_card_receipt_fallback_user_message(): string
 {
     return "⏱ تأیید خودکار از SMS انجام نشد.\n\n"
         . "اگر واریز کردید → دکمه زیر را بزنید و عکس رسید را بفرستید.\n"
@@ -1650,7 +1836,7 @@ function mirza_card_receipt_fallback_user_message(): string
         . "وضعیت پرداخت: منوی «حساب کاربری» در ربات.";
 }
 
-function mirza_card_receipt_submitted_user_message(): string
+function vira_card_receipt_submitted_user_message(): string
 {
     return "✅ رسید شما ثبت شده و در انتظار بررسی است.\n"
         . "پس از تأیید، موجودی یا سرویس به‌صورت خودکار اعمال می‌شود.\n"
@@ -1658,7 +1844,7 @@ function mirza_card_receipt_submitted_user_message(): string
 }
 
 /** فقط از Unpaid → waiting — جلوگیری از بازنویسی paid و تأیید دوباره */
-function mirza_card_try_mark_receipt_waiting(string $orderId): bool
+function vira_card_try_mark_receipt_waiting(string $orderId): bool
 {
     global $pdo;
     if ($orderId === '') {
@@ -1674,7 +1860,7 @@ function mirza_card_try_mark_receipt_waiting(string $orderId): bool
     return $stmt->rowCount() > 0;
 }
 
-function mirza_card_receipt_submission_blocked_reply(int|string $chatId, string $orderId): void
+function vira_card_receipt_submission_blocked_reply(int|string $chatId, string $orderId): void
 {
     $row = select('Payment_report', '*', 'id_order', $orderId, 'select');
     if (!is_array($row)) {
@@ -1687,7 +1873,7 @@ function mirza_card_receipt_submission_blocked_reply(int|string $chatId, string 
         return;
     }
     if ($status === 'waiting') {
-        sendmessage($chatId, mirza_card_receipt_submitted_user_message(), null, 'HTML');
+        sendmessage($chatId, vira_card_receipt_submitted_user_message(), null, 'HTML');
         return;
     }
     if ($status === 'expire') {
@@ -1701,13 +1887,13 @@ function mirza_card_receipt_submission_blocked_reply(int|string $chatId, string 
     sendmessage($chatId, '❌ امکان ثبت رسید برای این فاکتور وجود ندارد.', null, 'HTML');
 }
 
-function mirza_card_receipt_prompt_for_order(string $orderId): void
+function vira_card_receipt_prompt_for_order(string $orderId): void
 {
     global $pdo;
-    if ($orderId === '' || !mirza_card_sms_autoconfirm_enabled()) {
+    if ($orderId === '' || !vira_card_sms_autoconfirm_enabled()) {
         return;
     }
-    $pendingSql = mirza_card_receipt_prompt_sql_pending();
+    $pendingSql = vira_card_receipt_prompt_sql_pending();
     $stmt = $pdo->prepare(
         "SELECT * FROM Payment_report
          WHERE id_order = :oid
@@ -1719,12 +1905,12 @@ function mirza_card_receipt_prompt_for_order(string $orderId): void
     $stmt->execute();
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (is_array($row)) {
-        mirza_card_receipt_prompt_apply_row($row);
+        vira_card_receipt_prompt_apply_row($row);
     }
 }
 
-/** متن قدیمی/طولانی کارت خودکار (Mirza legacy) */
-function mirza_is_legacy_cart_auto_text(string $text): bool
+/** متن قدیمی/طولانی کارت خودکار (نسخه legacy) */
+function vira_is_legacy_cart_auto_text(string $text): bool
 {
     return str_contains($text, 'تایید فوری')
         || str_contains($text, '====================')
@@ -1736,17 +1922,17 @@ function mirza_is_legacy_cart_auto_text(string $text): bool
 }
 
 /** متن فاکتور کارت خودکار — legacy را با نسخهٔ جدید جایگزین می‌کند */
-function mirza_resolve_cart_auto_text(string $stored, array $textbotlang): string
+function vira_resolve_cart_auto_text(string $stored, array $textbotlang): string
 {
     $stored = trim($stored);
-    if ($stored === '' || mirza_is_legacy_cart_auto_text($stored)) {
-        $stored = mirza_lang_str($textbotlang, 'textbot.cartAuto', '');
+    if ($stored === '' || vira_is_legacy_cart_auto_text($stored)) {
+        $stored = vira_lang_str($textbotlang, 'textbot.cartAuto', '');
     }
-    return strtr($stored, ['{receipt_delay}' => mirza_card_receipt_delay_label_fa()]);
+    return strtr($stored, ['{receipt_delay}' => vira_card_receipt_delay_label_fa()]);
 }
 
 /** کیبورد inline فاکتور کارت */
-function mirza_card_payment_inline_keyboard(string $orderId, string $cardNumber, $priceCopy, bool $showReceipt, bool $showCopy): ?string
+function vira_card_payment_inline_keyboard(string $orderId, string $cardNumber, $priceCopy, bool $showReceipt, bool $showCopy): ?string
 {
     $rows = [];
     if ($showCopy && $cardNumber !== '') {
@@ -1767,7 +1953,7 @@ function mirza_card_payment_inline_keyboard(string $orderId, string $cardNumber,
 }
 
 /** زمان ثبت فاکتور Payment_report → timestamp */
-function mirza_parse_payment_report_time(?string $timeStr): ?int
+function vira_parse_payment_report_time(?string $timeStr): ?int
 {
     $timeStr = trim((string) $timeStr);
     if ($timeStr === '') {
@@ -1784,21 +1970,21 @@ function mirza_parse_payment_report_time(?string $timeStr): ?int
     return $ts !== false ? (int) $ts : null;
 }
 
-function mirza_card_payment_receipt_due(array $row): bool
+function vira_card_payment_receipt_due(array $row): bool
 {
-    return mirza_card_sms_auto_receipt_due($row['dec_not_confirmed'] ?? '', $row);
+    return vira_card_sms_auto_receipt_due($row['dec_not_confirmed'] ?? '', $row);
 }
 
 /** دکمه «ارسال رسید» را فقط روی پیام فاکتور اضافه می‌کند — بدون پیام جدا */
-function mirza_card_receipt_prompt_apply_row(array $row): bool
+function vira_card_receipt_prompt_apply_row(array $row): bool
 {
-    if (!mirza_card_receipt_awaiting_sms_window($row)) {
+    if (!vira_card_receipt_awaiting_sms_window($row)) {
         return false;
     }
     if ((string) ($row['payment_Status'] ?? '') !== 'Unpaid') {
         return false;
     }
-    if (!mirza_card_payment_receipt_due($row)) {
+    if (!vira_card_payment_receipt_due($row)) {
         return false;
     }
 
@@ -1814,7 +2000,7 @@ function mirza_card_receipt_prompt_apply_row(array $row): bool
         return false;
     }
 
-    if (!mirza_card_try_claim_receipt_prompt($orderId)) {
+    if (!vira_card_try_claim_receipt_prompt($orderId)) {
         return false;
     }
 
@@ -1823,7 +2009,7 @@ function mirza_card_receipt_prompt_apply_row(array $row): bool
         $setting = select('setting', '*');
     }
 
-    $cardNumber = mirza_card_invoice_stored_card($row);
+    $cardNumber = vira_card_invoice_stored_card($row);
     if ($cardNumber === '' && isset($connect)) {
         $cardQuery = mysqli_query($connect, 'SELECT cardnumber FROM card_number ORDER BY RAND() LIMIT 1');
         if ($cardQuery) {
@@ -1835,7 +2021,7 @@ function mirza_card_receipt_prompt_apply_row(array $row): bool
 
     $priceCopy = (string) ((int) ($row['price'] ?? 0)) . '0';
     $showCopy = (($setting['statuscopycart'] ?? '0') == '1') && $cardNumber !== '';
-    $keyboard = mirza_card_payment_inline_keyboard($orderId, $cardNumber, $priceCopy, true, $showCopy);
+    $keyboard = vira_card_payment_inline_keyboard($orderId, $cardNumber, $priceCopy, true, $showCopy);
     if ($keyboard === null) {
         return true;
     }
@@ -1856,7 +2042,7 @@ function mirza_card_receipt_prompt_apply_row(array $row): bool
 
     error_log('[card-receipt-prompt] edit failed order=' . $orderId . ' ' . json_encode($response, JSON_UNESCAPED_UNICODE));
 
-    $keyboardReceiptOnly = mirza_card_payment_inline_keyboard($orderId, '', $priceCopy, true, false);
+    $keyboardReceiptOnly = vira_card_payment_inline_keyboard($orderId, '', $priceCopy, true, false);
     if ($keyboardReceiptOnly === null) {
         return true;
     }
@@ -1876,15 +2062,15 @@ function mirza_card_receipt_prompt_apply_row(array $row): bool
     return !empty($retry['ok']) || stripos((string) ($retry['description'] ?? ''), 'message is not modified') !== false;
 }
 
-function mirza_card_receipt_prompt_for_user(string $userId): void
+function vira_card_receipt_prompt_for_user(string $userId): void
 {
     global $pdo;
 
-    if (!mirza_card_sms_autoconfirm_enabled() || $userId === '' || $userId === '0') {
+    if (!vira_card_sms_autoconfirm_enabled() || $userId === '' || $userId === '0') {
         return;
     }
 
-    $pendingSql = mirza_card_receipt_prompt_sql_pending();
+    $pendingSql = vira_card_receipt_prompt_sql_pending();
     $stmt = $pdo->prepare(
         "SELECT * FROM Payment_report
          WHERE id_user = :uid
@@ -1896,24 +2082,24 @@ function mirza_card_receipt_prompt_for_user(string $userId): void
     $stmt->execute();
 
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        if (mirza_card_payment_receipt_due($row)) {
-            mirza_card_receipt_prompt_apply_row($row);
+        if (vira_card_payment_receipt_due($row)) {
+            vira_card_receipt_prompt_apply_row($row);
         }
     }
 }
 
 /** بعد از تأخیر تنظیم‌شده، دکمه ارسال رسید را به پیام فاکتور اضافه می‌کند */
-function mirza_card_receipt_prompt_run(): void
+function vira_card_receipt_prompt_run(): void
 {
     global $pdo;
 
-    if (!mirza_card_sms_autoconfirm_enabled()) {
+    if (!vira_card_sms_autoconfirm_enabled()) {
         return;
     }
 
-    mirza_card_expire_abandoned_unpaid();
+    vira_card_expire_abandoned_unpaid();
 
-    $dueSql = mirza_card_receipt_prompt_sql_due();
+    $dueSql = vira_card_receipt_prompt_sql_due();
     $stmt = $pdo->prepare(
         "SELECT * FROM Payment_report
          WHERE Payment_Method = 'cart to cart'
@@ -1923,20 +2109,20 @@ function mirza_card_receipt_prompt_run(): void
     $stmt->execute();
 
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        if (mirza_card_payment_receipt_due($row)) {
-            mirza_card_receipt_prompt_apply_row($row);
+        if (vira_card_payment_receipt_due($row)) {
+            vira_card_receipt_prompt_apply_row($row);
         }
     }
 }
 
 /** مراحل جریان پرداخت که با خروج کاربر باید فاکتور کارت لغو شود */
-function mirza_card_payment_flow_steps(): array
+function vira_card_payment_flow_steps(): array
 {
     return ['get_step_payment', 'card_invoice_pending', 'cart_to_cart_user'];
 }
 
 /** آیا کاربر فاکتور کارت Unpaid یا waiting دارد؟ */
-function mirza_card_user_has_pending(string $userId): bool
+function vira_card_user_has_pending(string $userId): bool
 {
     global $pdo;
 
@@ -1958,14 +2144,14 @@ function mirza_card_user_has_pending(string $userId): bool
 }
 
 /** قبل از ساخت فاکتور جدید — همهٔ فاکتورهای باز کاربر لغو می‌شود */
-function mirza_card_prepare_new_invoice(string $userId): void
+function vira_card_prepare_new_invoice(string $userId): void
 {
-    mirza_card_cancel_unpaid_invoices($userId, false, 'replaced_by_new');
-    mirza_card_expire_abandoned_unpaid();
+    vira_card_cancel_unpaid_invoices($userId, false, 'replaced_by_new');
+    vira_card_expire_abandoned_unpaid();
 }
 
-/** مارکر Mirza legacy — cron «تأیید بدون بررسی» (فقط برای شناسایی در DB) */
-function mirza_card_legacy_unreviewed_autoconfirm_markers(): array
+/** مارکر legacy — cron «تأیید بدون بررسی» (فقط برای شناسایی در DB) */
+function vira_card_legacy_unreviewed_autoconfirm_markers(): array
 {
     return [
         'تایید توسط ربات بدون بررسی',
@@ -1975,7 +2161,7 @@ function mirza_card_legacy_unreviewed_autoconfirm_markers(): array
     ];
 }
 
-function mirza_set_pay_setting_value(string $name, string $value): void
+function vira_set_pay_setting_value(string $name, string $value): void
 {
     global $pdo;
     $existing = select('PaySetting', 'ValuePay', 'NamePay', $name, 'select');
@@ -1990,8 +2176,8 @@ function mirza_set_pay_setting_value(string $name, string $value): void
     $stmt->execute([$name, $value]);
 }
 
-/** خاموش کردن cron قدیمی Mirza — تأیید waiting بدون ادمین (بدون لغو پرداخت) */
-function mirza_disable_legacy_unreviewed_autoconfirm_settings(): void
+/** خاموش کردن cron قدیمی — تأیید waiting بدون ادمین (بدون لغو پرداخت) */
+function vira_disable_legacy_unreviewed_autoconfirm_settings(): void
 {
     global $pdo;
     if (!isset($pdo)) {
@@ -2001,14 +2187,14 @@ function mirza_disable_legacy_unreviewed_autoconfirm_settings(): void
         $stmt = $pdo->prepare('UPDATE setting SET timeauto_not_verify = ? LIMIT 1');
         $stmt->execute(['99999']);
     } catch (Throwable $e) {
-        error_log('mirza_disable_legacy_unreviewed_autoconfirm_settings: ' . $e->getMessage());
+        error_log('vira_disable_legacy_unreviewed_autoconfirm_settings: ' . $e->getMessage());
     }
-    mirza_set_pay_setting_value('card_autoconfirm_mode', 'receipt_only');
+    vira_set_pay_setting_value('card_autoconfirm_mode', 'receipt_only');
 }
 
-function mirza_payment_is_balance_topup_row(array $row): bool
+function vira_payment_is_balance_topup_row(array $row): bool
 {
-    $payload = mirza_card_invoice_payment_payload((string) ($row['id_invoice'] ?? ''));
+    $payload = vira_card_invoice_payment_payload((string) ($row['id_invoice'] ?? ''));
     $parts = explode('|', $payload);
     $type = (string) ($parts[0] ?? '');
     return !in_array($type, ['getconfigafterpay', 'getextenduser', 'getextravolumeuser', 'getextratimeuser'], true);
@@ -2018,7 +2204,7 @@ function mirza_payment_is_balance_topup_row(array $row): bool
  * بازگرداندن پرداخت‌هایی که به‌اشتباه توسط purge قبلی reject شده‌اند — بدون پیام به کاربر.
  * @return array{restored:int}
  */
-function mirza_undo_bad_legacy_reverts(): array
+function vira_undo_bad_legacy_reverts(): array
 {
     global $pdo;
 
@@ -2046,7 +2232,7 @@ function mirza_undo_bad_legacy_reverts(): array
             continue;
         }
 
-        if (mirza_payment_is_balance_topup_row($row) && $price > 0) {
+        if (vira_payment_is_balance_topup_row($row) && $price > 0) {
             $user = select('user', '*', 'id', $userId, 'select', ['cache' => false]);
             if (is_array($user)) {
                 $cashbackPct = (int) getPaySettingValue('chashbackcart', '0');
@@ -2068,7 +2254,7 @@ function mirza_undo_bad_legacy_reverts(): array
 }
 
 /** فقط cron legacy را خاموش می‌کند — هیچ پرداخت/سرویسی لغو نمی‌شود و پیامی ارسال نمی‌شود */
-function mirza_ensure_legacy_unreviewed_autoconfirm_removed(): void
+function vira_ensure_legacy_unreviewed_autoconfirm_removed(): void
 {
     static $done = false;
     if ($done) {
@@ -2076,19 +2262,19 @@ function mirza_ensure_legacy_unreviewed_autoconfirm_removed(): void
     }
     $done = true;
 
-    mirza_disable_legacy_unreviewed_autoconfirm_settings();
+    vira_disable_legacy_unreviewed_autoconfirm_settings();
 
     if (getPaySettingValue('legacy_bad_revert_undone', '0') === '1') {
         return;
     }
 
-    $stats = mirza_undo_bad_legacy_reverts();
-    mirza_set_pay_setting_value('legacy_bad_revert_undone', '1');
+    $stats = vira_undo_bad_legacy_reverts();
+    vira_set_pay_setting_value('legacy_bad_revert_undone', '1');
     error_log('[card-legacy] bad reverts undone restored=' . ($stats['restored'] ?? 0));
 }
 
 /** callback_data انتخاب روش پرداخت در get_step_payment */
-function mirza_is_payment_method_datain(?string $datain): bool
+function vira_is_payment_method_datain(?string $datain): bool
 {
     if ($datain === null || $datain === '') {
         return false;
@@ -2104,7 +2290,7 @@ function mirza_is_payment_method_datain(?string $datain): bool
  * لغو فاکتورهای کارت فعال کاربر (Unpaid + waiting) — خروج از منو یا شروع پرداخت جدید
  * @return int تعداد فاکتورهای لغو‌شده
  */
-function mirza_card_cancel_unpaid_invoices(string $userId, bool $notifyUser = false, string $reason = 'user_cancelled'): int
+function vira_card_cancel_unpaid_invoices(string $userId, bool $notifyUser = false, string $reason = 'user_cancelled'): int
 {
     global $pdo;
 
@@ -2153,7 +2339,7 @@ function mirza_card_cancel_unpaid_invoices(string $userId, bool $notifyUser = fa
 }
 
 /** حداکثر سن فاکتور کارت (Unpaid/waiting) قبل از منقضی خودکار — ساعت (پیش‌فرض ۴۸) */
-function mirza_card_pending_expire_hours(): int
+function vira_card_pending_expire_hours(): int
 {
     $hours = (int) getPaySettingValue('cardpendingexpirehours', '48');
     if ($hours < 6) {
@@ -2165,27 +2351,27 @@ function mirza_card_pending_expire_hours(): int
     return $hours;
 }
 
-function mirza_card_pending_expire_sec(): int
+function vira_card_pending_expire_sec(): int
 {
-    return mirza_card_pending_expire_hours() * 3600;
+    return vira_card_pending_expire_hours() * 3600;
 }
 
 /** آیا ردیف Payment_report کارت به کارت از نظر زمان «کهنه» است؟ */
-function mirza_card_payment_row_is_stale(array $row): bool
+function vira_card_payment_row_is_stale(array $row): bool
 {
-    $ts = mirza_parse_payment_report_time($row['at_updated'] ?? null)
-        ?? mirza_parse_payment_report_time($row['time'] ?? null);
+    $ts = vira_parse_payment_report_time($row['at_updated'] ?? null)
+        ?? vira_parse_payment_report_time($row['time'] ?? null);
     if ($ts === null) {
         return true;
     }
-    return $ts <= time() - mirza_card_pending_expire_sec();
+    return $ts <= time() - vira_card_pending_expire_sec();
 }
 
 /**
  * منقضی کردن فاکتورهای کهنه کارت کاربر (Unpaid + waiting) تا خرید جدید مسدود نشود.
  * @return int تعداد منقضی‌شده
  */
-function mirza_card_expire_stale_user_pending(string $userId): int
+function vira_card_expire_stale_user_pending(string $userId): int
 {
     global $pdo;
 
@@ -2209,7 +2395,7 @@ function mirza_card_expire_stale_user_pending(string $userId): int
 
     $expired = 0;
     foreach ($rows as $row) {
-        if (!mirza_card_payment_row_is_stale($row)) {
+        if (!vira_card_payment_row_is_stale($row)) {
             continue;
         }
         $orderId = (string) ($row['id_order'] ?? '');
@@ -2229,7 +2415,7 @@ function mirza_card_expire_stale_user_pending(string $userId): int
 }
 
 /** آیا کاربر از جریان پرداخت خارج شده (منو / برگشت / start)؟ */
-function mirza_card_cancel_if_user_left_payment_flow(
+function vira_card_cancel_if_user_left_payment_flow(
     string $userId,
     array $user,
     ?string $text,
@@ -2239,7 +2425,7 @@ function mirza_card_cancel_if_user_left_payment_flow(
     array $textbotlang
 ): void {
     $step = (string) ($user['step'] ?? '');
-    if (!in_array($step, mirza_card_payment_flow_steps(), true)) {
+    if (!in_array($step, vira_card_payment_flow_steps(), true)) {
         return;
     }
 
@@ -2250,7 +2436,7 @@ function mirza_card_cancel_if_user_left_payment_flow(
     if (preg_match('/^sendresidcart-/', (string) $datain)) {
         return;
     }
-    if ($step === 'get_step_payment' && mirza_is_payment_method_datain($datain)) {
+    if ($step === 'get_step_payment' && vira_is_payment_method_datain($datain)) {
         return;
     }
     if ($step === 'card_invoice_pending' && preg_match('/^sendresidcart-/', (string) $datain)) {
@@ -2276,8 +2462,8 @@ function mirza_card_cancel_if_user_left_payment_flow(
                 continue;
             }
             $matches = ($text === $label);
-            if (!$matches && function_exists('mirza_textbot_matches')) {
-                $matches = mirza_textbot_matches($text, $label);
+            if (!$matches && function_exists('vira_textbot_matches')) {
+                $matches = vira_textbot_matches($text, $label);
             }
             if ($matches) {
                 $left = true;
@@ -2302,7 +2488,7 @@ function mirza_card_cancel_if_user_left_payment_flow(
     }
 
     if ($left) {
-        mirza_card_cancel_unpaid_invoices($userId, $notify);
+        vira_card_cancel_unpaid_invoices($userId, $notify);
     }
 }
 
@@ -2542,7 +2728,7 @@ function outputlink($text)
 }
 
 /** ManagePanel برای DirectPayment از webhook گروه SMS / payment/card.php */
-function mirza_ensure_manage_panel(): ManagePanel
+function vira_ensure_manage_panel(): ManagePanel
 {
     global $ManagePanel;
     if (!isset($ManagePanel) || !($ManagePanel instanceof ManagePanel)) {
@@ -2555,7 +2741,7 @@ function mirza_ensure_manage_panel(): ManagePanel
 }
 
 /** ویرایش پیام فاکتور کاربر (private) + پیام ادمین/webhook در صورت متفاوت بودن */
-function mirza_edit_payment_status_messages(array $Payment_report, string $adminText, $adminKeyboard = null): void
+function vira_edit_payment_status_messages(array $Payment_report, string $adminText, $adminKeyboard = null): void
 {
     global $from_id, $message_id, $update;
 
@@ -2595,7 +2781,7 @@ function mirza_edit_payment_status_messages(array $Payment_report, string $admin
 /**
  * اتمیک: فقط اولین بار وضعیت را paid می‌کند — جلوگیری از پردازش دوباره DirectPayment
  */
-function mirza_payment_try_claim(string $orderId): bool
+function vira_payment_try_claim(string $orderId): bool
 {
     global $pdo;
     if ($orderId === '') {
@@ -2614,7 +2800,7 @@ function mirza_payment_try_claim(string $orderId): bool
 }
 
 /** برگرداندن claim ناموفق DirectPayment به Unpaid */
-function mirza_payment_revert_claim(string $orderId): void
+function vira_payment_revert_claim(string $orderId): void
 {
     global $pdo;
     if ($orderId === '') {
@@ -2631,7 +2817,7 @@ function mirza_payment_revert_claim(string $orderId): void
 function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = false): bool
 {
     global $pdo, $ManagePanel, $textbotlang, $keyboardextendfnished, $keyboard, $Confirm_pay, $from_id, $message_id, $datatextbot;
-    mirza_ensure_manage_panel();
+    vira_ensure_manage_panel();
     $Payment_report = select('Payment_report', '*', 'id_order', $order_id, 'select', ['cache' => false]);
     if (!is_array($Payment_report) || empty($Payment_report['id_order'])) {
         error_log('[DirectPayment] order_missing id=' . $order_id);
@@ -2642,7 +2828,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
             error_log('[DirectPayment] alreadyClaimed stale status=' . ($Payment_report['payment_Status'] ?? 'null') . ' order=' . $order_id);
             return false;
         }
-    } elseif (!mirza_payment_try_claim($order_id)) {
+    } elseif (!vira_payment_try_claim($order_id)) {
         return false;
     }
     $buyreport = select("topicid", "idreport", "report", "buyreport", "select")['idreport'];
@@ -2654,7 +2840,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
     $setting = select("setting", "*");
     $format_price_cart = number_format($Payment_report['price']);
     $Balance_id = select("user", "*", "id", $Payment_report['id_user'], "select");
-    $steppay = explode("|", mirza_card_invoice_payment_payload((string) $Payment_report['id_invoice']));
+    $steppay = explode("|", vira_card_invoice_payment_payload((string) $Payment_report['id_invoice']));
     update("user", "Processing_value", "0", "id", $Balance_id['id']);
     update("user", "Processing_value_one", "0", "id", $Balance_id['id']);
     update("user", "Processing_value_tow", "0", "id", $Balance_id['id']);
@@ -2692,7 +2878,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
             'expire' => $timestamp,
             'data_limit' => $get_invoice['Volume'] * pow(1024, 3),
             'from_id' => $Balance_id['id'],
-            'username' => mirza_user_tg_username($Balance_id),
+            'username' => vira_user_tg_username($Balance_id),
             'type' => 'buy'
         );
         $dataoutput = $ManagePanel->createUser($marzban_list_get['name_panel'], $info_product['code_product'], $username_ac, $datac);
@@ -2707,7 +2893,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
 ✍️ دلیل خطا : 
 {$dataoutput['msg']}
 آیدی کابر : {$Balance_id['id']}
-نام کاربری کاربر : @" . mirza_user_tg_username($Balance_id) . "
+نام کاربری کاربر : @" . vira_user_tg_username($Balance_id) . "
 نام پنل : {$marzban_list_get['name_panel']}";
             if (strlen($setting['Channel_Report']) > 0) {
                 telegram('sendmessage', [
@@ -2761,7 +2947,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
             $stmt->bindParam(':id_user', $Balance_id['id']);
             $stmt->bindParam(':code', $partsdic[1]);
             $stmt->execute();
-            $text_report = "⭕️ یک کاربر با نام کاربری " . '@' . mirza_user_tg_username($Balance_id) . "  و آیدی عددی {$Balance_id['id']} از کد تخفیف {$partsdic[1]} استفاده کرد.";
+            $text_report = "⭕️ یک کاربر با نام کاربری " . '@' . vira_user_tg_username($Balance_id) . "  و آیدی عددی {$Balance_id['id']} از کد تخفیف {$partsdic[1]} استفاده کرد.";
             if (strlen($setting['Channel_Report']) > 0) {
                 telegram('sendmessage', [
                     'chat_id' => $setting['Channel_Report'],
@@ -2867,7 +3053,7 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
 
 $textonebuy
 ▫️آیدی عددی کاربر : <code>{$Balance_id['id']}</code>
-▫️نام کاربری کاربر :" . '@' . mirza_user_tg_username($Balance_id) . "
+▫️نام کاربری کاربر :" . '@' . vira_user_tg_username($Balance_id) . "
 ▫️نام کاربری کانفیگ :$username_ac
 ▫️لوکیشن سرویس : {$get_invoice['Service_location']}
 ▫️زمان خریداری شده :{$get_invoice['Service_time']} روز
@@ -2904,13 +3090,13 @@ $textonebuy
 ▫️لوکیشن سرویس : {$get_invoice['Service_location']}
 👤 شناسه کاربر: <code>{$Balance_id['id']}</code>
 🛒 کد پیگیری پرداخت: {$Payment_report['id_order']}
-⚜️ نام کاربری: " . '@' . mirza_user_tg_username($Balance_id) . "
+⚜️ نام کاربری: " . '@' . vira_user_tg_username($Balance_id) . "
 💎 موجودی قبل خرید  : {$Balance_id['Balance']}
 💸 مبلغ پرداختی: $format_price_cart تومان
 ✍️ توضیحات : {$Payment_report['dec_not_confirmed']}
 
 ";
-            mirza_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
+            vira_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
         }
     } elseif ($steppay[0] == "getextenduser") {
         $balanceformatsell = number_format(select("user", "Balance", "id", $Balance_id['id'], "select")['Balance'], 0);
@@ -2986,7 +3172,7 @@ $textonebuy
             $stmt->bindParam(':id_user', $Balance_id['id']);
             $stmt->bindParam(':code', $partsdic[1]);
             $stmt->execute();
-            $text_report = "⭕️ یک کاربر با نام کاربری " . '@' . mirza_user_tg_username($Balance_id) . "  و آیدی عددی {$Balance_id['id']} از کد تخفیف {$partsdic[1]} استفاده کرد.";
+            $text_report = "⭕️ یک کاربر با نام کاربری " . '@' . vira_user_tg_username($Balance_id) . "  و آیدی عددی {$Balance_id['id']} از کد تخفیف {$partsdic[1]} استفاده کرد.";
             if (strlen($setting['Channel_Report']) > 0) {
                 telegram('sendmessage', [
                     'chat_id' => $setting['Channel_Report'],
@@ -3034,7 +3220,7 @@ $textonebuy
         $text_report = "📣 جزئیات تمدید اکانت در ربات شما ثبت شد .
     
 ▫️آیدی عددی کاربر : <code>{$Balance_id['id']}</code>
-▫️نام کاربری کاربر : @" . mirza_user_tg_username($Balance_id) . "
+▫️نام کاربری کاربر : @" . vira_user_tg_username($Balance_id) . "
 ▫️نام کاربری کانفیگ :$usernamepanel
 ▫️موقعیت سرویس سرویس : {$nameloc['Service_location']}
 ▫️نام محصول : {$prodcut['name_product']}
@@ -3061,13 +3247,13 @@ $textonebuy
 🌏 نام لوکیشن : {$nameloc['Service_location']}
 👤 شناسه کاربر: <code>{$Balance_id['id']}</code>
 🛒 کد پیگیری پرداخت: {$Payment_report['id_order']}
-⚜️ نام کاربری: " . '@' . mirza_user_tg_username($Balance_id) . "
+⚜️ نام کاربری: " . '@' . vira_user_tg_username($Balance_id) . "
 💎 موجودی قبل تمدید  : {$Balance_id['Balance']}
 💸 مبلغ پرداختی: $format_price_cart تومان
 ✍️ توضیحات : {$Payment_report['dec_not_confirmed']}
 
 ";
-            mirza_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
+            vira_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
         }
     } elseif ($steppay[0] == "getextravolumeuser") {
         $steppay = explode("%", $steppay[1]);
@@ -3143,11 +3329,11 @@ $textonebuy
 👤 نام کاربری کانفیگ {$steppay[0]}
 👤 شناسه کاربر: <code>{$Balance_id['id']}</code>
 🛒 کد پیگیری پرداخت: {$Payment_report['id_order']}
-⚜️ نام کاربری: " . '@' . mirza_user_tg_username($Balance_id) . "
+⚜️ نام کاربری: " . '@' . vira_user_tg_username($Balance_id) . "
 💎 موجودی قبل ازافزایش موجودی : {$Balance_id['Balance']}
 💸 مبلغ پرداختی: $format_price_cart تومان
 ";
-            mirza_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
+            vira_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
         }
         update("invoice", "Status", "active", "id_invoice", $nameloc['id_invoice']);
         $text_report = "⭕️ یک کاربر حجم اضافه خریده است
@@ -3243,11 +3429,11 @@ $textonebuy
 👤 نام کاربری کانفیگ {$steppay[0]}
 👤 شناسه کاربر: <code>{$Balance_id['id']}</code>
 🛒 کد پیگیری پرداخت: {$Payment_report['id_order']}
-⚜️ نام کاربری: " . '@' . mirza_user_tg_username($Balance_id) . "
+⚜️ نام کاربری: " . '@' . vira_user_tg_username($Balance_id) . "
 💎 موجودی قبل ازافزایش موجودی : {$Balance_id['Balance']}
 💸 مبلغ پرداختی: $format_price_cart تومان
 ";
-            mirza_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
+            vira_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
         }
         update("invoice", "Status", "active", "id_invoice", $nameloc['id_invoice']);
         $text_report = "⭕️ یک کاربر زمان اضافه خریده است
@@ -3274,11 +3460,11 @@ $textonebuy
         افزایش موجودی.
 👤 شناسه کاربر: <code>{$Balance_id['id']}</code>
 🛒 کد پیگیری پرداخت: {$Payment_report['id_order']}
-⚜️ نام کاربری: " . '@' . mirza_user_tg_username($Balance_id) . "
+⚜️ نام کاربری: " . '@' . vira_user_tg_username($Balance_id) . "
 💸 مبلغ پرداختی: $format_price_cart تومان
 💎 موجودی قبل ازافزایش موجودی : {$Balance_id['Balance']}
 ✍️ توضیحات : {$Payment_report['dec_not_confirmed']}";
-            mirza_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
+            vira_edit_payment_status_messages($Payment_report, $textconfrom, $Confirm_pay);
         }
         sendmessage($Payment_report['id_user'], "💎 کاربر گرامی مبلغ {$Payment_report['price']} تومان به کیف پول شما واریز گردید با تشکراز پرداخت شما.
                 
@@ -3356,7 +3542,7 @@ function addFieldToTable($tableName, $fieldName, $defaultValue = null, $datatype
 }
 
 /** Auto-migrate user.lang (per-user language — ViraNaut 3.0+). */
-function mirza_ensure_user_lang_column(): void
+function vira_ensure_user_lang_column(): void
 {
     static $done = false;
     if ($done) {
@@ -3376,12 +3562,12 @@ function mirza_ensure_user_lang_column(): void
             $pdo->exec("ALTER TABLE `user` ADD `lang` VARCHAR(5) NULL DEFAULT 'fa'");
         }
     } catch (Throwable $e) {
-        error_log('mirza_ensure_user_lang_column: ' . $e->getMessage());
+        error_log('vira_ensure_user_lang_column: ' . $e->getMessage());
     }
 }
 
 /** Auto-migrate marzban_panel columns (silent — safe on every webhook). */
-function mirza_ensure_marzban_panel_columns()
+function vira_ensure_marzban_panel_columns()
 {
     static $done = false;
     if ($done) {
@@ -3401,7 +3587,12 @@ function mirza_ensure_marzban_panel_columns()
             $pdo->exec('ALTER TABLE marzban_panel ADD xui_api_token TEXT NULL');
         }
     } catch (Exception $e) {
-        error_log('mirza_ensure_marzban_panel_columns: ' . $e->getMessage());
+        error_log('vira_ensure_marzban_panel_columns: ' . $e->getMessage());
+    }
+    try {
+        $pdo->exec("UPDATE marzban_panel SET type = 'vira_agent' WHERE type = 'mirza_agent'");
+    } catch (Exception $e) {
+        error_log('vira_ensure_marzban_panel_columns type migrate: ' . $e->getMessage());
     }
 }
 
@@ -3426,7 +3617,7 @@ function outtypepanel($typepanel, $message)
         sendmessage($from_id, $message, $optionibsng, 'HTML');
     } elseif ($typepanel == "mikrotik") {
         sendmessage($from_id, $message, $option_mikrotik, 'HTML');
-    } elseif (in_array($typepanel, ['mirza_agent', 'ilan', 'pasarguard'], true)) {
+    } elseif (in_array($typepanel, ['vira_agent', 'ilan', 'pasarguard'], true)) {
         sendmessage($from_id, $message, $optionMarzban, 'HTML');
     }
 }
@@ -3479,7 +3670,7 @@ function addBackgroundImage($urlimage, $qrCodeResult, $backgroundPath)
     imagedestroy($backgroundImage);
 }
 
-function mirza_client_ip_for_telegram_check()
+function vira_client_ip_for_telegram_check()
 {
     $candidates = [];
     foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'] as $key) {
@@ -3508,7 +3699,7 @@ function mirza_client_ip_for_telegram_check()
     return '';
 }
 
-function mirza_ip_in_telegram_ranges(string $ip): bool
+function vira_ip_in_telegram_ranges(string $ip): bool
 {
     if ($ip === '' || !filter_var($ip, FILTER_VALIDATE_IP)) {
         return false;
@@ -3548,7 +3739,7 @@ function checktelegramip()
         }
     }
     foreach ($candidates as $ip) {
-        if (mirza_ip_in_telegram_ranges($ip)) {
+        if (vira_ip_in_telegram_ranges($ip)) {
             return true;
         }
     }
@@ -3785,12 +3976,12 @@ function publickey()
     ];
 }
 /** Map legacy 0.1.5 textbotlang keys onto 0.1.7 text.json camelCase structure. */
-function mirza_textbotlang_normalize(string $s): string
+function vira_textbotlang_normalize(string $s): string
 {
     return strtolower(preg_replace('/[^a-z0-9]/', '', $s));
 }
 
-function mirza_textbotlang_pascal_segments(string $key): string
+function vira_textbotlang_pascal_segments(string $key): string
 {
     $parts = preg_split('/(?=[A-Z])/', $key, -1, PREG_SPLIT_NO_EMPTY);
     if (!$parts) {
@@ -3799,7 +3990,7 @@ function mirza_textbotlang_pascal_segments(string $key): string
     return implode('', array_map(static fn($p) => ucfirst(strtolower($p)), $parts));
 }
 
-function mirza_textbotlang_legacy_key_variants(string $key): array
+function vira_textbotlang_legacy_key_variants(string $key): array
 {
     $variants = [];
     $lower = strtolower($key);
@@ -3810,7 +4001,7 @@ function mirza_textbotlang_legacy_key_variants(string $key): array
     if ($pascalLower !== $key) {
         $variants[] = $pascalLower;
     }
-    $pascalSegments = mirza_textbotlang_pascal_segments($key);
+    $pascalSegments = vira_textbotlang_pascal_segments($key);
     if ($pascalSegments !== $key) {
         $variants[] = $pascalSegments;
     }
@@ -3837,14 +4028,14 @@ function mirza_textbotlang_legacy_key_variants(string $key): array
     return array_values(array_unique($variants));
 }
 
-function mirza_textbotlang_legacy_section_variants(string $key): array
+function vira_textbotlang_legacy_section_variants(string $key): array
 {
     $variants = [];
     $lower = strtolower($key);
     if ($lower !== $key) {
         $variants[] = $lower;
     }
-    $pascal = mirza_textbotlang_pascal_segments($key);
+    $pascal = vira_textbotlang_pascal_segments($key);
     if ($pascal !== $key) {
         $variants[] = $pascal;
     }
@@ -3863,7 +4054,7 @@ function mirza_textbotlang_legacy_section_variants(string $key): array
     return array_values(array_unique($variants));
 }
 
-function mirza_textbotlang_set_nested(array &$root, array $segments, $value): void
+function vira_textbotlang_set_nested(array &$root, array $segments, $value): void
 {
     if ($segments === []) {
         return;
@@ -3881,7 +4072,7 @@ function mirza_textbotlang_set_nested(array &$root, array $segments, $value): vo
     }
 }
 
-function mirza_textbotlang_collect_string_leaves(array $node, array $prefix = []): array
+function vira_textbotlang_collect_string_leaves(array $node, array $prefix = []): array
 {
     $out = [];
     foreach ($node as $key => $value) {
@@ -3894,14 +4085,14 @@ function mirza_textbotlang_collect_string_leaves(array $node, array $prefix = []
                     }
                 }
             } else {
-                $out += mirza_textbotlang_collect_string_leaves($value, array_merge($prefix, [(string) $key]));
+                $out += vira_textbotlang_collect_string_leaves($value, array_merge($prefix, [(string) $key]));
             }
         }
     }
     return $out;
 }
 
-function mirza_textbotlang_explicit_typo_aliases(): array
+function vira_textbotlang_explicit_typo_aliases(): array
 {
     return [
         'users.sell.Service-select-first' => 'users.sell.serviceSelectFirst',
@@ -3996,7 +4187,7 @@ function mirza_textbotlang_explicit_typo_aliases(): array
     ];
 }
 
-function mirza_textbotlang_resolve_dot_path(array $lang, string $path): ?string
+function vira_textbotlang_resolve_dot_path(array $lang, string $path): ?string
 {
     $segments = explode('.', $path);
     $cur = $lang;
@@ -4009,29 +4200,29 @@ function mirza_textbotlang_resolve_dot_path(array $lang, string $path): ?string
     return is_string($cur) ? $cur : null;
 }
 
-function mirza_textbotlang_apply_explicit_aliases(array &$lang): void
+function vira_textbotlang_apply_explicit_aliases(array &$lang): void
 {
-    foreach (mirza_textbotlang_explicit_typo_aliases() as $legacyPath => $canonicalPath) {
-        $value = mirza_textbotlang_resolve_dot_path($lang, $canonicalPath);
+    foreach (vira_textbotlang_explicit_typo_aliases() as $legacyPath => $canonicalPath) {
+        $value = vira_textbotlang_resolve_dot_path($lang, $canonicalPath);
         if ($value === null) {
             continue;
         }
-        mirza_textbotlang_set_nested($lang, explode('.', $legacyPath), $value);
+        vira_textbotlang_set_nested($lang, explode('.', $legacyPath), $value);
     }
 }
 
-function mirza_textbotlang_apply_legacy_aliases(array &$tree): void
+function vira_textbotlang_apply_legacy_aliases(array &$tree): void
 {
     foreach ($tree as $key => $value) {
         if (is_array($value)) {
-            mirza_textbotlang_apply_legacy_aliases($tree[$key]);
-            foreach (mirza_textbotlang_legacy_section_variants((string) $key) as $alias) {
+            vira_textbotlang_apply_legacy_aliases($tree[$key]);
+            foreach (vira_textbotlang_legacy_section_variants((string) $key) as $alias) {
                 if (!array_key_exists($alias, $tree)) {
                     $tree[$alias] = $tree[$key];
                 }
             }
         } else {
-            foreach (mirza_textbotlang_legacy_key_variants((string) $key) as $alias) {
+            foreach (vira_textbotlang_legacy_key_variants((string) $key) as $alias) {
                 if (!array_key_exists($alias, $tree)) {
                     $tree[$alias] = $value;
                 }
@@ -4040,54 +4231,54 @@ function mirza_textbotlang_apply_legacy_aliases(array &$tree): void
     }
 }
 
-function mirza_textbotlang_expand_path_aliases(array &$lang): void
+function vira_textbotlang_expand_path_aliases(array &$lang): void
 {
     foreach (['users', 'Admin', 'textbot', 'keyboard'] as $branch) {
         if (!isset($lang[$branch]) || !is_array($lang[$branch])) {
             continue;
         }
-        mirza_textbotlang_apply_legacy_aliases($lang[$branch]);
-        $leaves = mirza_textbotlang_collect_string_leaves($lang[$branch], [$branch]);
+        vira_textbotlang_apply_legacy_aliases($lang[$branch]);
+        $leaves = vira_textbotlang_collect_string_leaves($lang[$branch], [$branch]);
         foreach ($leaves as $leafInfo) {
             [$value, $segments] = $leafInfo;
             $count = count($segments);
             for ($i = 1; $i < $count; $i++) {
-                foreach (mirza_textbotlang_legacy_section_variants($segments[$i]) as $variant) {
+                foreach (vira_textbotlang_legacy_section_variants($segments[$i]) as $variant) {
                     if ($variant === $segments[$i]) {
                         continue;
                     }
                     $alt = $segments;
                     $alt[$i] = $variant;
-                    mirza_textbotlang_set_nested($lang, $alt, $value);
+                    vira_textbotlang_set_nested($lang, $alt, $value);
                 }
             }
             $leafKey = $segments[$count - 1];
-            foreach (mirza_textbotlang_legacy_key_variants($leafKey) as $variant) {
+            foreach (vira_textbotlang_legacy_key_variants($leafKey) as $variant) {
                 if ($variant === $leafKey) {
                     continue;
                 }
                 $alt = $segments;
                 $alt[$count - 1] = $variant;
-                mirza_textbotlang_set_nested($lang, $alt, $value);
+                vira_textbotlang_set_nested($lang, $alt, $value);
             }
         }
     }
 }
 
-function mirza_apply_textbotlang_compat(array &$lang)
+function vira_apply_textbotlang_compat(array &$lang)
 {
-    mirza_textbotlang_apply_legacy_aliases($lang);
-    mirza_textbotlang_expand_path_aliases($lang);
+    vira_textbotlang_apply_legacy_aliases($lang);
+    vira_textbotlang_expand_path_aliases($lang);
 
     if (isset($lang['users']['status']) && is_array($lang['users']['status'])) {
         $stateusExtra = (isset($lang['users']['stateus']) && is_array($lang['users']['stateus']))
             ? $lang['users']['stateus']
             : [];
         $lang['users']['stateus'] = array_merge($lang['users']['status'], $stateusExtra);
-        mirza_textbotlang_apply_legacy_aliases($lang['users']['stateus']);
+        vira_textbotlang_apply_legacy_aliases($lang['users']['stateus']);
     }
 
-    mirza_textbotlang_apply_explicit_aliases($lang);
+    vira_textbotlang_apply_explicit_aliases($lang);
 
     if (!isset($lang['Admin']) || !is_array($lang['Admin'])) {
         $lang['Admin'] = $lang['Admin'] ?? [];
@@ -4146,25 +4337,26 @@ function mirza_apply_textbotlang_compat(array &$lang)
     }
     $panelDefaults = [
         'configInvalidRequest' => 'درخواست نامعتبر.',
-        'loginPanelTitle' => 'ورود — پنل مدیریت میرزا',
-        'loginHeading' => 'پنل مدیریت میرزا',
-        'loginSubtitle' => 'برای حمایت لطفا به',
-        'loginUsernameLabel' => 'پروژه',
-        'loginUsernamePlaceholder' => 'استار بدهید',
-        'loginPasswordLabel' => 'پنل مدیریت میرزا',
-        'loginPasswordPlaceholder' => '· نسخه میرزا',
+        'loginPanelTitle' => 'ورود — پنل مدیریت ویرا',
+        'loginHeading' => 'پنل مدیریت ویرا',
+        'loginSubtitle' => 'برای مدیریت ربات وارد شوید',
+        'loginUsernameLabel' => 'نام کاربری',
+        'loginUsernamePlaceholder' => 'admin',
+        'loginPasswordLabel' => 'رمز عبور',
+        'loginPasswordPlaceholder' => '••••••••',
         'loginButton' => 'ورود به پنل',
-        'loginRememberMe' => 'برای مدیریت ربات، اطلاعات حساب خود را وارد کنید.',
+        'loginRememberMe' => 'مرا به خاطر بسپار',
         'loginEnterCredentials' => 'نام کاربری و رمز عبور را وارد کنید.',
         'loginTooManyAttempts' => 'تعداد تلاش‌های ناموفق بیش از حد. لطفاً ۱۵ دقیقه صبر کنید.',
         'loginWrongCredentials' => 'نام کاربری یا رمز عبور اشتباه است.',
         'loginWelcomeBack' => 'خوش آمدید، ',
-        'loginFooter' => 'نام کاربری',
-        'loginErrorTitle' => 'رمز عبور',
-        'loginShowPassword' => 'ورود به پنل',
-        'loginHidePassword' => 'دسترسی به این پنل فقط برای مدیران مجاز است.',
-        'layoutBrandName' => 'پنل میرزا',
+        'loginFooter' => 'ViraNaut',
+        'loginErrorTitle' => 'خطا',
+        'loginShowPassword' => 'نمایش رمز',
+        'loginHidePassword' => 'مخفی کردن رمز',
+        'layoutBrandName' => 'ویرا · پنل',
         'layoutDefaultAdminName' => 'مدیر',
+        'layoutPageTitleSuffix' => 'ویرا',
         'dashboardTitle' => 'داشبورد',
     ];
     foreach ($panelDefaults as $key => $value) {
@@ -4172,9 +4364,12 @@ function mirza_apply_textbotlang_compat(array &$lang)
             $lang['panel'][$key] = $value;
         }
     }
+
+    vira_textbotlang_append_idfindeer_hints($lang);
+    vira_apply_viranaut_branding($lang);
 }
 
-function mirza_language_path_is_textjson(?string $path_dir): bool
+function vira_language_path_is_textjson(?string $path_dir): bool
 {
     if ($path_dir === null || $path_dir === '') {
         return false;
@@ -4183,22 +4378,13 @@ function mirza_language_path_is_textjson(?string $path_dir): bool
     return str_ends_with($norm, 'text.json') || str_ends_with($norm, '/text.json');
 }
 
-function mirza_resolve_user_lang(string $fallback = 'fa'): string
+function vira_resolve_user_lang(string $fallback = 'fa'): string
 {
-    global $from_id;
-    $allowed = ['fa', 'en', 'ar', 'ru', 'zh'];
-    $lang = $fallback;
-    if (!empty($from_id)) {
-        $row = select('user', 'lang', 'id', $from_id, 'select');
-        if (is_array($row) && !empty($row['lang']) && in_array($row['lang'], $allowed, true)) {
-            $lang = $row['lang'];
-        }
-    }
-    return in_array($lang, $allowed, true) ? $lang : 'fa';
+    return 'fa';
 }
 
 /** زبان UI ربات — برای ادمین‌ها همیشه فارسی (جلوگیری از مخلوط روسی/انگلیسی در پنل). */
-function mirza_is_bot_admin($userId): bool
+function vira_is_bot_admin($userId): bool
 {
     $userId = (string) $userId;
     if ($userId === '' || $userId === '0') {
@@ -4212,16 +4398,12 @@ function mirza_is_bot_admin($userId): bool
     return in_array($userId, $adminIdCache, true);
 }
 
-function mirza_resolve_bot_ui_lang(string $fallback = 'fa'): string
+function vira_resolve_bot_ui_lang(string $fallback = 'fa'): string
 {
-    global $from_id;
-    if (mirza_is_bot_admin((string) ($from_id ?? ''))) {
-        return 'fa';
-    }
-    return mirza_resolve_user_lang($fallback);
+    return 'fa';
 }
 
-function mirza_online_status_label($onlineAt, array $textbotlang): string
+function vira_online_status_label($onlineAt, array $textbotlang): string
 {
     $idx = $textbotlang['extracted']['index_php'] ?? [];
     if ($onlineAt === 'online') {
@@ -4243,7 +4425,7 @@ function mirza_online_status_label($onlineAt, array $textbotlang): string
 }
 
 /** برچسب وضعیت سرویس پنل — با fallback برای status نامعتبر */
-function mirza_service_status_label(?string $status, array $textbotlang): string
+function vira_service_status_label(?string $status, array $textbotlang): string
 {
     $unknown = (string) ($textbotlang['users']['stateus']['Unknown'] ?? 'نامشخص');
     if ($status === null || $status === '') {
@@ -4261,7 +4443,7 @@ function mirza_service_status_label(?string $status, array $textbotlang): string
     return (string) ($map[$status] ?? $unknown);
 }
 
-function mirza_xray_state_label($state, array $textbotlang): string
+function vira_xray_state_label($state, array $textbotlang): string
 {
     $stateKey = strtolower(trim((string) $state));
     $panels = $textbotlang['extracted']['panels_php'] ?? [];
@@ -4285,7 +4467,7 @@ function mirza_xray_state_label($state, array $textbotlang): string
 /**
  * Read per-agent value from JSON column (maintime, maxtime, mainvolume, …).
  */
-function mirza_json_agent_scalar($jsonValue, string $agent, $default = 0)
+function vira_json_agent_scalar($jsonValue, string $agent, $default = 0)
 {
     if ($jsonValue === null || $jsonValue === '') {
         return $default;
@@ -4308,38 +4490,186 @@ function mirza_json_agent_scalar($jsonValue, string $agent, $default = 0)
     return $first !== false ? $first : $default;
 }
 
-function mirza_default_keyboardmain_json(): string
+function vira_default_keyboardmain_json(): string
 {
     return '{"keyboard":[[{"text":"text_sell"},{"text":"text_extend"}],[{"text":"text_usertest"},{"text":"text_wheel_luck"}],[{"text":"text_Purchased_services"},{"text":"accountwallet"}],[{"text":"text_affiliates"},{"text":"text_Tariff_list"}],[{"text":"text_support"},{"text":"text_help"}]]}';
 }
 
-/** setting خالی یا keyboardmain خراب → دیگر 500 ندهد؛ در صورت امکان در DB اصلاح می‌کند */
-function mirza_ensure_setting_ready(): array
+/** مقادیر پیش‌فرض جدول setting (مطابق table.php) */
+function vira_setting_defaults(): array
 {
+    return [
+        'Bot_Status' => 'botstatuson',
+        'roll_Status' => 'rolleon',
+        'get_number' => 'offAuthenticationphone',
+        'limit_usertest_all' => '1',
+        'iran_number' => 'offAuthenticationiran',
+        'NotUser' => 'offnotuser',
+        'Channel_Report' => '',
+        'affiliatesstatus' => 'offaffiliates',
+        'affiliatespercentage' => '0',
+        'removedayc' => '0',
+        'showcard' => '1',
+        'statuscategory' => 'offcategory',
+        'numbercount' => '0',
+        'statusnewuser' => 'onnewuser',
+        'statusagentrequest' => 'onrequestagent',
+        'volumewarn' => '2',
+        'inlinebtnmain' => 'offinline',
+        'verifystart' => 'offverify',
+        'id_support' => '',
+        'statussupportpv' => 'offpvsupport',
+        'statusnamecustom' => 'offnamecustom',
+        'statuscategorygenral' => 'offcategorys',
+        'agentreqprice' => '0',
+        'cronvolumere' => '5',
+        'bulkbuy' => 'onbulk',
+        'on_hold_day' => '4',
+        'verifybucodeuser' => 'offverify',
+        'scorestatus' => '0',
+        'Lottery_prize' => '[]',
+        'wheelـluck' => '0',
+        'wheelـluck_price' => '0',
+        'iplogin' => '0',
+        'daywarn' => '2',
+        'categoryhelp' => '0',
+        'linkappstatus' => '0',
+        'languageen' => '0',
+        'languageru' => '0',
+        'wheelagent' => '1',
+        'Lotteryagent' => '1',
+        'statusfirstwheel' => '0',
+        'statuslimitchangeloc' => '0',
+        'limitnumber' => '{}',
+        'Debtsettlement' => '1',
+        'Dice' => '0',
+        'statusnoteforf' => '1',
+        'statuscopycart' => '0',
+        'timeauto_not_verify' => '4',
+        'status_keyboard_config' => '1',
+        'unknowncommand_reply' => '1',
+        'cron_status' => json_encode([
+            'day' => true,
+            'volume' => true,
+            'remove' => false,
+            'remove_volume' => false,
+            'test' => false,
+            'on_hold' => false,
+            'uptime_node' => false,
+            'uptime_panel' => false,
+        ], JSON_UNESCAPED_UNICODE),
+        'keyboardmain' => vira_default_keyboardmain_json(),
+    ];
+}
+
+/** برچسب امن از map وضعیت — جلوگیری از null در دکمهٔ تلگرام */
+function vira_setting_pick(array $map, $key, $fallbackKey = null): string
+{
+    if (is_bool($key) && array_key_exists($key, $map, true)) {
+        return (string) $map[$key];
+    }
+    $key = (string) ($key ?? '');
+    if ($key !== '' && array_key_exists($key, $map)) {
+        return (string) $map[$key];
+    }
+    if ($fallbackKey !== null && array_key_exists($fallbackKey, $map)) {
+        return (string) $map[$fallbackKey];
+    }
+    foreach (['0', 'offverify', 'offnotuser', 'botstatusoff', 'offinline', false] as $fb) {
+        if (array_key_exists($fb, $map)) {
+            return (string) $map[$fb];
+        }
+    }
+    $first = reset($map);
+    return $first !== false ? (string) $first : '—';
+}
+
+function vira_setting_cron_status(array $setting): array
+{
+    $defaults = [
+        'day' => true,
+        'volume' => true,
+        'remove' => false,
+        'remove_volume' => false,
+        'test' => false,
+        'on_hold' => false,
+        'uptime_node' => false,
+        'uptime_panel' => false,
+    ];
+    $raw = $setting['cron_status'] ?? '';
+    if (is_array($raw)) {
+        return array_merge($defaults, $raw);
+    }
+    $dec = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
+    return is_array($dec) ? array_merge($defaults, $dec) : $defaults;
+}
+
+function vira_setting_merge_defaults(array $row): array
+{
+    $merged = array_merge(vira_setting_defaults(), $row);
+    foreach (vira_setting_defaults() as $key => $default) {
+        if (!array_key_exists($key, $merged) || $merged[$key] === null || $merged[$key] === '') {
+            $merged[$key] = $default;
+        }
+    }
+    return $merged;
+}
+
+function vira_setting_try_seed(): bool
+{
+    global $pdo;
+    static $attempted = false;
+    if ($attempted) {
+        return false;
+    }
+    $attempted = true;
+    try {
+        $count = (int) $pdo->query('SELECT COUNT(*) FROM setting')->fetchColumn();
+        if ($count > 0) {
+            return false;
+        }
+        $defaults = vira_setting_defaults();
+        $cols = array_keys($defaults);
+        $colList = implode(',', array_map(static fn($c) => "`$c`", $cols));
+        $placeholders = implode(',', array_fill(0, count($cols), '?'));
+        $stmt = $pdo->prepare("INSERT INTO setting ($colList) VALUES ($placeholders)");
+        $stmt->execute(array_values($defaults));
+        clearSelectCache('setting');
+        error_log('[viranaut] setting row seeded automatically');
+        return true;
+    } catch (Throwable $e) {
+        error_log('[viranaut] setting auto-seed failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/** setting خالی یا keyboardmain خراب → دیگر 500 ندهد؛ در صورت امکان در DB اصلاح می‌کند */
+function vira_ensure_setting_ready(): array
+{
+    $defaults = vira_setting_defaults();
     $row = select('setting', '*', null, null, 'select', ['cache' => false]);
     if (!is_array($row)) {
         error_log('[viranaut] setting table has no row — run: cd BOT_DIR && php table.php');
-        return [
-            'keyboardmain' => mirza_default_keyboardmain_json(),
-            'inlinebtnmain' => 'offinline',
-            'Bot_Status' => 'botstatuson',
-            'statusagentrequest' => 'onrequestagent',
-            'statusnewuser' => 'onnewuser',
-            'statusnoteforf' => '1',
-        ];
+        if (vira_setting_try_seed()) {
+            $row = select('setting', '*', null, null, 'select', ['cache' => false]);
+        }
+        if (!is_array($row)) {
+            return $defaults;
+        }
     }
+    $row = vira_setting_merge_defaults($row);
     $km = trim((string) ($row['keyboardmain'] ?? ''));
     if ($km === '' || !is_array(json_decode($km, true))) {
-        $km = mirza_default_keyboardmain_json();
+        $km = vira_default_keyboardmain_json();
         update('setting', 'keyboardmain', $km, null, null);
         $row['keyboardmain'] = $km;
     }
     return $row;
 }
 
-function mirza_handle_bot_start_command($from_id, array $datatextbot, $keyboard): void
+function vira_handle_bot_start_command($from_id, array $datatextbot, $keyboard): void
 {
-    mirza_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
+    vira_send_datatextbot_message($from_id, 'text_start', $datatextbot['text_start'], $keyboard, 'html');
     update('user', 'Processing_value', '0', 'id', $from_id);
     update('user', 'Processing_value_one', '0', 'id', $from_id);
     update('user', 'Processing_value_tow', '0', 'id', $from_id);
@@ -4347,13 +4677,13 @@ function mirza_handle_bot_start_command($from_id, array $datatextbot, $keyboard)
     step('home', $from_id, ['skip_card_cancel' => true]);
 }
 
-function mirza_admin_allows_user_lookup(string $step): bool
+function vira_admin_allows_user_lookup(string $step): bool
 {
     $step = trim($step);
     return in_array($step, ['', 'home', 'none'], true);
 }
 
-function mirza_admin_user_flow_step(string $step): bool
+function vira_admin_user_flow_step(string $step): bool
 {
     static $steps = [
         'get_number', 'getusernameinfo', 'createusertest', 'getuseragnetservice',
@@ -4369,74 +4699,62 @@ function mirza_admin_user_flow_step(string $step): bool
     return in_array(trim($step), $steps, true);
 }
 
-function mirza_admin_run_exclusive(string $step): bool
+function vira_admin_run_exclusive(string $step): bool
 {
     $step = trim($step);
-    if (mirza_admin_allows_user_lookup($step) || mirza_admin_user_flow_step($step)) {
+    if (vira_admin_allows_user_lookup($step) || vira_admin_user_flow_step($step)) {
         return false;
     }
     return true;
 }
 
-function mirza_languagechange_from_json(?string $path_dir = null): array
+function vira_languagechange_from_json(?string $path_dir = null): array
 {
     if ($path_dir === null || $path_dir === '') {
         $path_dir = __DIR__ . '/text.json';
     } elseif (!str_contains(str_replace('\\', '/', $path_dir), '/')) {
         $path_dir = __DIR__ . '/' . ltrim($path_dir, '/');
     }
-    $setting = select('setting', '*');
     $raw = @file_get_contents($path_dir);
     $all = is_string($raw) ? json_decode($raw, true) : null;
     if (!is_array($all)) {
         error_log('languagechange: invalid or missing text file: ' . (string) $path_dir);
         $all = ['fa' => []];
     }
-    if (intval($setting['languageen'] ?? 0) == 1) {
-        $lang = $all['en'] ?? $all['fa'] ?? [];
-    } elseif (intval($setting['languageru'] ?? 0) == 1) {
-        $lang = $all['ru'] ?? $all['fa'] ?? [];
-    } else {
-        $lang = $all['fa'] ?? $all['en'] ?? [];
-    }
+    $lang = $all['fa'] ?? [];
     if (!is_array($lang)) {
         $lang = [];
     }
-    mirza_apply_textbotlang_compat($lang);
+    vira_apply_textbotlang_compat($lang);
     return $lang;
 }
 
 function languagechange($path_dir = null, string $lang_override = '')
 {
-    if (mirza_language_path_is_textjson($path_dir)) {
-        return mirza_languagechange_from_json($path_dir);
+    if (vira_language_path_is_textjson($path_dir)) {
+        return vira_languagechange_from_json($path_dir);
     }
-    $allowed = ['fa', 'en', 'ar', 'ru', 'zh'];
-    $langCode = $lang_override !== '' ? $lang_override : mirza_resolve_user_lang('fa');
-    if (!in_array($langCode, $allowed, true)) {
-        $langCode = 'fa';
-    }
-    $langFile = __DIR__ . '/lang/' . $langCode . '.php';
+    $langFile = __DIR__ . '/lang/fa.php';
     if (is_file($langFile)) {
         $lang = require $langFile;
         if (is_array($lang)) {
-            mirza_apply_textbotlang_compat($lang);
+            vira_apply_textbotlang_compat($lang);
             return $lang;
         }
     }
-    return mirza_languagechange_from_json(__DIR__ . '/text.json');
+    return vira_languagechange_from_json(__DIR__ . '/text.json');
 }
 
-function mirza_card_autoconfirm_mode(): string
+function vira_card_autoconfirm_mode(): string
 {
     $mode = getPaySettingValue('card_autoconfirm_mode', 'both');
     return in_array($mode, ['receipt_only', 'auto_only', 'both'], true) ? $mode : 'both';
 }
 
 /**
- * TRON/TRC20 offline payment receipt (Mirza Pro 6.7 format).
+ * TRON/TRC20 offline payment receipt (legacy Pro format).
  */
-function mirza_tron_offline_receipt_message(string $orderId, string $wallet, $trxAmount, string $tomanFormatted): string
+function vira_tron_offline_receipt_message(string $orderId, string $wallet, $trxAmount, string $tomanFormatted): string
 {
     $network = getPaySettingValue('offlinearze_tron_network', 'TRC20');
     $coin = getPaySettingValue('offlinearze_tron_coin', 'TRON');
@@ -4467,7 +4785,7 @@ function mirza_tron_offline_receipt_message(string $orderId, string $wallet, $tr
 ✅ در صورت مشکل با پشتیبانی در ارتباط باشید";
 }
 
-function mirza_site_admin_log_request(string $userId, string $message, ?string $photoFileId = null): void
+function vira_site_admin_log_request(string $userId, string $message, ?string $photoFileId = null): void
 {
     global $pdo;
     if (!isset($pdo)) {
@@ -4477,14 +4795,14 @@ function mirza_site_admin_log_request(string $userId, string $message, ?string $
         $stmt = $pdo->prepare('INSERT INTO site_admin_requests (id_user, message, photo_file_id, status) VALUES (?, ?, ?, ?)');
         $stmt->execute([$userId, $message, $photoFileId, 'pending']);
     } catch (Throwable $e) {
-        error_log('mirza_site_admin_log_request: ' . $e->getMessage());
+        error_log('vira_site_admin_log_request: ' . $e->getMessage());
     }
 }
 
 /**
- * When agent hits maxbuy cap, redirect to payment instead of hard stop (Mirza 6.7).
+ * When agent hits maxbuy cap, redirect to payment instead of hard stop (legacy 6.7).
  */
-function mirza_maxbuyagent_payment_redirect($from_id, array $user, $price_deduct, $step_payment, string $processing_tow = 'maxbuy_topup'): bool
+function vira_maxbuyagent_payment_redirect($from_id, array $user, $price_deduct, $step_payment, string $processing_tow = 'maxbuy_topup'): bool
 {
     global $textbotlang;
     if (intval($user['maxbuyagent']) == 0 || ($user['agent'] ?? '') !== 'n2') {
@@ -4508,7 +4826,7 @@ function generateAuthStr($length = 10)
     $characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     return substr(str_shuffle(str_repeat($characters, ceil($length / strlen($characters)))), 0, $length);
 }
-function mirza_filter_subscription_links($links)
+function vira_filter_subscription_links($links)
 {
     if (!is_array($links)) {
         return array();

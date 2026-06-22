@@ -20,7 +20,7 @@ function check(bool $ok, string $label): void
 
 $required = [
     'version', 'text.json', 'function.php', 'index.php', 'admin.php', 'panels.php',
-    'mirza_agent.php', 'lang/fa.php', 'lang/en.php', 'lang/ru.php', 'lang/zh.php',
+    'vira_agent.php', 'lang/fa.php',
     'cronbot/croncard.php', 'cronbot/card_receipt_prompt.php',
     'migrations/viranaut_migrate.sql', 'migrations/viranaut_migrate_2_1_0.sql',
     'migrations/viranaut_migrate_3_0_0.sql', 'migrations/viranaut_migrate_3_1_0.sql',
@@ -39,15 +39,15 @@ foreach ($required as $rel) {
 }
 
 check(is_readable($root . '/lang/fa.php'), 'lang/fa.php not readable');
-check(strpos(file_get_contents($root . '/panels.php'), 'mirza_agent') !== false, 'panels.php missing mirza_agent');
+check(strpos(file_get_contents($root . '/panels.php'), 'vira_agent') !== false, 'panels.php missing vira_agent');
 check(strpos(file_get_contents($root . '/panels.php'), "case 'ilan'") !== false, 'panels.php missing ilan hooks');
-check(strpos(file_get_contents($root . '/function.php'), 'mirza_languagechange_from_json') !== false, 'unified languagechange missing');
+check(strpos(file_get_contents($root . '/function.php'), 'vira_languagechange_from_json') !== false, 'unified languagechange missing');
 check(strpos(file_get_contents($root . '/cronbot/croncard.php'), 'card_receipt_prompt') !== false, 'croncard receipt prompt missing');
 check(strpos(file_get_contents($root . '/keyboard.php'), 'agent-panel') !== false, 'keyboard missing agent-panel link');
 check(strpos(file_get_contents($root . '/inc/agent_ops.php'), 'agent_buy_service') !== false, 'agent_ops missing');
 check(strpos(file_get_contents($root . '/vpnbot/update/keyboard.php'), 'پنل وب نمایندگی') !== false, 'vpnbot missing web panel');
 check(is_file($root . '/agent-panel/buy.php'), 'agent-panel buy.php missing');
-check(strpos(file_get_contents($root . '/index.php'), 'mirza_site_admin_log_request') !== false, 'site-admin wiring missing');
+check(strpos(file_get_contents($root . '/index.php'), 'vira_site_admin_log_request') !== false, 'site-admin wiring missing');
 
 $ver = trim((string) file_get_contents($root . '/version'));
 check($ver !== '', 'version file empty');

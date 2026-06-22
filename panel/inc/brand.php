@@ -1,14 +1,14 @@
 <?php
 /**
- * ViraNaut (ویرانات) — برند مرکزی پنل و ربات
+ * ViraNaut (ویرا) — برند مرکزی پنل و ربات
  */
 define('VIRA_BRAND_NAME', 'ViraNaut');
-define('VIRA_BRAND_NAME_FA', 'ویرانات');
+define('VIRA_BRAND_NAME_FA', 'ویرا');
 define('VIRA_VERSION', '1.9');
 define('VIRA_VERSION_LABEL', '1.9 ViraNaut');
 define('VIRA_MINIAPP_VERSION', '2.0.1');
-define('VIRA_PANEL_TITLE', 'پنل مدیریت ویرانات');
-define('VIRA_PANEL_SHORT', 'ویرانات · پنل');
+define('VIRA_PANEL_TITLE', 'پنل مدیریت ویرا');
+define('VIRA_PANEL_SHORT', 'ویرا · پنل');
 define('VIRA_BRAND_MARK', 'V');
 define('VIRA_GITHUB_URL', 'https://github.com/liamlope/ViraNaut');
 /** لینک گروه پشتیبانی — هنگام deploy عوض کنید (خالی = بدون لینک) */

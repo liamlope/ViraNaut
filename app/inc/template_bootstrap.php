@@ -2,7 +2,7 @@
 
 /** بارگذاری قالب مینی‌اپ — از shopSetting یا پیش‌نمایش ?tpl_preview= */
 
-function mirza_miniapp_resolve_template(): string
+function vira_miniapp_resolve_template(): string
 {
     $allowed = ['midnight', 'aurora', 'emerald', 'sunset', 'ocean'];
     $preview = trim((string) ($_GET['tpl_preview'] ?? ''));
@@ -36,7 +36,7 @@ function mirza_miniapp_resolve_template(): string
 }
 
 /** فقط پیش‌نمایش پنل — نه آدرس اصلی /app/ برای کاربران */
-function mirza_miniapp_is_demo_mode(): bool
+function vira_miniapp_is_demo_mode(): bool
 {
     if (isset($_GET['tpl_preview']) && trim((string) $_GET['tpl_preview']) !== '') {
         return true;

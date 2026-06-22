@@ -36,9 +36,9 @@ function panel_web_stored_inbounds_raw(array $row): string
         if ($raw === '' || $raw === 'null' || $raw === '-') {
             continue;
         }
-        if (function_exists('mirza_xui_parse_id_list')) {
+        if (function_exists('vira_xui_parse_id_list')) {
             require_once __DIR__ . '/../../x-ui_single.php';
-            if (mirza_xui_parse_id_list($raw) !== []) {
+            if (vira_xui_parse_id_list($raw) !== []) {
                 return $raw;
             }
             continue;
@@ -57,9 +57,9 @@ function panel_web_validate_inbounds(string $type, string $raw): ?string
     if ($raw === '' || $raw === '-') {
         return 'حداقل یک اینباند باید انتخاب شود.';
     }
-    if (function_exists('mirza_xui_parse_id_list')) {
+    if (function_exists('vira_xui_parse_id_list')) {
         require_once __DIR__ . '/../../x-ui_single.php';
-        $ids = mirza_xui_parse_id_list($raw);
+        $ids = vira_xui_parse_id_list($raw);
         if ($ids === []) {
             return 'اینباند انتخاب‌شده معتبر نیست.';
         }
@@ -104,9 +104,9 @@ function panel_web_insert_panel(PDO $pdo, string $type, array $data): array
         }
     }
 
-    if (!empty($def['xui']) && function_exists('mirza_normalize_xui_panel_url')) {
+    if (!empty($def['xui']) && function_exists('vira_normalize_xui_panel_url')) {
         require_once __DIR__ . '/../../x-ui_single.php';
-        $url = mirza_normalize_xui_panel_url($url);
+        $url = vira_normalize_xui_panel_url($url);
     }
 
     $linksubx = trim((string) ($data['linksubx'] ?? ''));
@@ -172,9 +172,9 @@ function panel_web_insert_panel(PDO $pdo, string $type, array $data): array
 
     if (!empty($def['needs_inbounds'])) {
         require_once __DIR__ . '/../../x-ui_single.php';
-        $ids = mirza_xui_parse_id_list((string) ($data['panel_inbounds'] ?? ''));
+        $ids = vira_xui_parse_id_list((string) ($data['panel_inbounds'] ?? ''));
         if ($ids !== []) {
-            mirza_xui_save_panel_inbounds($name, $ids);
+            vira_xui_save_panel_inbounds($name, $ids);
         }
     }
 
@@ -200,9 +200,9 @@ function panel_web_update_panel(PDO $pdo, string $name, array $data): array
     if ($url === '') {
         return ['ok' => false, 'msg' => 'آدرس الزامی است.'];
     }
-    if (!empty($defs[$type]['xui']) && function_exists('mirza_normalize_xui_panel_url')) {
+    if (!empty($defs[$type]['xui']) && function_exists('vira_normalize_xui_panel_url')) {
         require_once __DIR__ . '/../../x-ui_single.php';
-        $url = mirza_normalize_xui_panel_url($url);
+        $url = vira_normalize_xui_panel_url($url);
     }
 
     $inboundsRaw = trim((string) ($data['panel_inbounds'] ?? ''));
@@ -226,7 +226,7 @@ function panel_web_update_panel(PDO $pdo, string $name, array $data): array
     $limit = panel_web_normalize_limit_value($data['limit_panel'] ?? ($row['limit_panel'] ?? '0'));
     $agent = trim((string) ($data['agent'] ?? $row['agent'] ?? 'all'));
     $statusRaw = trim((string) ($data['status'] ?? $row['status'] ?? 'active'));
-    $statusDb = function_exists('mirza_panel_is_active_status') && mirza_panel_is_active_status($statusRaw) ? 'active' : 'deactive';
+    $statusDb = function_exists('vira_panel_is_active_status') && vira_panel_is_active_status($statusRaw) ? 'active' : 'deactive';
 
     $params = [$url, $linksubx, $limit, $agent, $statusDb];
     $sql = 'UPDATE marzban_panel SET url_panel=?, linksubx=?, limit_panel=?, agent=?, status=?, datelogin=NULL';
@@ -258,9 +258,9 @@ function panel_web_update_panel(PDO $pdo, string $name, array $data): array
 
     if (!empty($defs[$type]['needs_inbounds']) && $inboundsRaw !== '' && $inboundsRaw !== '-') {
         require_once __DIR__ . '/../../x-ui_single.php';
-        $ids = mirza_xui_parse_id_list($inboundsRaw);
+        $ids = vira_xui_parse_id_list($inboundsRaw);
         if ($ids !== []) {
-            mirza_xui_save_panel_inbounds($name, $ids);
+            vira_xui_save_panel_inbounds($name, $ids);
         }
     }
 
@@ -292,8 +292,8 @@ function panel_web_test_connection(array $row): array
 
     if (panel_web_is_xui_type($type)) {
         require_once __DIR__ . '/../../x-ui_single.php';
-        $login = function_exists('mirza_xui_test_connection')
-            ? mirza_xui_test_connection($code)
+        $login = function_exists('vira_xui_test_connection')
+            ? vira_xui_test_connection($code)
             : login($code, true, true, true);
         $online = !empty($login['success']);
         $msg = $online ? 'اتصال برقرار است' : strip_tags((string) ($login['msg'] ?? 'اتصال ناموفق'));
@@ -330,10 +330,10 @@ function panel_web_dashboard_data(array $row): array
         return ['ok' => false, 'msg' => 'داشبورد فقط برای پنل‌های ۳x-ui است.'];
     }
     require_once __DIR__ . '/../../x-ui_single.php';
-    $login = mirza_xui_test_connection((string) $row['code_panel']);
+    $login = vira_xui_test_connection((string) $row['code_panel']);
     $online = !empty($login['success']);
-    $stats = $online ? mirza_xui_fetch_server_status((string) $row['name_panel']) : null;
-    $inbounds = mirza_xui_resolve_inbounds($row, null);
+    $stats = $online ? vira_xui_fetch_server_status((string) $row['name_panel']) : null;
+    $inbounds = vira_xui_resolve_inbounds($row, null);
     unset($row['password_panel']);
     return [
         'ok' => true,

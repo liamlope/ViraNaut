@@ -8,8 +8,8 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/botapi.php';
 
-mirza_disable_legacy_unreviewed_autoconfirm_settings();
-$stats = mirza_undo_bad_legacy_reverts();
-mirza_set_pay_setting_value('legacy_bad_revert_undone', '1');
+vira_disable_legacy_unreviewed_autoconfirm_settings();
+$stats = vira_undo_bad_legacy_reverts();
+vira_set_pay_setting_value('legacy_bad_revert_undone', '1');
 
 echo json_encode($stats, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . PHP_EOL;

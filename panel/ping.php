@@ -6,7 +6,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 echo json_encode([
     'ok' => true,
-    'service' => 'mirza-web-panel',
+    'service' => 'vira-web-panel',
     'php' => PHP_VERSION,
     'time' => date('c'),
 ], JSON_UNESCAPED_UNICODE);

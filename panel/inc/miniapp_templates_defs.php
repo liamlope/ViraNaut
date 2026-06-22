@@ -1,11 +1,11 @@
 <?php
 
-function mirza_miniapp_template_ids(): array
+function vira_miniapp_template_ids(): array
 {
     return ['midnight', 'aurora', 'emerald', 'sunset', 'ocean'];
 }
 
-function mirza_miniapp_templates(): array
+function vira_miniapp_templates(): array
 {
     return [
         'midnight' => [
@@ -116,12 +116,12 @@ function mirza_miniapp_templates(): array
     ];
 }
 
-function mirza_miniapp_template_valid(string $id): bool
+function vira_miniapp_template_valid(string $id): bool
 {
-    return in_array($id, mirza_miniapp_template_ids(), true);
+    return in_array($id, vira_miniapp_template_ids(), true);
 }
 
-function mirza_miniapp_get_template(?PDO $pdo = null): string
+function vira_miniapp_get_template(?PDO $pdo = null): string
 {
     $default = 'midnight';
     try {
@@ -134,15 +134,15 @@ function mirza_miniapp_get_template(?PDO $pdo = null): string
             $row = select('shopSetting', 'value', 'Namevalue', 'miniapp_template', 'select');
             $v = trim((string) ($row['value'] ?? ''));
         }
-        return mirza_miniapp_template_valid($v) ? $v : $default;
+        return vira_miniapp_template_valid($v) ? $v : $default;
     } catch (Throwable $e) {
         return $default;
     }
 }
 
-function mirza_miniapp_set_template(PDO $pdo, string $id): void
+function vira_miniapp_set_template(PDO $pdo, string $id): void
 {
-    if (!mirza_miniapp_template_valid($id)) {
+    if (!vira_miniapp_template_valid($id)) {
         throw new InvalidArgumentException('قالب نامعتبر است');
     }
     $st = $pdo->query("SELECT COUNT(*) FROM shopSetting WHERE Namevalue = 'miniapp_template'");
@@ -154,19 +154,19 @@ function mirza_miniapp_set_template(PDO $pdo, string $id): void
     }
 }
 
-function mirza_miniapp_preview_url(string $id, ?string $domain = null): string
+function vira_miniapp_preview_url(string $id, ?string $domain = null): string
 {
-    if (!mirza_miniapp_template_valid($id)) {
+    if (!vira_miniapp_template_valid($id)) {
         $id = 'midnight';
     }
     $host = $domain ?: 'localhost';
     return 'https://' . $host . '/app/?tpl_preview=' . rawurlencode($id) . '&demo=1';
 }
 
-function mirza_miniapp_all_features_list(): array
+function vira_miniapp_all_features_list(): array
 {
     $out = [];
-    foreach (mirza_miniapp_templates() as $t) {
+    foreach (vira_miniapp_templates() as $t) {
         $out[$t['id']] = $t['features'];
     }
     return $out;

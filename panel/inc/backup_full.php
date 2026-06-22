@@ -1,12 +1,12 @@
 <?php
 
-/** بکاپ/بازیابی کامل Mirza — ZIP شامل DB، cronbot، text.json و راهنمای کرون */
+/** بکاپ/بازیابی کامل Vira — ZIP شامل DB، cronbot، text.json و راهنمای کرون */
 
-if (!function_exists('mirza_backup_normalize_host')) {
-    function mirza_backup_normalize_host($h): string
+if (!function_exists('vira_backup_normalize_host')) {
+    function vira_backup_normalize_host($h): string
     {
-        if (function_exists('mirza_normalize_domainhosts_value')) {
-            return mirza_normalize_domainhosts_value($h);
+        if (function_exists('vira_normalize_domainhosts_value')) {
+            return vira_normalize_domainhosts_value($h);
         }
         $h = trim(str_replace("\r", '', (string) $h));
         $h = preg_replace('#^https?://#i', '', $h);
@@ -14,13 +14,13 @@ if (!function_exists('mirza_backup_normalize_host')) {
     }
 }
 
-function mirza_project_root(): string
+function vira_project_root(): string
 {
     $root = realpath(__DIR__ . '/../..');
     return $root ?: dirname(__DIR__, 2);
 }
 
-function mirza_backup_list_tables(PDO $pdo): array
+function vira_backup_list_tables(PDO $pdo): array
 {
     $out = [];
     foreach ($pdo->query('SHOW TABLES') as $row) {
@@ -29,10 +29,10 @@ function mirza_backup_list_tables(PDO $pdo): array
     return $out;
 }
 
-function mirza_backup_cron_job_lines(): array
+function vira_backup_cron_job_lines(): array
 {
     global $domainhosts;
-    $host = isset($domainhosts) ? mirza_backup_normalize_host($domainhosts) : 'YOUR_DOMAIN';
+    $host = isset($domainhosts) ? vira_backup_normalize_host($domainhosts) : 'YOUR_DOMAIN';
     return [
         "*/15 * * * * curl -fsS https://{$host}/cronbot/statusday.php",
         "*/1 * * * * curl -fsS https://{$host}/cronbot/NoticationsService.php",
@@ -54,9 +54,9 @@ function mirza_backup_cron_job_lines(): array
     ];
 }
 
-function mirza_backup_collect_files(): array
+function vira_backup_collect_files(): array
 {
-    $root = mirza_project_root();
+    $root = vira_project_root();
     $map = [];
 
     foreach (['text.json', 'version'] as $rel) {
@@ -87,10 +87,10 @@ function mirza_backup_collect_files(): array
 }
 
 /** بکاپ SQL سازگار با بازیابی پنل (بدون mysqldump / DROP TABLE) */
-function mirza_backup_export_sql_php(PDO $pdo): string
+function vira_backup_export_sql_php(PDO $pdo): string
 {
-    $tables = mirza_backup_list_tables($pdo);
-    $out = "-- Mirza PHP panel backup " . date('c') . "\n";
+    $tables = vira_backup_list_tables($pdo);
+    $out = "-- Vira PHP panel backup " . date('c') . "\n";
     $out .= "-- sql_format: php_panel\n";
     $out .= "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n";
     foreach ($tables as $t) {
@@ -118,15 +118,15 @@ function mirza_backup_export_sql_php(PDO $pdo): string
     return $out;
 }
 
-function mirza_backup_export_sql(PDO $pdo, bool $panelSafe = true): string
+function vira_backup_export_sql(PDO $pdo, bool $panelSafe = true): string
 {
     if ($panelSafe) {
-        return mirza_backup_export_sql_php($pdo);
+        return vira_backup_export_sql_php($pdo);
     }
 
     global $dbhost, $dbname, $usernamedb, $passworddb;
     $host = $dbhost ?: 'localhost';
-    $tmpSql = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mirza_dump_' . uniqid('', true) . '.sql';
+    $tmpSql = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'vira_dump_' . uniqid('', true) . '.sql';
     $cmd = 'mysqldump -h ' . escapeshellarg($host)
         . ' -u ' . escapeshellarg((string) $usernamedb)
         . ' -p' . escapeshellarg((string) $passworddb)
@@ -147,31 +147,31 @@ function mirza_backup_export_sql(PDO $pdo, bool $panelSafe = true): string
     }
     @unlink($tmpSql);
 
-    return mirza_backup_export_sql_php($pdo);
+    return vira_backup_export_sql_php($pdo);
 }
 
-function mirza_backup_build_zip(): string
+function vira_backup_build_zip(): string
 {
     if (!class_exists('ZipArchive')) {
         throw new RuntimeException('افزونه ZipArchive در PHP فعال نیست');
     }
 
     global $pdo;
-    $root = mirza_project_root();
+    $root = vira_project_root();
     $version = is_file($root . '/version') ? trim((string) file_get_contents($root . '/version')) : 'unknown';
-    $tables = mirza_backup_list_tables($pdo);
-    $sql = mirza_backup_export_sql($pdo);
-    $files = mirza_backup_collect_files();
-    $cronLines = mirza_backup_cron_job_lines();
+    $tables = vira_backup_list_tables($pdo);
+    $sql = vira_backup_export_sql($pdo);
+    $files = vira_backup_collect_files();
+    $cronLines = vira_backup_cron_job_lines();
 
-    $tmpZip = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mirza_full_' . date('Y-m-d_His') . '_' . bin2hex(random_bytes(4)) . '.zip';
+    $tmpZip = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'vira_full_' . date('Y-m-d_His') . '_' . bin2hex(random_bytes(4)) . '.zip';
     $zip = new ZipArchive();
     if ($zip->open($tmpZip, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
         throw new RuntimeException('ساخت فایل ZIP ممکن نشد');
     }
 
     $manifest = [
-        'format' => 'mirza-full-backup',
+        'format' => 'vira-full-backup',
         'version' => 1,
         'sql_format' => 'php_panel',
         'app_version' => $version,
@@ -192,10 +192,10 @@ function mirza_backup_build_zip(): string
     return $tmpZip;
 }
 
-function mirza_backup_send_zip_download(): void
+function vira_backup_send_zip_download(): void
 {
-    $path = mirza_backup_build_zip();
-    $name = 'mirza-full-backup-' . date('Y-m-d_His') . '.zip';
+    $path = vira_backup_build_zip();
+    $name = 'vira-full-backup-' . date('Y-m-d_His') . '.zip';
     header('Content-Type: application/zip');
     header('Content-Disposition: attachment; filename="' . $name . '"');
     header('Content-Length: ' . filesize($path));
@@ -205,7 +205,7 @@ function mirza_backup_send_zip_download(): void
     exit;
 }
 
-function mirza_backup_extract_zip(string $zipPath): string
+function vira_backup_extract_zip(string $zipPath): string
 {
     if (!class_exists('ZipArchive')) {
         throw new RuntimeException('ZipArchive فعال نیست');
@@ -214,7 +214,7 @@ function mirza_backup_extract_zip(string $zipPath): string
     if ($zip->open($zipPath) !== true) {
         throw new RuntimeException('فایل ZIP نامعتبر است');
     }
-    $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mirza_restore_' . uniqid('', true);
+    $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'vira_restore_' . uniqid('', true);
     if (!@mkdir($dir, 0700, true) && !is_dir($dir)) {
         throw new RuntimeException('پوشه موقت ساخته نشد');
     }
@@ -226,7 +226,7 @@ function mirza_backup_extract_zip(string $zipPath): string
     return $dir;
 }
 
-function mirza_backup_mysql_cli_import(string $sqlPath): bool
+function vira_backup_mysql_cli_import(string $sqlPath): bool
 {
     global $dbhost, $dbname, $usernamedb, $passworddb;
     $host = $dbhost ?: 'localhost';
@@ -249,7 +249,7 @@ function mirza_backup_mysql_cli_import(string $sqlPath): bool
     return $code === 0;
 }
 
-function mirza_backup_import_sql_mysqli(string $sqlPath): bool
+function vira_backup_import_sql_mysqli(string $sqlPath): bool
 {
     global $dbhost, $dbname, $usernamedb, $passworddb;
     if (!function_exists('mysqli_connect')) {
@@ -286,7 +286,7 @@ function mirza_backup_import_sql_mysqli(string $sqlPath): bool
     return $ok;
 }
 
-function mirza_backup_split_sql_statements(string $sql): array
+function vira_backup_split_sql_statements(string $sql): array
 {
     $statements = [];
     $buffer = '';
@@ -326,7 +326,7 @@ function mirza_backup_split_sql_statements(string $sql): array
     return $statements;
 }
 
-function mirza_backup_should_run_sql_stmt(string $stmt): bool
+function vira_backup_should_run_sql_stmt(string $stmt): bool
 {
     $s = trim($stmt);
     if ($s === '') {
@@ -344,7 +344,7 @@ function mirza_backup_should_run_sql_stmt(string $stmt): bool
     return (bool) preg_match('/\b(SET|INSERT|DELETE|DROP|CREATE|ALTER|LOCK|UNLOCK|TRUNCATE)\b/i', $s);
 }
 
-function mirza_backup_import_sql_pdo(PDO $pdo, string $sqlPath): void
+function vira_backup_import_sql_pdo(PDO $pdo, string $sqlPath): void
 {
     $sql = file_get_contents($sqlPath);
     if ($sql === false || trim($sql) === '') {
@@ -358,7 +358,7 @@ function mirza_backup_import_sql_pdo(PDO $pdo, string $sqlPath): void
         || (stripos($sql, 'DROP TABLE') === false && stripos($sql, 'DELETE FROM') !== false);
 
     if ($isPhpPanel && stripos($sql, 'DROP TABLE') === false) {
-        $tables = mirza_backup_list_tables($pdo);
+        $tables = vira_backup_list_tables($pdo);
         foreach ($tables as $t) {
             if (!preg_match('/^[a-zA-Z0-9_]+$/', $t)) {
                 continue;
@@ -372,8 +372,8 @@ function mirza_backup_import_sql_pdo(PDO $pdo, string $sqlPath): void
 
     $done = 0;
     $errors = [];
-    foreach (mirza_backup_split_sql_statements($sql) as $stmt) {
-        if (!mirza_backup_should_run_sql_stmt($stmt)) {
+    foreach (vira_backup_split_sql_statements($sql) as $stmt) {
+        if (!vira_backup_should_run_sql_stmt($stmt)) {
             continue;
         }
         try {
@@ -395,20 +395,20 @@ function mirza_backup_import_sql_pdo(PDO $pdo, string $sqlPath): void
     }
 }
 
-function mirza_backup_import_sql(PDO $pdo, string $sqlPath): void
+function vira_backup_import_sql(PDO $pdo, string $sqlPath): void
 {
-    if (mirza_backup_import_sql_mysqli($sqlPath)) {
+    if (vira_backup_import_sql_mysqli($sqlPath)) {
         return;
     }
-    if (mirza_backup_mysql_cli_import($sqlPath)) {
+    if (vira_backup_mysql_cli_import($sqlPath)) {
         return;
     }
-    mirza_backup_import_sql_pdo($pdo, $sqlPath);
+    vira_backup_import_sql_pdo($pdo, $sqlPath);
 }
 
-function mirza_backup_restore_files(string $extractDir): int
+function vira_backup_restore_files(string $extractDir): int
 {
-    $root = mirza_project_root();
+    $root = vira_project_root();
     $count = 0;
 
     $manifestPath = $extractDir . '/manifest.json';
@@ -461,18 +461,18 @@ function mirza_backup_restore_files(string $extractDir): int
     return $count;
 }
 
-function mirza_backup_restore_zip(string $uploadedPath): array
+function vira_backup_restore_zip(string $uploadedPath): array
 {
     global $pdo;
 
-    $extractDir = mirza_backup_extract_zip($uploadedPath);
+    $extractDir = vira_backup_extract_zip($uploadedPath);
     try {
         $manifestPath = $extractDir . '/manifest.json';
         if (!is_file($manifestPath)) {
-            throw new RuntimeException('manifest.json در ZIP یافت نشد — بکاپ معتبر Mirza نیست');
+            throw new RuntimeException('manifest.json در ZIP یافت نشد — بکاپ معتبر Vira نیست');
         }
         $manifest = json_decode((string) file_get_contents($manifestPath), true);
-        if (($manifest['format'] ?? '') !== 'mirza-full-backup') {
+        if (($manifest['format'] ?? '') !== 'vira-full-backup') {
             throw new RuntimeException('فرمت بکاپ ناشناخته است');
         }
 
@@ -481,10 +481,10 @@ function mirza_backup_restore_zip(string $uploadedPath): array
             throw new RuntimeException('database.sql در ZIP نیست');
         }
 
-        mirza_backup_import_sql($pdo, $sqlPath);
+        vira_backup_import_sql($pdo, $sqlPath);
         $imported = true;
 
-        $fileCount = mirza_backup_restore_files($extractDir);
+        $fileCount = vira_backup_restore_files($extractDir);
 
         return [
             'ok' => true,
@@ -494,11 +494,11 @@ function mirza_backup_restore_zip(string $uploadedPath): array
             'backup_date' => $manifest['created_at'] ?? '',
         ];
     } finally {
-        mirza_backup_rmdir_recursive($extractDir);
+        vira_backup_rmdir_recursive($extractDir);
     }
 }
 
-function mirza_backup_rmdir_recursive(string $dir): void
+function vira_backup_rmdir_recursive(string $dir): void
 {
     if (!is_dir($dir)) {
         return;
@@ -509,7 +509,7 @@ function mirza_backup_rmdir_recursive(string $dir): void
         }
         $path = $dir . DIRECTORY_SEPARATOR . $item;
         if (is_dir($path)) {
-            mirza_backup_rmdir_recursive($path);
+            vira_backup_rmdir_recursive($path);
         } else {
             @unlink($path);
         }
@@ -517,15 +517,15 @@ function mirza_backup_rmdir_recursive(string $dir): void
     @rmdir($dir);
 }
 
-function mirza_bot_restart(): array
+function vira_bot_restart(): array
 {
     global $domainhosts, $APIKEY;
 
     if (!function_exists('telegram')) {
-        require_once mirza_project_root() . '/botapi.php';
+        require_once vira_project_root() . '/botapi.php';
     }
 
-    $host = isset($domainhosts) ? mirza_backup_normalize_host($domainhosts) : '';
+    $host = isset($domainhosts) ? vira_backup_normalize_host($domainhosts) : '';
     if ($host === '' || strpos($host, '{') !== false) {
         return ['ok' => false, 'msg' => 'دامنه در config.php تنظیم نشده است'];
     }
@@ -540,7 +540,7 @@ function mirza_bot_restart(): array
         @opcache_reset();
     }
 
-    $verFile = mirza_project_root() . '/version';
+    $verFile = vira_project_root() . '/version';
     if (is_file($verFile)) {
         @touch($verFile);
     }

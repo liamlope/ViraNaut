@@ -327,7 +327,7 @@ switch ($data['actions']) {
         }
         $user_info = select("user", "*", "token", $tokencheck, "select");
         if ($user_info) {
-            $stmt = $pdo->prepare('SELECT * FROM marzban_panel WHERE ' . mirza_panel_active_sql() . " AND (agent = :agent OR agent = 'all') AND type != 'Manualsale'");
+            $stmt = $pdo->prepare('SELECT * FROM marzban_panel WHERE ' . vira_panel_active_sql() . " AND (agent = :agent OR agent = 'all') AND type != 'Manualsale'");
             $stmt->bindParam(':agent', $user_info['agent']);
             $stmt->execute();
             $panel_list = [];
@@ -725,7 +725,7 @@ switch ($data['actions']) {
             ));
             return;
         }
-        if (!mirza_panel_is_active_status($panel['status'] ?? '')) {
+        if (!vira_panel_is_active_status($panel['status'] ?? '')) {
             http_response_code(500);
             echo json_encode(array(
                 'status' => false,

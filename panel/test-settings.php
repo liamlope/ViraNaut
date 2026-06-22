@@ -4,8 +4,8 @@ require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/panel_type_defs.php';
 require_auth();
 
-if (function_exists('mirza_ensure_marzban_panel_columns')) {
-    mirza_ensure_marzban_panel_columns();
+if (function_exists('vira_ensure_marzban_panel_columns')) {
+    vira_ensure_marzban_panel_columns();
 }
 
 $setting = db_fetch($pdo, 'SELECT limit_usertest_all, status_usertest FROM setting LIMIT 1') ?? [];
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             if ($testIbRaw !== '' && $testIbRaw !== '-' && panel_web_is_xui_type($panelType)) {
                 require_once __DIR__ . '/../x-ui_single.php';
-                $ids = mirza_xui_parse_id_list($testIbRaw);
+                $ids = vira_xui_parse_id_list($testIbRaw);
                 if ($ids !== []) {
                     db_query($pdo, 'UPDATE marzban_panel SET inboundid = ? WHERE name_panel = ?', [json_encode($ids), $name]);
                 }
@@ -101,7 +101,7 @@ $limitAll = (string) ($setting['limit_usertest_all'] ?? '1');
 $panelsTestOn = 0;
 $panelsActive = 0;
 foreach ($panels as $p) {
-    if (mirza_panel_is_active_status($p['status'] ?? '')) {
+    if (vira_panel_is_active_status($p['status'] ?? '')) {
         $panelsActive++;
     }
     if (($p['TestAccount'] ?? '') === 'ONTestAccount') {
@@ -204,7 +204,7 @@ include __DIR__ . '/inc/layout_head.php';
             <div class="test-panels-grid">
                 <?php foreach ($panels as $i => $p):
                     $name = (string) ($p['name_panel'] ?? '');
-                    $panelActive = mirza_panel_is_active_status($p['status'] ?? '');
+                    $panelActive = vira_panel_is_active_status($p['status'] ?? '');
                     $testActive = ($p['TestAccount'] ?? '') === 'ONTestAccount';
                     $timeH = (int) ($p['time_usertest'] ?? 0);
                     $volMb = (string) ($p['val_usertest'] ?? '');

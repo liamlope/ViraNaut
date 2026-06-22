@@ -120,7 +120,7 @@ function agent_user_context(PDO $pdo, string $agentId): ?array
 
 function agent_pay_value($raw, string $agent, $default = 0)
 {
-    return mirza_pay_agent_value($raw, $agent, $default);
+    return vira_pay_agent_value($raw, $agent, $default);
 }
 
 function agent_panel_list(PDO $pdo, array $user, bool $testOnly = false): array

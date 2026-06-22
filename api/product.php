@@ -232,7 +232,7 @@ switch ($data['actions'] ?? '') {
             sendJsonResponse(false, "Missing required fields: " . implode(', ', $missing_fields), []);
         }
         $catAdd = empty($data['category']) ? '' : trim((string) $data['category']);
-        if (mirza_product_name_taken($pdo, (string) $data['name'], $catAdd)) {
+        if (vira_product_name_taken($pdo, (string) $data['name'], $catAdd)) {
             sendJsonResponse(false, "product name exists in this category", [], 200);
         }
         $panel = select("marzban_panel", "*", "code_panel", $data['location'], "select");
@@ -294,7 +294,7 @@ switch ($data['actions'] ?? '') {
         $editCat = isset($data['category']) ? trim((string) $data['category']) : trim((string) ($product['category'] ?? ''));
         $editName = isset($data['name']) ? trim((string) $data['name']) : (string) $product['name_product'];
         if ($editName !== (string) $product['name_product'] || $editCat !== trim((string) ($product['category'] ?? ''))) {
-            if (mirza_product_name_taken($pdo, $editName, $editCat, (int) $product['id'])) {
+            if (vira_product_name_taken($pdo, $editName, $editCat, (int) $product['id'])) {
                 sendJsonResponse(false, "product name exists in this category", [], 200);
             }
         }

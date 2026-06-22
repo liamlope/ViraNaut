@@ -1,5 +1,5 @@
 (function () {
-    var P = window.MirzaInboundPicker;
+    var P = window.ViraInboundPicker;
 
     document.querySelectorAll('.toggle-group').forEach(function (group) {
         group.addEventListener('change', function (e) {

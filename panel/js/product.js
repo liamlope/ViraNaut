@@ -1,5 +1,5 @@
 (function () {
-    var P = window.MirzaInboundPicker;
+    var P = window.ViraInboundPicker;
     if (!P) {
         return;
     }

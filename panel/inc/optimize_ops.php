@@ -4,23 +4,23 @@
  * عملیات بهینه‌سازی امن ربات — بدون حذف کاربران، تنظیمات، پرداخت‌های موفق یا سرویس‌های فعال.
  */
 
-function mirza_optimize_day_options(): array
+function vira_optimize_day_options(): array
 {
     return [7, 30, 90];
 }
 
-function mirza_optimize_sanitize_days($value, int $default = 30): int
+function vira_optimize_sanitize_days($value, int $default = 30): int
 {
     $days = (int) $value;
-    return in_array($days, mirza_optimize_day_options(), true) ? $days : $default;
+    return in_array($days, vira_optimize_day_options(), true) ? $days : $default;
 }
 
-function mirza_optimize_cutoff(int $days): string
+function vira_optimize_cutoff(int $days): string
 {
     return date('Y/m/d', strtotime('-' . $days . ' days')) . ' 00:00:00';
 }
 
-function mirza_optimize_invoice_remove_statuses(): array
+function vira_optimize_invoice_remove_statuses(): array
 {
     return [
         'end_of_time',
@@ -35,7 +35,7 @@ function mirza_optimize_invoice_remove_statuses(): array
     ];
 }
 
-function mirza_optimize_count_invoices(PDO $pdo, array $statuses, ?string $extraWhere = null): int
+function vira_optimize_count_invoices(PDO $pdo, array $statuses, ?string $extraWhere = null): int
 {
     if ($statuses === []) {
         return 0;
@@ -48,7 +48,7 @@ function mirza_optimize_count_invoices(PDO $pdo, array $statuses, ?string $extra
     return db_count($pdo, $sql, $statuses);
 }
 
-function mirza_optimize_delete_invoices(PDO $pdo, array $statuses, ?string $extraWhere = null): int
+function vira_optimize_delete_invoices(PDO $pdo, array $statuses, ?string $extraWhere = null): int
 {
     if ($statuses === []) {
         return 0;
@@ -61,7 +61,7 @@ function mirza_optimize_delete_invoices(PDO $pdo, array $statuses, ?string $extr
     return db_query($pdo, $sql, $statuses)->rowCount();
 }
 
-function mirza_optimize_count_unpaid_orders(PDO $pdo): int
+function vira_optimize_count_unpaid_orders(PDO $pdo): int
 {
     return db_count(
         $pdo,
@@ -69,7 +69,7 @@ function mirza_optimize_count_unpaid_orders(PDO $pdo): int
     );
 }
 
-function mirza_optimize_delete_unpaid_orders(PDO $pdo): int
+function vira_optimize_delete_unpaid_orders(PDO $pdo): int
 {
     return db_query(
         $pdo,
@@ -77,22 +77,22 @@ function mirza_optimize_delete_unpaid_orders(PDO $pdo): int
     )->rowCount();
 }
 
-function mirza_optimize_preview(PDO $pdo, int $daysExpireReject = 90, int $daysUnpaid = 30): array
+function vira_optimize_preview(PDO $pdo, int $daysExpireReject = 90, int $daysUnpaid = 30): array
 {
-    $daysExpireReject = mirza_optimize_sanitize_days($daysExpireReject, 90);
-    $daysUnpaid = mirza_optimize_sanitize_days($daysUnpaid, 30);
+    $daysExpireReject = vira_optimize_sanitize_days($daysExpireReject, 90);
+    $daysUnpaid = vira_optimize_sanitize_days($daysUnpaid, 30);
 
-    $dead = mirza_optimize_invoice_remove_statuses();
-    $expired = mirza_optimize_count_invoices($pdo, ['end_of_time', 'end_of_volume', 'removeTime', 'removevolume']);
-    $junk = mirza_optimize_count_invoices($pdo, ['disabled', 'removebyadmin', 'removedbyadmin', 'removebyuser'])
-        + mirza_optimize_count_unpaid_orders($pdo);
-    $cutoffPay = mirza_optimize_cutoff($daysExpireReject);
+    $dead = vira_optimize_invoice_remove_statuses();
+    $expired = vira_optimize_count_invoices($pdo, ['end_of_time', 'end_of_volume', 'removeTime', 'removevolume']);
+    $junk = vira_optimize_count_invoices($pdo, ['disabled', 'removebyadmin', 'removedbyadmin', 'removebyuser'])
+        + vira_optimize_count_unpaid_orders($pdo);
+    $cutoffPay = vira_optimize_cutoff($daysExpireReject);
     $oldPayments = db_count(
         $pdo,
         "SELECT COUNT(*) FROM Payment_report WHERE payment_Status IN ('expire','reject') AND time < ?",
         [$cutoffPay]
     );
-    $cutoffUnpaidPay = mirza_optimize_cutoff($daysUnpaid);
+    $cutoffUnpaidPay = vira_optimize_cutoff($daysUnpaid);
     $oldUnpaidPay = db_count(
         $pdo,
         "SELECT COUNT(*) FROM Payment_report WHERE payment_Status = 'Unpaid' AND time < ?",
@@ -113,7 +113,7 @@ function mirza_optimize_preview(PDO $pdo, int $daysExpireReject = 90, int $daysU
     return [
         'expired_services' => $expired,
         'junk_orders' => $junk,
-        'dead_total' => mirza_optimize_count_invoices($pdo, $dead),
+        'dead_total' => vira_optimize_count_invoices($pdo, $dead),
         'old_payments' => $oldPayments,
         'old_unpaid_payments' => $oldUnpaidPay,
         'old_cancel_requests' => $oldCancel,
@@ -124,22 +124,22 @@ function mirza_optimize_preview(PDO $pdo, int $daysExpireReject = 90, int $daysU
     ];
 }
 
-function mirza_optimize_cleanup_payments(PDO $pdo, int $daysExpireReject, ?int $daysUnpaid = null): array
+function vira_optimize_cleanup_payments(PDO $pdo, int $daysExpireReject, ?int $daysUnpaid = null): array
 {
-    $daysExpireReject = mirza_optimize_sanitize_days($daysExpireReject, 90);
+    $daysExpireReject = vira_optimize_sanitize_days($daysExpireReject, 90);
     $deletedExpire = db_query(
         $pdo,
         "DELETE FROM Payment_report WHERE payment_Status IN ('expire','reject') AND time < ?",
-        [mirza_optimize_cutoff($daysExpireReject)]
+        [vira_optimize_cutoff($daysExpireReject)]
     )->rowCount();
 
     $deletedUnpaid = 0;
     if ($daysUnpaid !== null) {
-        $daysUnpaid = mirza_optimize_sanitize_days($daysUnpaid, 30);
+        $daysUnpaid = vira_optimize_sanitize_days($daysUnpaid, 30);
         $deletedUnpaid = db_query(
             $pdo,
             "DELETE FROM Payment_report WHERE payment_Status = 'Unpaid' AND time < ?",
-            [mirza_optimize_cutoff($daysUnpaid)]
+            [vira_optimize_cutoff($daysUnpaid)]
         )->rowCount();
     }
 
@@ -151,7 +151,7 @@ function mirza_optimize_cleanup_payments(PDO $pdo, int $daysExpireReject, ?int $
     ];
 }
 
-function mirza_optimize_rotate_log_file(string $path, int $maxBytes = 1048576, int $keepLines = 3000): array
+function vira_optimize_rotate_log_file(string $path, int $maxBytes = 1048576, int $keepLines = 3000): array
 {
     if (!is_file($path) || !is_readable($path)) {
         return ['rotated' => false, 'bytes_before' => 0, 'bytes_after' => 0];
@@ -171,11 +171,11 @@ function mirza_optimize_rotate_log_file(string $path, int $maxBytes = 1048576, i
     return ['rotated' => true, 'bytes_before' => $size, 'bytes_after' => $newSize];
 }
 
-function mirza_optimize_run(PDO $pdo, string $botRoot, int $daysExpireReject = 90, int $daysUnpaid = 30): array
+function vira_optimize_run(PDO $pdo, string $botRoot, int $daysExpireReject = 90, int $daysUnpaid = 30): array
 {
     @ini_set('max_execution_time', '300');
-    $daysExpireReject = mirza_optimize_sanitize_days($daysExpireReject, 90);
-    $daysUnpaid = mirza_optimize_sanitize_days($daysUnpaid, 30);
+    $daysExpireReject = vira_optimize_sanitize_days($daysExpireReject, 90);
+    $daysUnpaid = vira_optimize_sanitize_days($daysUnpaid, 30);
 
     $result = [
         'expired_deleted' => 0,
@@ -189,17 +189,17 @@ function mirza_optimize_run(PDO $pdo, string $botRoot, int $daysExpireReject = 9
         'tables_optimized' => [],
     ];
 
-    $result['expired_deleted'] = mirza_optimize_delete_invoices(
+    $result['expired_deleted'] = vira_optimize_delete_invoices(
         $pdo,
         ['end_of_time', 'end_of_volume', 'removeTime', 'removevolume']
     );
-    $result['junk_deleted'] = mirza_optimize_delete_invoices(
+    $result['junk_deleted'] = vira_optimize_delete_invoices(
         $pdo,
         ['disabled', 'removebyadmin', 'removedbyadmin', 'removebyuser']
     );
-    $result['junk_deleted'] += mirza_optimize_delete_unpaid_orders($pdo);
+    $result['junk_deleted'] += vira_optimize_delete_unpaid_orders($pdo);
 
-    $payCleanup = mirza_optimize_cleanup_payments($pdo, $daysExpireReject, $daysUnpaid);
+    $payCleanup = vira_optimize_cleanup_payments($pdo, $daysExpireReject, $daysUnpaid);
     $result['payments_deleted'] = $payCleanup['payments_deleted'];
     $result['unpaid_payments_deleted'] = $payCleanup['unpaid_payments_deleted'];
 
@@ -215,7 +215,7 @@ function mirza_optimize_run(PDO $pdo, string $botRoot, int $daysExpireReject = 9
     $root = rtrim($botRoot, '/\\');
     foreach (['error_log', 'log.txt'] as $logFile) {
         $path = $root . DIRECTORY_SEPARATOR . $logFile;
-        $result['logs'][$logFile] = mirza_optimize_rotate_log_file($path);
+        $result['logs'][$logFile] = vira_optimize_rotate_log_file($path);
     }
 
     foreach (['invoice', 'Payment_report', 'user'] as $table) {
