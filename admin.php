@@ -7290,6 +7290,10 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     $stmt->bindParam(':location', $user['Processing_value_tow'], PDO::PARAM_STR);
     $stmt->execute();
     $info_product = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($info_product) || empty($info_product)) {
+        sendmessage($from_id, "❌ محصول برای این پنل یافت نشد. نام محصول و پنل را دوباره انتخاب کنید.", null, 'HTML');
+        return;
+    }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value_tow'], "select");
     $DataUserOut = $ManagePanel->DataUser($user['Processing_value_tow'], $user['Processing_value_one']);
     if ($DataUserOut['status'] == "Unsuccessful") {

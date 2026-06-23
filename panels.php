@@ -50,6 +50,12 @@ class ManagePanel
             $stmt->bindParam(':code_product', $code_product);
             $stmt->execute();
             $Get_Data_Product = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($Get_Data_Product) || empty($Get_Data_Product)) {
+                return array(
+                    'status' => 'Unsuccessful',
+                    'msg' => 'Product Not Found',
+                );
+            }
         } else {
             if ($code_product == "usertest") {
                 $Get_Data_Product['name_product'] = "usertest";

@@ -4746,7 +4746,7 @@ function vira_setting_defaults(): array
 /** برچسب امن از map وضعیت — جلوگیری از null در دکمهٔ تلگرام */
 function vira_setting_pick(array $map, $key, $fallbackKey = null): string
 {
-    if (is_bool($key) && array_key_exists($key, $map, true)) {
+    if (is_bool($key) && array_key_exists($key, $map)) {
         return (string) $map[$key];
     }
     $key = (string) ($key ?? '');
