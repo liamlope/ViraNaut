@@ -3824,6 +3824,70 @@ do_diagnose_bot() {
 # ============================================================
 #  6) LOGS
 # ============================================================
+viranaut_truncate_log_file() {
+  local f="$1"
+  [ -n "$f" ] && [ -f "$f" ] || return 1
+  if truncate -s 0 "$f" 2>/dev/null; then
+    return 0
+  fi
+  : >"$f" 2>/dev/null
+}
+
+viranaut_clear_logs() {
+  resolve_project_paths
+  local DOMAIN=""
+  local LOG_ERR LOG_ACC PHP_LOG cleared=0
+  [ -f "$CONFIG_FILE" ] && DOMAIN=$(vira_normalize_domainhosts "$(read_php_var "domainhosts")")
+  LOG_ERR=$(viranaut_apache_log_file error "$DOMAIN") || LOG_ERR=""
+  LOG_ACC=$(viranaut_apache_log_file access "$DOMAIN") || LOG_ACC=""
+  PHP_LOG=$(php -r "echo ini_get('error_log');" 2>/dev/null)
+
+  echo ""
+  msg "Clear logs — files to truncate (empty, not deleted):"
+  line
+  [ -n "$LOG_ERR" ] && echo "    • Apache error: $LOG_ERR"
+  [ -n "$LOG_ACC" ] && echo "    • Apache access: $LOG_ACC"
+  [ -n "$PHP_LOG" ] && [ -f "$PHP_LOG" ] && echo "    • PHP: $PHP_LOG"
+  if [ -f "$PROJECT_DIR/error_log" ]; then
+    echo "    • Bot app: $PROJECT_DIR/error_log"
+  fi
+  local _ef
+  for _ef in "$PROJECT_DIR"/error_log*; do
+    [ -f "$_ef" ] || continue
+    [ "$_ef" = "$PROJECT_DIR/error_log" ] && continue
+    echo "    • Bot app: $_ef"
+  done
+  echo ""
+  read -p "  Truncate all listed logs? (y/n) [n]: " _clr
+  _clr=${_clr:-n}
+  _clr=${_clr,,}
+  [ "$_clr" = "y" ] || { warn "Cancelled."; return 0; }
+
+  if [ -n "$LOG_ERR" ]; then
+    viranaut_truncate_log_file "$LOG_ERR" && { echo -e "  ${GREEN}✓${NC} $LOG_ERR"; cleared=$((cleared + 1)); }
+  fi
+  if [ -n "$LOG_ACC" ]; then
+    viranaut_truncate_log_file "$LOG_ACC" && { echo -e "  ${GREEN}✓${NC} $LOG_ACC"; cleared=$((cleared + 1)); }
+  fi
+  if [ -n "$PHP_LOG" ] && [ -f "$PHP_LOG" ]; then
+    viranaut_truncate_log_file "$PHP_LOG" && { echo -e "  ${GREEN}✓${NC} $PHP_LOG"; cleared=$((cleared + 1)); }
+  fi
+  if [ -f "$PROJECT_DIR/error_log" ]; then
+    viranaut_truncate_log_file "$PROJECT_DIR/error_log" && { echo -e "  ${GREEN}✓${NC} $PROJECT_DIR/error_log"; cleared=$((cleared + 1)); }
+  fi
+  for _ef in "$PROJECT_DIR"/error_log*; do
+    [ -f "$_ef" ] || continue
+    [ "$_ef" = "$PROJECT_DIR/error_log" ] && continue
+    viranaut_truncate_log_file "$_ef" && { echo -e "  ${GREEN}✓${NC} $_ef"; cleared=$((cleared + 1)); }
+  done
+
+  if [ "$cleared" -gt 0 ]; then
+    msg "Cleared $cleared log file(s). New errors will appear from now on."
+  else
+    warn "No log files found to clear."
+  fi
+}
+
 do_logs() {
   resolve_project_paths
   local DOMAIN=""
@@ -3842,9 +3906,10 @@ do_logs() {
   echo -e "    ${BOLD}3)${NC} PHP error log"
   echo -e "    ${BOLD}4)${NC} Bot app errors (if exists)"
   echo -e "    ${BOLD}5)${NC} Follow Apache error log (live, Ctrl+C to stop)"
-  echo -e "    ${BOLD}6)${NC} Back to menu"
+  echo -e "    ${BOLD}6)${NC} Clear logs (truncate — fresh start)"
+  echo -e "    ${BOLD}7)${NC} Back to menu"
   echo ""
-  read -p "  Select [1-6]: " LOG_CHOICE
+  read -p "  Select [1-7]: " LOG_CHOICE
 
   case "$LOG_CHOICE" in
     1)
@@ -3902,7 +3967,10 @@ do_logs() {
         warn "Log file not found."
       fi
       ;;
-    6|*)
+    6)
+      viranaut_clear_logs
+      ;;
+    7|*)
       return 0
       ;;
   esac
