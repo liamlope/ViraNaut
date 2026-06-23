@@ -107,6 +107,7 @@ include __DIR__ . '/inc/layout_head.php';
         </div>
         <div class="card-body">
             <p class="field-hint" style="margin-bottom:12px">
+                چیدمان دکمه‌ها مثل تلگرام است: <b>چپ</b> به <b>راست</b>.
                 رنگ دکمه (تلگرام Bot API 9.4+): <b>آبی</b> · <b>سبز</b> · <b>قرمز</b> — یا پیش‌فرض بدون رنگ.
                 متن: حداکثر یک <code>{emoji:slug}</code>
             </p>

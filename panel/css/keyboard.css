@@ -20,6 +20,8 @@
   border: 1px dashed var(--bd);
   border-radius: 12px;
   min-height: 120px;
+  /* تلگرام دکمه‌های هر ردیف را چپ→راست می‌چیند؛ RTL پنل پیش‌نمایش را برعکس نشان می‌داد */
+  direction: ltr;
 }
 
 .kb-row {
@@ -33,6 +35,7 @@
   border: 1px solid var(--bd);
   min-height: 52px;
   transition: box-shadow 0.15s, border-color 0.15s;
+  direction: ltr;
 }
 
 .kb-row.kb-drag-over {
@@ -82,7 +85,8 @@
 .kb-btn-remove {
   position: absolute;
   top: 4px;
-  left: 6px;
+  right: 6px;
+  left: auto;
   width: 22px;
   height: 22px;
   border: none;
