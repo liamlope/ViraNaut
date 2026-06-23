@@ -1000,32 +1000,71 @@ vira_setup_ssl() {
     if [ "$force_renew" = "1" ]; then
       msg "Renewing certificate ..."
       certbot renew --cert-name "$domain" --apache --non-interactive 2>/dev/null \
-        || certbot --apache -d "$domain" --non-interactive --agree-tos --register-unsafely-without-email --redirect --force-renewal
+        || certbot --apache -d "$domain" --non-interactive --agree-tos --register-unsafely-without-email --redirect --force-renewal \
+        || warn "Certificate renew failed — bot can still run on HTTP until fixed"
     else
+      if [ "${VIRANAUT_AUTO_YES:-0}" = "1" ]; then
+        echo -e "  ${CYAN}Keeping existing certificate.${NC}"
+        return 0
+      fi
       read -p "  Renew certificate now? (y/n) [n]: " _ren
       _ren=${_ren,,}
       if [ "$_ren" = "y" ]; then
         msg "Renewing certificate ..."
         certbot renew --cert-name "$domain" --apache --non-interactive 2>/dev/null \
-          || certbot --apache -d "$domain" --non-interactive --agree-tos --register-unsafely-without-email --redirect --force-renewal
+          || certbot --apache -d "$domain" --non-interactive --agree-tos --register-unsafely-without-email --redirect --force-renewal \
+          || warn "Certificate renew failed"
       else
         echo -e "  ${CYAN}Keeping existing certificate.${NC}"
         return 0
       fi
     fi
-  else
-    echo ""
+    return 0
+  fi
+
+  echo ""
+  if [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
     read -p "  Install Let's Encrypt SSL for $domain? (y/n) [y]: " _ssl
     _ssl=${_ssl:-y}
     _ssl=${_ssl,,}
     if [ "$_ssl" != "y" ]; then
-      warn "Skipping SSL — webhook will use http:// unless you add SSL later."
+      warn "Skipping SSL — install continues on HTTP. Telegram webhook needs HTTPS: run menu 8 after DNS/SSL is ready."
       return 1
     fi
-    msg "Requesting certificate (Apache plugin) ..."
-    certbot --apache -d "$domain" --non-interactive --agree-tos --register-unsafely-without-email --redirect
   fi
-  return 0
+
+  if ! vira_check_dns_matches_server "$domain"; then
+    warn "Skipping certbot — DNS must point to this server first"
+    echo "    After fixing DNS: menu 8) Auto-fix all  OR  certbot --apache -d $domain"
+    return 1
+  fi
+
+  if ! vira_check_port_listening 80; then
+    warn "Port 80 not reachable on this server — certbot will likely fail"
+    echo "    Open port 80 in cloud firewall, then retry menu 8"
+    if [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
+      read -p "  Try certbot anyway? (y/n) [n]: " _try80
+      _try80=${_try80:-n}
+      _try80=${_try80,,}
+      [ "$_try80" = "y" ] || return 1
+    else
+      return 1
+    fi
+  fi
+
+  msg "Requesting certificate (Apache plugin) ..."
+  if certbot --apache -d "$domain" --non-interactive --agree-tos --register-unsafely-without-email --redirect; then
+    echo -e "  ${GREEN}✓${NC} SSL installed for $domain"
+    return 0
+  fi
+
+  warn "certbot failed — install continues without SSL"
+  echo "    Common causes:"
+  echo "      • DNS A record not propagated yet (wait 5–30 min)"
+  echo "      • Port 80 blocked in VPS provider firewall"
+  echo "      • Another service using port 80"
+  echo "    When fixed, run: menu 8) Auto-fix all"
+  return 1
 }
 
 vira_apply_php_core_fixes() {
@@ -1143,7 +1182,13 @@ vira_reload_services() {
     proto="https"
   fi
   domain="${domain%/}"
+  if ! vira_ssl_cert_exists "$domain"; then
+    proto="http"
+  fi
   webhook="${proto}://${domain}/index.php"
+  if [ "$proto" = "http" ]; then
+    warn "No SSL certificate — webhook may fail until you run menu 8 (Auto-fix)"
+  fi
   if [ -n "${VIRA_SKIP_WEBHOOK_REFRESH:-}" ]; then
     return 0
   fi
@@ -1509,10 +1554,17 @@ VHOST
   systemctl enable apache2 2>/dev/null || true
   systemctl restart apache2
 
+  vira_install_preflight_network "$DOMAIN" || return 1
+
+  local SSL_OK=0
   if vira_setup_ssl "$DOMAIN"; then
+    SSL_OK=1
     PROTOCOL="https"
     vira_write_fresh_config "$BOT_DIR/config.php" "$DB_NAME" "$DB_USER" "$DB_PASS" \
       "$BOT_TOKEN" "$ADMIN_ID" "$BOT_USERNAME" "$PROTOCOL" "$DOMAIN"
+  else
+    warn "No SSL yet — bot files and database are ready; fix DNS/firewall then menu 8"
+    PROTOCOL="http"
   fi
 
   if [ -f "$BOT_DIR/table.php" ]; then
@@ -1533,13 +1585,26 @@ VHOST
   ufw allow 443/tcp 2>/dev/null || true
   viranaut_sync_manage_script_from_bot "$BOT_DIR"
 
+  local CRED_FILE
+  CRED_FILE=$(viranaut_save_db_credentials "$DB_NAME" "$DB_USER" "$DB_PASS" "$DOMAIN" "$BOT_DIR")
+
   line
   echo -e "  ${GREEN}${BOLD}✓ ViraNaut install complete${NC}"
   echo -e "  ${CYAN}Path:${NC}     $BOT_DIR"
   echo -e "  ${CYAN}URL:${NC}      ${PROTOCOL}://${DOMAIN}"
   echo -e "  ${CYAN}Panel:${NC}    ${PROTOCOL}://${DOMAIN}/panel/"
-  echo -e "  ${CYAN}Database:${NC} $DB_NAME / $DB_USER / $DB_PASS"
-  echo -e "  ${YELLOW}Save the DB password — shown once.${NC}"
+  echo -e "  ${CYAN}Database:${NC} $DB_NAME"
+  echo -e "  ${CYAN}DB user:${NC}   $DB_USER"
+  echo -e "  ${CYAN}DB pass:${NC}   $DB_PASS"
+  echo -e "  ${CYAN}Saved to:${NC}  $CRED_FILE"
+  echo -e "  ${YELLOW}DB name/user/pass are auto-generated — you do NOT enter them during install.${NC}"
+  if [ "$SSL_OK" -eq 0 ]; then
+    echo ""
+    warn "SSL not installed — Telegram webhook needs HTTPS"
+    echo "    1) Point DNS A record to this server"
+    echo "    2) Open ports 80 and 443 in VPS firewall"
+    echo "    3) Run: ./ViraNaut_manage.sh → 8) Auto-fix all"
+  fi
   echo -e "  ${CYAN}CLI:${NC}       ${BOLD}viranaut${NC}"
   echo ""
 }
@@ -1668,7 +1733,7 @@ install_dependencies() {
 
   # Step 2: Apache, MySQL, tools
   msg "Installing Apache, MySQL, git, tools ..."
-  apt-get install -y apache2 mysql-server git unzip zip software-properties-common curl
+  apt-get install -y apache2 mysql-server git unzip zip software-properties-common curl dnsutils
 
   # Step 3: PHP 8.2 from ondrej PPA
   msg "Installing PHP 8.2 ..."
@@ -2122,11 +2187,79 @@ vira_ensure_bot_permissions() {
 
 vira_server_public_ip() {
   local ip
-  ip=$(hostname -I 2>/dev/null | awk '{print $1}')
-  if [ -z "$ip" ]; then
-    ip=$(curl -4 -s --connect-timeout 5 ifconfig.me 2>/dev/null || true)
-  fi
+  ip=$(curl -4 -s --connect-timeout 5 ifconfig.me 2>/dev/null || true)
+  [ -z "$ip" ] && ip=$(curl -4 -s --connect-timeout 5 api.ipify.org 2>/dev/null || true)
+  [ -z "$ip" ] && ip=$(hostname -I 2>/dev/null | awk '{print $1}')
   printf '%s' "$ip"
+}
+
+# 0 = something listening on TCP port
+vira_check_port_listening() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | grep -qE ":${port}[[:space:]]"; then
+    return 0
+  fi
+  if command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$port" 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+viranaut_save_db_credentials() {
+  local dbname="$1" dbuser="$2" dbpass="$3" domain="$4" bot_dir="$5"
+  local cred_file="/root/.viranaut_db_${dbname}.txt"
+  cat >"$cred_file" <<CRED
+# ViraNaut database — $(date -Iseconds 2>/dev/null || date)
+Database: ${dbname}
+User:     ${dbuser}
+Password: ${dbpass}
+Host:     localhost
+Domain:   ${domain}
+Bot path: ${bot_dir}
+CRED
+  chmod 600 "$cred_file" 2>/dev/null || true
+  printf '%s' "$cred_file"
+}
+
+# DNS/port warnings — install continues unless user declines
+vira_install_preflight_network() {
+  local domain="$1"
+  echo ""
+  msg "Pre-flight: DNS & network (install can continue if SSL is not ready yet)"
+  line
+  vira_ufw_allow_telegram
+
+  local dns_ok=0 port_ok=0
+  if vira_check_dns_matches_server "$domain"; then
+    dns_ok=1
+  else
+    warn "DNS is not pointing to this server yet (common on fresh VPS)"
+    echo "    Fix: set A record for ${domain} → server IP shown above"
+    echo "    After DNS propagates: menu 8) Auto-fix all"
+    if [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
+      read -p "  Continue install anyway? (y/n) [y]: " _cont
+      _cont=${_cont:-y}
+      _cont=${_cont,,}
+      if [ "$_cont" != "y" ]; then
+        msg "Install paused — fix DNS and run menu 1 again."
+        return 1
+      fi
+    fi
+  fi
+
+  if vira_check_port_listening 80; then
+    echo -e "  ${GREEN}✓${NC} Port 80 is listening (Apache)"
+    port_ok=1
+  else
+    warn "Port 80 is not listening yet"
+    echo "    • Check Apache: systemctl status apache2"
+    echo "    • Open port 80 in VPS cloud firewall (Hetzner/OVH/…)"
+  fi
+
+  if [ "$dns_ok" -eq 1 ] && [ "$port_ok" -eq 1 ]; then
+    echo -e "  ${GREEN}✓${NC} Ready for Let's Encrypt"
+  fi
+  return 0
 }
 
 vira_dns_a_record() {
