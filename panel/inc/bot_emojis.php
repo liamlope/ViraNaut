@@ -541,9 +541,20 @@ if (!function_exists('vira_keyboard_style_colors')) {
     }
 }
 
+if (!function_exists('vira_telegram_apply_btn_style')) {
+    function vira_telegram_apply_btn_style(array $btn, ?string $style): array
+    {
+        $style = vira_sanitize_btn_style($style ?? '');
+        if ($style !== '') {
+            $btn['style'] = $style;
+        }
+        return $btn;
+    }
+}
+
 if (!function_exists('vira_telegram_inline_button')) {
     /** دکمه inline با پشتیبانی {emoji:slug} — یک آیکون Premium در چپ دکمه */
-    function vira_telegram_inline_button(string $label, string $callback_data): array
+    function vira_telegram_inline_button(string $label, string $callback_data, ?string $style = null): array
     {
         $resolved = vira_resolve_keyboard_button($label);
         $btn = [
@@ -553,13 +564,13 @@ if (!function_exists('vira_telegram_inline_button')) {
         if (!empty($resolved['icon_custom_emoji_id'])) {
             $btn['icon_custom_emoji_id'] = $resolved['icon_custom_emoji_id'];
         }
-        return $btn;
+        return vira_telegram_apply_btn_style($btn, $style);
     }
 }
 
 if (!function_exists('vira_telegram_product_button')) {
     /** برچسب محصول در لیست خرید/تمدید — emoji فقط روی نام، قیمت بعد از آن */
-    function vira_telegram_product_button(string $name, string $callback_data, $price = 0, bool $appendPrice = false): array
+    function vira_telegram_product_button(string $name, string $callback_data, $price = 0, bool $appendPrice = false, ?string $style = null): array
     {
         $resolved = vira_resolve_keyboard_button($name);
         $text = $resolved['text'] !== '' ? $resolved['text'] : $name;
@@ -573,7 +584,29 @@ if (!function_exists('vira_telegram_product_button')) {
         if (!empty($resolved['icon_custom_emoji_id'])) {
             $btn['icon_custom_emoji_id'] = $resolved['icon_custom_emoji_id'];
         }
-        return $btn;
+        return vira_telegram_apply_btn_style($btn, $style);
+    }
+}
+
+if (!function_exists('vira_sanitize_btn_style')) {
+    function vira_sanitize_btn_style(?string $style): string
+    {
+        $style = trim((string) $style);
+        return in_array($style, ['primary', 'success', 'danger'], true) ? $style : '';
+    }
+}
+
+if (!function_exists('vira_telegram_inline_button_legacy')) {
+    function vira_telegram_inline_button_legacy(string $label, string $callback_data): array
+    {
+        return vira_telegram_inline_button($label, $callback_data, null);
+    }
+}
+
+if (!function_exists('vira_telegram_product_button_legacy')) {
+    function vira_telegram_product_button_legacy(string $name, string $callback_data, $price = 0, bool $appendPrice = false): array
+    {
+        return vira_telegram_product_button($name, $callback_data, $price, $appendPrice, null);
     }
 }
 

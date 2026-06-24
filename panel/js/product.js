@@ -13,6 +13,10 @@
         document.getElementById('edit_cat').value = p.category || '';
         document.getElementById('edit_agent').value = p.agent || '';
         document.getElementById('edit_note').value = p.note || '';
+        var btnStyle = document.getElementById('edit_btn_style');
+        if (btnStyle) {
+            btnStyle.value = p.btn_style || '';
+        }
         var hidden = document.getElementById('edit_inbounds');
         if (hidden) {
             hidden.value = (p.inbounds && p.inbounds !== 'null') ? p.inbounds : '';

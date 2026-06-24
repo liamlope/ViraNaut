@@ -1506,7 +1506,8 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
                     (string) $result['name_product'],
                     "{$datakeyboard}{$result['code_product']}{$valuetow}",
                     $result['price_product'],
-                    $appendPrice
+                    $appendPrice,
+                    $result['btn_style'] ?? null
                 )
                 : ['text' => $appendPrice
                     ? $result['name_product'] . ' - ' . number_format($result['price_product']) . 'تومان'
@@ -1537,7 +1538,7 @@ function KeyboardCategory($location, $agent, $backuser = "backuser")
             continue;
         $list_category['inline_keyboard'][] = [
             function_exists('vira_telegram_inline_button')
-                ? vira_telegram_inline_button((string) $row['remark'], 'categorynames_' . $row['id'])
+                ? vira_telegram_inline_button((string) $row['remark'], 'categorynames_' . $row['id'], $row['btn_style'] ?? null)
                 : ['text' => $row['remark'], 'callback_data' => 'categorynames_' . $row['id']],
         ];
     }

@@ -3,9 +3,10 @@ require_once __DIR__ . '/inc/config.php';
 require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/panel_type_defs.php';
 require_once __DIR__ . '/inc/bot_emojis.php';
+require_once __DIR__ . '/inc/product_panel_ops.php';
 require_auth();
 
-$emojiLibrary = vira_custom_emoji_list($pdo);
+vira_ensure_product_panel_schema($pdo);
 
 if (!function_exists('vira_panel_product_label')) {
     function vira_panel_product_label(string $raw): string
@@ -81,11 +82,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add')
     }
   }
   $inboundsVal = ($inboundsRaw === '' || $inboundsRaw === '-') ? null : $inboundsRaw;
+  $btnStyle = vira_sanitize_btn_style($_POST['btn_style'] ?? '');
   try {
     db_query(
       $pdo,
-      "INSERT INTO product (name_product,code_product,price_product,Volume_constraint,Service_time,Location,agent,data_limit_reset,note,category,inbounds,hide_panel,one_buy_status) VALUES (?,?,?,?,?,?,?,'no_reset',?,?,?, '{}','0')",
-      [$name, $code, (int) ($_POST['price_product'] ?? 0), (int) ($_POST['volume_product'] ?? 0), (int) ($_POST['time_product'] ?? 0), $_POST['namepanel'] ?? '', $_POST['agent_product'] ?? '', $_POST['note_product'] ?? '', $category !== '' ? $category : null, $inboundsVal]
+      "INSERT INTO product (name_product,code_product,price_product,Volume_constraint,Service_time,Location,agent,data_limit_reset,note,category,inbounds,hide_panel,one_buy_status,btn_style) VALUES (?,?,?,?,?,?,?,'no_reset',?,?,?, '{}','0',?)",
+      [$name, $code, (int) ($_POST['price_product'] ?? 0), (int) ($_POST['volume_product'] ?? 0), (int) ($_POST['time_product'] ?? 0), $_POST['namepanel'] ?? '', $_POST['agent_product'] ?? '', $_POST['note_product'] ?? '', $category !== '' ? $category : null, $inboundsVal, $btnStyle !== '' ? $btnStyle : null]
     );
     flash('success', 'محصول «' . $name . '» اضافه شد.');
   } catch (Exception $e) {
@@ -120,16 +122,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit'
       }
     }
     $inboundsVal = ($inboundsRaw === '' || $inboundsRaw === '-') ? null : $inboundsRaw;
+    $btnStyle = vira_sanitize_btn_style($_POST['btn_style'] ?? '');
     try {
       db_query(
         $pdo,
-        "UPDATE product SET name_product=?,price_product=?,Volume_constraint=?,Service_time=?,Location=?,agent=?,note=?,category=?,inbounds=? WHERE id=?",
-        [$name, (int) ($_POST['price_product'] ?? 0), (int) ($_POST['volume_product'] ?? 0), (int) ($_POST['time_product'] ?? 0), $_POST['namepanel'] ?? '', $_POST['agent_product'] ?? '', $_POST['note_product'] ?? '', $category !== '' ? $category : null, $inboundsVal, $pid]
+        "UPDATE product SET name_product=?,price_product=?,Volume_constraint=?,Service_time=?,Location=?,agent=?,note=?,category=?,inbounds=?,btn_style=? WHERE id=?",
+        [$name, (int) ($_POST['price_product'] ?? 0), (int) ($_POST['volume_product'] ?? 0), (int) ($_POST['time_product'] ?? 0), $_POST['namepanel'] ?? '', $_POST['agent_product'] ?? '', $_POST['note_product'] ?? '', $category !== '' ? $category : null, $inboundsVal, $btnStyle !== '' ? $btnStyle : null, $pid]
       );
       flash('success', 'محصول ویرایش شد.');
     } catch (Exception $e) {
       flash('error', 'خطا: ' . $e->getMessage());
     }
+  }
+  header('Location: product.php');
+  exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'clone') {
+  csrf_check_post();
+  $pid = (int) ($_POST['clone_id'] ?? 0);
+  $src = $pid ? db_fetch($pdo, 'SELECT * FROM product WHERE id = ?', [$pid]) : null;
+  if (!$src) {
+    flash('error', 'محصول برای کپی یافت نشد.');
+    header('Location: product.php');
+    exit;
+  }
+  $category = isset($src['category']) && $src['category'] !== '' ? (string) $src['category'] : null;
+  $name = vira_product_next_clone_name($pdo, (string) ($src['name_product'] ?? ''), $category);
+  $code = bin2hex(random_bytes(2));
+  $btnStyle = vira_sanitize_btn_style($src['btn_style'] ?? '');
+  try {
+    db_query(
+      $pdo,
+      "INSERT INTO product (name_product,code_product,price_product,Volume_constraint,Service_time,Location,agent,data_limit_reset,note,category,inbounds,hide_panel,one_buy_status,btn_style) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      [
+        $name,
+        $code,
+        (int) ($src['price_product'] ?? 0),
+        (int) ($src['Volume_constraint'] ?? 0),
+        (int) ($src['Service_time'] ?? 0),
+        $src['Location'] ?? '',
+        $src['agent'] ?? 'f',
+        $src['data_limit_reset'] ?? 'no_reset',
+        $src['note'] ?? '',
+        $category,
+        $src['inbounds'] ?? null,
+        $src['hide_panel'] ?? '{}',
+        $src['one_buy_status'] ?? '0',
+        $btnStyle !== '' ? $btnStyle : null,
+      ]
+    );
+    flash('success', 'کپی محصول با نام «' . $name . '» ایجاد شد.');
+  } catch (Exception $e) {
+    flash('error', 'خطا در کپی: ' . $e->getMessage());
   }
   header('Location: product.php');
   exit;
@@ -150,9 +195,11 @@ try {
 }
 $products = db_fetchAll($pdo, "SELECT * FROM product ORDER BY id");
 
+$emojiLibrary = vira_custom_emoji_list($pdo);
+
 $categories = [];
 try {
-  $categories = db_fetchAll($pdo, 'SELECT id, remark FROM category ORDER BY remark ASC');
+  $categories = db_fetchAll($pdo, 'SELECT id, remark, btn_style FROM category ORDER BY remark ASC');
 } catch (Exception $e) {
   error_log('product.php categories: ' . $e->getMessage());
 }
@@ -259,6 +306,14 @@ include __DIR__ . '/inc/layout_head.php';
                     onclick="openEditModal(<?= htmlspecialchars(json_encode($p), ENT_QUOTES) ?>)">
                     <?= icon('edit', 13) ?>
                   </button>
+                  <form method="POST" style="display:inline;margin:0">
+                    <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                    <input type="hidden" name="action" value="clone">
+                    <input type="hidden" name="clone_id" value="<?= (int) $p['id'] ?>">
+                    <button type="submit" class="btn btn-ghost btn-sm btn-icon" title="کپی محصول">
+                      <?= icon('copy', 13) ?>
+                    </button>
+                  </form>
                   <a href="product.php?delete=<?= (int) $p['id'] ?>&_csrf=<?= csrf_token() ?>"
                     class="btn btn-no btn-sm btn-icon" title="حذف"
                     data-confirm="حذف محصول «<?= htmlspecialchars($p['name_product']) ?>»؟">
@@ -284,12 +339,21 @@ include __DIR__ . '/inc/layout_head.php';
       <div class="modal-body">
         <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
         <input type="hidden" name="action" value="add">
+        <?php
+        $emojiPickerCompact = true;
+        $emojiPickerId = 'addEmojiChips';
+        include __DIR__ . '/inc/emoji_picker_bar.php';
+        ?>
         <div class="form-grid">
           <div class="field full vira-emoji-wrap">
             <label>نام محصول *</label>
             <input type="text" name="name_product" class="input vira-emoji-field" data-emoji-max="1"
               placeholder="مثلاً: {emoji:star} ۵۰ گیگ یک ماهه" required>
             <p class="field-hint vira-emoji-warn" hidden>حداکثر یک {emoji:slug} — مثل دکمه‌های منوی استارت</p>
+          </div>
+          <div class="field">
+            <label>رنگ دکمه در ربات</label>
+            <?php vira_panel_btn_style_select('btn_style', 'add_btn_style'); ?>
           </div>
           <div class="field">
             <label>قیمت (تومان)</label>
@@ -360,11 +424,20 @@ include __DIR__ . '/inc/layout_head.php';
         <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
         <input type="hidden" name="action" value="edit">
         <input type="hidden" name="edit_id" id="edit_id">
+        <?php
+        $emojiPickerCompact = true;
+        $emojiPickerId = 'editEmojiChips';
+        include __DIR__ . '/inc/emoji_picker_bar.php';
+        ?>
         <div class="form-grid">
           <div class="field full vira-emoji-wrap">
             <label>نام محصول *</label>
             <input type="text" name="name_product" id="edit_name" class="input vira-emoji-field" data-emoji-max="1" required>
             <p class="field-hint vira-emoji-warn" hidden>حداکثر یک {emoji:slug}</p>
+          </div>
+          <div class="field">
+            <label>رنگ دکمه در ربات</label>
+            <?php vira_panel_btn_style_select('btn_style', 'edit_btn_style'); ?>
           </div>
           <div class="field">
             <label>قیمت (تومان)</label>
@@ -425,27 +498,38 @@ include __DIR__ . '/inc/layout_head.php';
 </div>
 
 <div class="modal-veil" id="catModal">
-  <div class="modal" style="max-width:480px">
+  <div class="modal" style="max-width:560px">
     <div class="modal-head">
       <h3>مدیریت دسته‌بندی محصولات</h3>
       <button type="button" class="modal-x" onclick="closeModal('catModal')"><?= icon('close', 14) ?></button>
     </div>
     <div class="modal-body">
-      <form id="catAddForm" style="display:flex;gap:8px;margin-bottom:14px">
+      <?php
+      $emojiPickerCompact = true;
+      $emojiPickerId = 'catEmojiChips';
+      include __DIR__ . '/inc/emoji_picker_bar.php';
+      ?>
+      <form id="catAddForm" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
         <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
-        <div class="vira-emoji-wrap" style="flex:1">
+        <div class="vira-emoji-wrap" style="flex:1;min-width:160px">
+          <label class="field-hint" style="display:block;margin-bottom:4px">نام دسته</label>
           <input type="text" name="remark" class="input vira-emoji-field" data-emoji-max="1"
             placeholder="نام دسته — {emoji:slug} اختیاری" required style="width:100%">
+        </div>
+        <div>
+          <label class="field-hint" style="display:block;margin-bottom:4px">رنگ دکمه</label>
+          <?php vira_panel_btn_style_select('btn_style', 'cat_add_btn_style'); ?>
         </div>
         <button type="submit" class="btn btn-primary btn-sm"><?= icon('plus', 12) ?> افزودن</button>
       </form>
       <div id="catListWrap" class="tbl-wrap">
         <table class="tbl-sm">
-          <thead><tr><th>نام</th><th></th></tr></thead>
+          <thead><tr><th>نام</th><th>رنگ</th><th></th></tr></thead>
           <tbody id="catListBody">
             <?php foreach ($categories as $c): ?>
               <tr data-cat-id="<?= (int) $c['id'] ?>">
                 <td><input type="text" class="input cat-remark-input vira-emoji-field" data-emoji-max="1" value="<?= htmlspecialchars($c['remark']) ?>" style="font-size:.82rem"></td>
+                <td><?php vira_panel_btn_style_select('btn_style', 'cat_style_' . (int) $c['id'], (string) ($c['btn_style'] ?? ''), [], 'cat-style-select'); ?></td>
                 <td style="white-space:nowrap">
                   <button type="button" class="btn btn-ghost btn-sm cat-save-btn">ذخیره</button>
                   <button type="button" class="btn btn-no btn-sm cat-del-btn">حذف</button>

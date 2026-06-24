@@ -1,6 +1,23 @@
 (function () {
     var base = document.body && document.body.getAttribute('data-panel-base') || '';
 
+    var BTN_STYLES = [
+        { v: '', l: 'پیش\u200cفرض' },
+        { v: 'primary', l: 'آبی' },
+        { v: 'success', l: 'سبز' },
+        { v: 'danger', l: 'قرمز' }
+    ];
+
+    function styleSelectHtml(selected) {
+        var html = '<select class="select select-sm prod-btn-style-select cat-style-select">';
+        BTN_STYLES.forEach(function (s) {
+            var sel = String(selected || '') === s.v ? ' selected' : '';
+            html += '<option value="' + escapeHtml(s.v) + '"' + sel + '>' + escapeHtml(s.l) + '</option>';
+        });
+        html += '</select>';
+        return html;
+    }
+
     function syncCategorySelects(items) {
         ['add_cat', 'edit_cat'].forEach(function (id) {
             var sel = document.getElementById(id);
@@ -32,6 +49,7 @@
             tr.setAttribute('data-cat-id', String(c.id));
             tr.innerHTML =
                 '<td><input type="text" class="input cat-remark-input vira-emoji-field" data-emoji-max="1" value="' + escapeHtml(c.remark) + '" style="font-size:.82rem"></td>' +
+                '<td>' + styleSelectHtml(c.btn_style || '') + '</td>' +
                 '<td style="white-space:nowrap">' +
                 '<button type="button" class="btn btn-ghost btn-sm cat-save-btn">ذخیره</button> ' +
                 '<button type="button" class="btn btn-no btn-sm cat-del-btn">حذف</button>' +
@@ -71,8 +89,10 @@
                 var tr = btn.closest('tr');
                 var id = tr.getAttribute('data-cat-id');
                 var remark = tr.querySelector('.cat-remark-input').value.trim();
+                var styleEl = tr.querySelector('.cat-style-select');
+                var btnStyle = styleEl ? styleEl.value : '';
                 var csrf = document.querySelector('#catAddForm [name="_csrf"]');
-                postCategory('edit', { id: id, remark: remark, _csrf: csrf ? csrf.value : '' })
+                postCategory('edit', { id: id, remark: remark, btn_style: btnStyle, _csrf: csrf ? csrf.value : '' })
                     .then(function (data) {
                         if (data && data.ok) {
                             loadCategories();
