@@ -1499,12 +1499,19 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
             $resultper = ($result['price_product'] * $pricediscount) / 100;
             $result['price_product'] = $result['price_product'] - $resultper;
         }
-        $namekeyboard = $result['name_product'] . " - " . number_format($result['price_product']) . "تومان";
-        if ($statusshowprice == "onshowprice") {
-            $result['name_product'] = $namekeyboard;
-        }
+        $appendPrice = ($statusshowprice == "onshowprice");
         $product['inline_keyboard'][] = [
-            ['text' => $result['name_product'], 'callback_data' => "{$datakeyboard}{$result['code_product']}{$valuetow}"]
+            function_exists('vira_telegram_product_button')
+                ? vira_telegram_product_button(
+                    (string) $result['name_product'],
+                    "{$datakeyboard}{$result['code_product']}{$valuetow}",
+                    $result['price_product'],
+                    $appendPrice
+                )
+                : ['text' => $appendPrice
+                    ? $result['name_product'] . ' - ' . number_format($result['price_product']) . 'تومان'
+                    : $result['name_product'],
+                    'callback_data' => "{$datakeyboard}{$result['code_product']}{$valuetow}"],
         ];
     }
     if ($statuscustom)
@@ -1528,7 +1535,11 @@ function KeyboardCategory($location, $agent, $backuser = "backuser")
         $stmts->execute();
         if ($stmts->rowCount() == 0)
             continue;
-        $list_category['inline_keyboard'][] = [['text' => $row['remark'], 'callback_data' => "categorynames_" . $row['id']]];
+        $list_category['inline_keyboard'][] = [
+            function_exists('vira_telegram_inline_button')
+                ? vira_telegram_inline_button((string) $row['remark'], 'categorynames_' . $row['id'])
+                : ['text' => $row['remark'], 'callback_data' => 'categorynames_' . $row['id']],
+        ];
     }
     $list_category['inline_keyboard'][] = [
         ['text' => "▶️ بازگشت به منوی قبل", "callback_data" => $backuser],

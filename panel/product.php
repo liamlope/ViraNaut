@@ -2,7 +2,22 @@
 require_once __DIR__ . '/inc/config.php';
 require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/panel_type_defs.php';
+require_once __DIR__ . '/inc/bot_emojis.php';
 require_auth();
+
+$emojiLibrary = vira_custom_emoji_list($pdo);
+
+if (!function_exists('vira_panel_product_label')) {
+    function vira_panel_product_label(string $raw): string
+    {
+        if (!function_exists('vira_resolve_keyboard_button')) {
+            return $raw;
+        }
+        $resolved = vira_resolve_keyboard_button($raw);
+        $text = $resolved['text'] !== '' ? $resolved['text'] : $raw;
+        return !empty($resolved['icon_custom_emoji_id']) ? '◆ ' . $text : $text;
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_price') {
   csrf_check_post();
@@ -39,7 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add') {
   csrf_check_post();
-  $name = trim($_POST['name_product'] ?? '');
+  $name = function_exists('vira_sanitize_button_emoji_label')
+    ? vira_sanitize_button_emoji_label(trim($_POST['name_product'] ?? ''))
+    : trim($_POST['name_product'] ?? '');
   if ($name === '') {
     flash('error', 'نام محصول الزامی است.');
     header('Location: product.php');
@@ -81,7 +98,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add')
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit') {
   csrf_check_post();
   $pid = (int) ($_POST['edit_id'] ?? 0);
-  $name = trim($_POST['name_product'] ?? '');
+  $name = function_exists('vira_sanitize_button_emoji_label')
+    ? vira_sanitize_button_emoji_label(trim($_POST['name_product'] ?? ''))
+    : trim($_POST['name_product'] ?? '');
   if ($pid && $name !== '') {
     $category = trim((string) ($_POST['cetegory_product'] ?? ''));
     if (vira_product_name_taken($pdo, $name, $category, $pid)) {
@@ -139,21 +158,24 @@ try {
 }
 
 $pageTitle = 'محصولات';
-$pageLede = 'فهرست محصولات قابل فروش و مدیریت آن‌ها.';
+$pageLede = 'فهرست محصولات قابل فروش — نام و دسته از ایموجی Premium پشتیبانی می‌کنند.';
 $activeNav = 'product';
-$extraCss = ['css/product-inbounds.css'];
-$extraJs = ['js/inbound-picker.js', 'js/categories.js', 'js/product.js', 'js/product-bulk.js'];
+$extraCss = ['css/product-inbounds.css', 'css/bot-texts.css'];
+$extraJs = ['js/inbound-picker.js', 'js/emoji-insert.js', 'js/categories.js', 'js/product.js', 'js/product-bulk.js'];
 include __DIR__ . '/inc/layout_head.php';
 ?>
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:8px" class="fade-up">
   <div style="font-size:.85rem;color:var(--mute)"><?= count($products) ?> محصول · <?= count($categories) ?> دسته</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <a href="bot-emojis.php" class="btn btn-ghost btn-sm">کتابخانه ایموجی</a>
     <a href="shop-settings.php" class="btn btn-ghost btn-sm"><?= icon('settings', 13) ?> تنظیمات فروشگاه</a>
     <button type="button" class="btn btn-ghost btn-sm" onclick="openModal('catModal')"><?= icon('edit', 13) ?> دسته‌بندی‌ها</button>
     <button class="btn btn-primary" onclick="openModal('addModal')"><?= icon('plus', 14) ?> افزودن محصول</button>
   </div>
 </div>
+
+<?php include __DIR__ . '/inc/emoji_picker_bar.php'; ?>
 
 <div class="card fade-up d1">
   <?php if (empty($products)): ?>
@@ -219,13 +241,13 @@ include __DIR__ . '/inc/layout_head.php';
             <tr>
               <td><input type="checkbox" class="prod-row-cb" name="product_ids[]" value="<?= (int) $p['id'] ?>" form="productBulkForm"></td>
               <td class="cf"><?= $i++ ?></td>
-              <td class="cs"><?= htmlspecialchars($p['name_product'] ?? '') ?></td>
+              <td class="cs"><?= htmlspecialchars(vira_panel_product_label((string) ($p['name_product'] ?? ''))) ?></td>
               <td class="cn cs"><?= number_format((int) ($p['price_product'] ?? 0)) ?> <span class="cf">ت</span></td>
               <td class="cn"><?= htmlspecialchars($p['Volume_constraint'] ?? '—') ?> <span class="cf">GB</span></td>
               <td class="cn"><?= htmlspecialchars($p['Service_time'] ?? '—') ?> <span class="cf">روز</span></td>
               <td class="cf"><?= htmlspecialchars(trunc($p['Location'] ?? '—', 16)) ?></td>
               <td><?php if (!empty($p['category'])): ?><span
-                    class="tag tag-info"><?= htmlspecialchars($p['category']) ?></span><?php else: ?><span
+                    class="tag tag-info"><?= htmlspecialchars(vira_panel_product_label((string) $p['category'])) ?></span><?php else: ?><span
                     class="cf">—</span><?php endif; ?></td>
               <td class="cm" style="font-size:.72rem"><?= htmlspecialchars($p['code_product'] ?? '') ?></td>
               <td class="cm" style="font-size:.68rem;max-width:90px" title="<?= htmlspecialchars((string) ($p['inbounds'] ?? '')) ?>">
@@ -263,9 +285,11 @@ include __DIR__ . '/inc/layout_head.php';
         <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
         <input type="hidden" name="action" value="add">
         <div class="form-grid">
-          <div class="field full">
+          <div class="field full vira-emoji-wrap">
             <label>نام محصول *</label>
-            <input type="text" name="name_product" class="input" placeholder="مثلاً: ۵۰ گیگ یک ماهه" required>
+            <input type="text" name="name_product" class="input vira-emoji-field" data-emoji-max="1"
+              placeholder="مثلاً: {emoji:star} ۵۰ گیگ یک ماهه" required>
+            <p class="field-hint vira-emoji-warn" hidden>حداکثر یک {emoji:slug} — مثل دکمه‌های منوی استارت</p>
           </div>
           <div class="field">
             <label>قیمت (تومان)</label>
@@ -337,9 +361,10 @@ include __DIR__ . '/inc/layout_head.php';
         <input type="hidden" name="action" value="edit">
         <input type="hidden" name="edit_id" id="edit_id">
         <div class="form-grid">
-          <div class="field full">
+          <div class="field full vira-emoji-wrap">
             <label>نام محصول *</label>
-            <input type="text" name="name_product" id="edit_name" class="input" required>
+            <input type="text" name="name_product" id="edit_name" class="input vira-emoji-field" data-emoji-max="1" required>
+            <p class="field-hint vira-emoji-warn" hidden>حداکثر یک {emoji:slug}</p>
           </div>
           <div class="field">
             <label>قیمت (تومان)</label>
@@ -408,7 +433,10 @@ include __DIR__ . '/inc/layout_head.php';
     <div class="modal-body">
       <form id="catAddForm" style="display:flex;gap:8px;margin-bottom:14px">
         <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
-        <input type="text" name="remark" class="input" placeholder="نام دسته جدید" required style="flex:1">
+        <div class="vira-emoji-wrap" style="flex:1">
+          <input type="text" name="remark" class="input vira-emoji-field" data-emoji-max="1"
+            placeholder="نام دسته — {emoji:slug} اختیاری" required style="width:100%">
+        </div>
         <button type="submit" class="btn btn-primary btn-sm"><?= icon('plus', 12) ?> افزودن</button>
       </form>
       <div id="catListWrap" class="tbl-wrap">
@@ -417,7 +445,7 @@ include __DIR__ . '/inc/layout_head.php';
           <tbody id="catListBody">
             <?php foreach ($categories as $c): ?>
               <tr data-cat-id="<?= (int) $c['id'] ?>">
-                <td><input type="text" class="input cat-remark-input" value="<?= htmlspecialchars($c['remark']) ?>" style="font-size:.82rem"></td>
+                <td><input type="text" class="input cat-remark-input vira-emoji-field" data-emoji-max="1" value="<?= htmlspecialchars($c['remark']) ?>" style="font-size:.82rem"></td>
                 <td style="white-space:nowrap">
                   <button type="button" class="btn btn-ghost btn-sm cat-save-btn">ذخیره</button>
                   <button type="button" class="btn btn-no btn-sm cat-del-btn">حذف</button>
@@ -427,7 +455,7 @@ include __DIR__ . '/inc/layout_head.php';
           </tbody>
         </table>
       </div>
-      <p class="field-hint">همان جدول category ربات — حذف فقط وقتی ممکن است که محصولی به دسته وصل نباشد.</p>
+      <p class="field-hint">نام دسته و محصول در ربات با ایموجی Premium نمایش داده می‌شود. حداکثر یک <code>{emoji:slug}</code> per نام.</p>
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-ghost" onclick="closeModal('catModal')">بستن</button>

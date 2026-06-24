@@ -541,6 +541,53 @@ if (!function_exists('vira_keyboard_style_colors')) {
     }
 }
 
+if (!function_exists('vira_telegram_inline_button')) {
+    /** دکمه inline با پشتیبانی {emoji:slug} — یک آیکون Premium در چپ دکمه */
+    function vira_telegram_inline_button(string $label, string $callback_data): array
+    {
+        $resolved = vira_resolve_keyboard_button($label);
+        $btn = [
+            'text' => $resolved['text'] !== '' ? $resolved['text'] : $label,
+            'callback_data' => $callback_data,
+        ];
+        if (!empty($resolved['icon_custom_emoji_id'])) {
+            $btn['icon_custom_emoji_id'] = $resolved['icon_custom_emoji_id'];
+        }
+        return $btn;
+    }
+}
+
+if (!function_exists('vira_telegram_product_button')) {
+    /** برچسب محصول در لیست خرید/تمدید — emoji فقط روی نام، قیمت بعد از آن */
+    function vira_telegram_product_button(string $name, string $callback_data, $price = 0, bool $appendPrice = false): array
+    {
+        $resolved = vira_resolve_keyboard_button($name);
+        $text = $resolved['text'] !== '' ? $resolved['text'] : $name;
+        if ($appendPrice) {
+            $text .= ' - ' . number_format((int) $price) . 'تومان';
+        }
+        $btn = [
+            'text' => $text,
+            'callback_data' => $callback_data,
+        ];
+        if (!empty($resolved['icon_custom_emoji_id'])) {
+            $btn['icon_custom_emoji_id'] = $resolved['icon_custom_emoji_id'];
+        }
+        return $btn;
+    }
+}
+
+if (!function_exists('vira_sanitize_button_emoji_label')) {
+    /** قبل از ذخیره نام محصول/دسته — حداکثر یک {emoji:…} */
+    function vira_sanitize_button_emoji_label(string $raw): string
+    {
+        if (!function_exists('vira_limit_button_emoji_placeholders')) {
+            return trim($raw);
+        }
+        return vira_limit_button_emoji_placeholders(trim($raw), 1)['text'];
+    }
+}
+
 if (!function_exists('vira_keyboard_apply_custom_emojis')) {
     function vira_keyboard_apply_custom_emojis(array &$rows, ?PDO $pdo = null): void
     {

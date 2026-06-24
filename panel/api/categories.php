@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../inc/config.php';
+require_once __DIR__ . '/../inc/bot_emojis.php';
 
 header('Content-Type: application/json; charset=utf-8');
 require_auth_api();
@@ -23,7 +24,9 @@ if ($action === 'list') {
 
 if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
-    $remark = trim((string) ($_POST['remark'] ?? ''));
+    $remark = function_exists('vira_sanitize_button_emoji_label')
+        ? vira_sanitize_button_emoji_label(trim((string) ($_POST['remark'] ?? '')))
+        : trim((string) ($_POST['remark'] ?? ''));
     if ($remark === '') {
         cat_json(false, 'نام دسته الزامی است');
     }
@@ -37,7 +40,9 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_post();
     $id = (int) ($_POST['id'] ?? 0);
-    $remark = trim((string) ($_POST['remark'] ?? ''));
+    $remark = function_exists('vira_sanitize_button_emoji_label')
+        ? vira_sanitize_button_emoji_label(trim((string) ($_POST['remark'] ?? '')))
+        : trim((string) ($_POST['remark'] ?? ''));
     if (!$id || $remark === '') {
         cat_json(false, 'شناسه و نام دسته الزامی است');
     }

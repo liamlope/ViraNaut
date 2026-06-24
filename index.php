@@ -1569,13 +1569,22 @@ $textconnect
                 $result['price_product'] = $result['price_product'] - $resultper;
             }
             if ($statusshowprice == "offshowprice") {
-                $namekeyboard = $result['name_product'];
+                $appendPrice = false;
             } else {
-                $result['price_product'] = number_format($result['price_product']);
-                $namekeyboard = $result['name_product'] . " - " . $result['price_product'] . "تومان";
+                $appendPrice = true;
             }
             $productextend['inline_keyboard'][] = [
-                ['text' => $namekeyboard, 'callback_data' => "serviceextendselect_" . $result['code_product']]
+                function_exists('vira_telegram_product_button')
+                    ? [vira_telegram_product_button(
+                        (string) $result['name_product'],
+                        'serviceextendselect_' . $result['code_product'],
+                        $result['price_product'],
+                        $appendPrice
+                    )]
+                    : [['text' => $appendPrice
+                        ? $result['name_product'] . ' - ' . $result['price_product'] . 'تومان'
+                        : $result['name_product'],
+                        'callback_data' => 'serviceextendselect_' . $result['code_product']]],
             ];
         }
         $productextend['inline_keyboard'][] = [
@@ -1634,13 +1643,22 @@ $textconnect
             $result['price_product'] = $result['price_product'] - $resultper;
         }
         if ($statusshowprice == "offshowprice") {
-            $namekeyboard = $result['name_product'];
+            $appendPrice = false;
         } else {
-            $result['price_product'] = number_format($result['price_product']);
-            $namekeyboard = $result['name_product'] . " - " . $result['price_product'] . "تومان";
+            $appendPrice = true;
         }
         $productextend['inline_keyboard'][] = [
-            ['text' => $namekeyboard, 'callback_data' => "serviceextendselect_" . $result['code_product']]
+            function_exists('vira_telegram_product_button')
+                ? [vira_telegram_product_button(
+                    (string) $result['name_product'],
+                    'serviceextendselect_' . $result['code_product'],
+                    $result['price_product'],
+                    $appendPrice
+                )]
+                : [['text' => $appendPrice
+                    ? $result['name_product'] . ' - ' . $result['price_product'] . 'تومان'
+                    : $result['name_product'],
+                    'callback_data' => 'serviceextendselect_' . $result['code_product']]],
         ];
     }
     if ($nameloc['name_product'] == "🛍 حجم دلخواه" || $nameloc['name_product'] == "⚙️ سرویس دلخواه") {

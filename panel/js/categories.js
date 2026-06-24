@@ -31,7 +31,7 @@
             var tr = document.createElement('tr');
             tr.setAttribute('data-cat-id', String(c.id));
             tr.innerHTML =
-                '<td><input type="text" class="input cat-remark-input" value="' + escapeHtml(c.remark) + '" style="font-size:.82rem"></td>' +
+                '<td><input type="text" class="input cat-remark-input vira-emoji-field" data-emoji-max="1" value="' + escapeHtml(c.remark) + '" style="font-size:.82rem"></td>' +
                 '<td style="white-space:nowrap">' +
                 '<button type="button" class="btn btn-ghost btn-sm cat-save-btn">ذخیره</button> ' +
                 '<button type="button" class="btn btn-no btn-sm cat-del-btn">حذف</button>' +
