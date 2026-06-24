@@ -460,3 +460,12 @@
 .bt-area-kbd-over {
   border-color: var(--warn, #c47a00) !important;
 }
+
+.vira-emoji-field.bt-drag-over {
+  outline: 2px solid var(--ac);
+  outline-offset: 1px;
+}
+
+.vira-emoji-field.vira-emoji-over {
+  border-color: var(--warn, #c47a00);
+}
