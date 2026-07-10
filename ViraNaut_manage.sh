@@ -1871,6 +1871,16 @@ SET @col := (SELECT COUNT(*) FROM information_schema.COLUMNS
   WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='setting' AND COLUMN_NAME='status_usertest');
 SET @sql := IF(@col=0, 'ALTER TABLE setting ADD COLUMN status_usertest VARCHAR(16) DEFAULT ''ontest''', 'SELECT 1');
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := (SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoice' AND COLUMN_NAME='code_product');
+SET @sql := IF(@col=0, 'ALTER TABLE invoice ADD COLUMN code_product VARCHAR(128) NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := (SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoice' AND COLUMN_NAME='panel_sync_at');
+SET @sql := IF(@col=0, 'ALTER TABLE invoice ADD COLUMN panel_sync_at VARCHAR(100) NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 EOSQL
 
   local has_textbot
