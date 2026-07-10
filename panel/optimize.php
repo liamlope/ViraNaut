@@ -4,6 +4,10 @@ require_once __DIR__ . '/inc/icons.php';
 require_once __DIR__ . '/inc/optimize_ops.php';
 require_auth();
 
+if (is_file(__DIR__ . '/../inc/panel_service_repair.php')) {
+    require_once __DIR__ . '/../inc/panel_service_repair.php';
+}
+
 $dayOptions = vira_optimize_day_options();
 $daysExpireDefault = 90;
 $daysUnpaidDefault = 30;
@@ -43,6 +47,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['opt_action'])) {
                     $n,
                     $daysExpire,
                     $daysUnpaid
+                );
+            } elseif ($act === 'repair_panel') {
+                if (!function_exists('vira_repair_all_missing_panel_services')) {
+                    throw new RuntimeException('ماژول بازیابی پنل در دسترس نیست.');
+                }
+                @ini_set('max_execution_time', '600');
+                $repairStats = vira_repair_all_missing_panel_services();
+                $optFlashOk = true;
+                $optFlash = sprintf(
+                    'بازیابی پنل انجام شد — %d بررسی، %d بازیابی، %d موجود، %d خطا',
+                    (int) $repairStats['checked'],
+                    (int) $repairStats['repaired'],
+                    (int) $repairStats['skipped'],
+                    (int) $repairStats['errors']
                 );
             } else {
                 $optFlash = 'عملیات نامعتبر.';
@@ -309,6 +327,45 @@ window.ViraOptimizePage = (function () {
             });
     }
 
+    function runPanelRepair(ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        var msg = 'سرویس‌هایی که در پنل VPN حذف شده‌اند با همان لینک اشتراک و حجم/زمان باقی‌مانده بازیابی می‌شوند.\n\n'
+            + 'این عملیات ممکن است چند دقیقه طول بکشد. ادامه می‌دهید؟';
+        askConfirm(msg, 'بازیابی سرویس‌های پنل', function () {
+            if (!window.viraBotTools) {
+                var form = el('optFormRepairPanel');
+                if (form) form.submit();
+                return;
+            }
+            runWithProgress({
+                title: 'در حال بازیابی سرویس‌های گم‌شده در پنل…',
+                steps: ['بررسی سفارش‌ها', 'اتصال به پنل‌ها', 'بازیابی کاربران حذف‌شده', 'به‌روزرسانی snapshot'],
+                which: 'repair',
+                doneTitle: 'بازیابی انجام شد',
+                stepMs: 900
+            }, function (opts) {
+                return window.viraBotTools.post('repair_panel_services', { confirm: 'yes' }, opts);
+            }).then(function (r) {
+                if (!r || !r.ok) {
+                    showResult((r && r.msg) || 'خطا در بازیابی', false);
+                    return;
+                }
+                var lines = [r.msg || 'انجام شد'];
+                if (r.stats) {
+                    lines.push('');
+                    lines.push('بررسی: ' + (r.stats.checked || 0));
+                    lines.push('بازیابی: ' + (r.stats.repaired || 0));
+                    lines.push('موجود در پنل: ' + (r.stats.skipped || 0));
+                    lines.push('خطا: ' + (r.stats.errors || 0));
+                }
+                showResult(lines.join('\n'), true);
+            }).catch(function (err) {
+                showResult('خطا: ' + (err && err.message ? err.message : 'ارتباط با سرور'), false);
+            });
+        });
+        return false;
+    }
+
     function init() {
         var se = el('daysExpireReject');
         var su = el('daysUnpaid');
@@ -321,7 +378,7 @@ window.ViraOptimizePage = (function () {
 
     window.addEventListener('load', init);
 
-    return { runFull: runFull, runFullExecute: runFullExecute, runCleanup: runCleanup, refreshPreview: refreshPreview, init: init };
+    return { runFull: runFull, runFullExecute: runFullExecute, runCleanup: runCleanup, runPanelRepair: runPanelRepair, refreshPreview: refreshPreview, init: init };
 }());
 JS;
 
@@ -466,6 +523,31 @@ window.ViraOptimizePage = window.ViraOptimizePage || {
 
             <div id="optimizeResult" class="opt-result" hidden></div>
             <p class="opt-safe-note">⚠️ این عملیات قابل بازگشت نیست. قبل از اجرا از منوی پشتیبان‌گیری، بکاپ بگیرید.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <div class="card-title">بازیابی سرویس‌های پنل VPN</div>
+                <div class="card-subtitle">سرویس‌های حذف‌شده از پنل با همان sub و حجم/زمان باقی‌مانده دوباره ساخته می‌شوند</div>
+            </div>
+        </div>
+        <div class="card-body">
+            <ul class="opt-list">
+                <li>فقط سفارش‌های فعال/قابل بازیابی بررسی می‌شوند (نه سرویس تست)</li>
+                <li>اگر کاربر در پنل موجود باشد، فقط snapshot به‌روز می‌شود</li>
+                <li>بازیابی تکی هر سفارش از صفحه جزئیات سفارش همچنان در دسترس است</li>
+            </ul>
+            <p class="field-hint" style="margin-top:10px">این عملیات خودکار اجرا نمی‌شود — فقط با فشار دادن دکمه زیر.</p>
+            <div class="opt-actions" style="margin-top:14px">
+                <button type="button" class="btn btn-primary" id="runPanelRepair" onclick="return ViraOptimizePage.runPanelRepair && ViraOptimizePage.runPanelRepair(event)"><?= icon('server', 14) ?> بازیابی همه سرویس‌های گم‌شده</button>
+            </div>
+            <form method="post" id="optFormRepairPanel" style="display:none" aria-hidden="true">
+                <input type="hidden" name="_csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
+                <input type="hidden" name="opt_action" value="repair_panel">
+                <input type="hidden" name="confirm" value="yes">
+            </form>
         </div>
     </div>
 </div>

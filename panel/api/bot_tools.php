@@ -236,6 +236,33 @@ if ($action === 'cleanup_expired' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+if ($action === 'repair_panel_services' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_check_post();
+    if (empty($_POST['confirm']) || $_POST['confirm'] !== 'yes') {
+        bt_json(false, 'تأیید الزامی است');
+    }
+    if (!is_file(__DIR__ . '/../../inc/panel_service_repair.php')) {
+        bt_json(false, 'ماژول بازیابی پنل یافت نشد');
+    }
+    require_once __DIR__ . '/../../inc/panel_service_repair.php';
+    if (!function_exists('vira_repair_all_missing_panel_services')) {
+        bt_json(false, 'تابع بازیابی در دسترس نیست');
+    }
+    @ini_set('max_execution_time', '600');
+    try {
+        $stats = vira_repair_all_missing_panel_services();
+        bt_json(true, sprintf(
+            'بازیابی انجام شد — %d بررسی، %d بازیابی، %d موجود، %d خطا',
+            (int) $stats['checked'],
+            (int) $stats['repaired'],
+            (int) $stats['skipped'],
+            (int) $stats['errors']
+        ), ['stats' => $stats]);
+    } catch (Throwable $e) {
+        bt_json(false, $e->getMessage());
+    }
+}
+
 if ($action === 'backup_full_zip') {
     csrf_check_get();
     @ini_set('max_execution_time', '600');

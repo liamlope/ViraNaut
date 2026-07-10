@@ -155,9 +155,14 @@ class ManagePanel
             if (function_exists('vira_xui_panel_budget_start')) {
                 vira_xui_panel_budget_start(90);
             }
-            $subId = bin2hex(random_bytes(8));
+            $subId = !empty($Data_Config['sub_id'])
+                ? (string) $Data_Config['sub_id']
+                : bin2hex(random_bytes(8));
+            $clientUuid = !empty($Data_Config['client_uuid'])
+                ? (string) $Data_Config['client_uuid']
+                : generateUUID();
             $inbounds = vira_xui_resolve_inbounds($Get_Data_Panel, $Get_Data_Product);
-            $data_Output = addClient($Get_Data_Panel['name_panel'], $usernameC, $expire, $data_limit, generateUUID(), "", $subId, $inbounds, $Get_Data_Product['name_product'], $note);
+            $data_Output = addClient($Get_Data_Panel['name_panel'], $usernameC, $expire, $data_limit, $clientUuid, "", $subId, $inbounds, $Get_Data_Product['name_product'], $note);
             if (!empty($data_Output['error'])) {
                 if (function_exists('vira_xui_panel_log')) {
                     vira_xui_panel_log('createUser x-ui error: ' . $data_Output['error']);
@@ -216,14 +221,19 @@ class ManagePanel
                 }
             }
         } elseif ($Get_Data_Panel['type'] == "alireza_single") {
-            $subId = bin2hex(random_bytes(8));
+            $subId = !empty($Data_Config['sub_id'])
+                ? (string) $Data_Config['sub_id']
+                : bin2hex(random_bytes(8));
+            $clientUuid = !empty($Data_Config['client_uuid'])
+                ? (string) $Data_Config['client_uuid']
+                : generateUUID();
             $Expireac = $expire * 1000;
             if (isset($Get_Data_Product['inbounds']) and $Get_Data_Product['inbounds'] != null) {
                 $inbounds = $Get_Data_Product['inbounds'];
             } else {
                 $inbounds = $Get_Data_Panel['inboundid'];
             }
-            $data_Output = addClientalireza_singel($Get_Data_Panel['name_panel'], $usernameC, $Expireac, $data_limit, generateUUID(), "", $subId, $inbounds);
+            $data_Output = addClientalireza_singel($Get_Data_Panel['name_panel'], $usernameC, $Expireac, $data_limit, $clientUuid, "", $subId, $inbounds);
             if (!empty($data_Output['error'])) {
                 return array(
                     'status' => 'Unsuccessful',

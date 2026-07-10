@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/inc/config.php';
 require_once __DIR__ . '/inc/icons.php';
+require_once __DIR__ . '/inc/bot_emojis.php';
 require_auth();
 
 $search = trim($_GET['q'] ?? '');
@@ -83,8 +84,8 @@ include __DIR__ . '/inc/layout_head.php';
           <th>یوزرنیم</th>
           <th>محصول</th>
           <th>قیمت</th>
-          <th>تاریخ</th>
-          <th>وضعیت</th>
+          <th>تاریخ خرید</th>
+          <th>وضعیت ربات</th>
         </tr>
       </thead>
       <tbody>
@@ -114,7 +115,7 @@ include __DIR__ . '/inc/layout_head.php';
               <td class="cf"><?= $i++ ?></td>
               <td class="cm"><?= htmlspecialchars($inv['id_user'] ?? '—') ?></td>
               <td class="cm" style="font-size:.78rem"><code><?= htmlspecialchars(trunc($inv['username'] ?? '—', 22)) ?></code></td>
-              <td class="cs"><?= htmlspecialchars(trunc($inv['name_product'] ?? '—', 28)) ?></td>
+              <td class="cs"><?= htmlspecialchars(function_exists('vira_textbot_display') ? vira_textbot_display((string) ($inv['name_product'] ?? '—')) : trunc($inv['name_product'] ?? '—', 28)) ?></td>
               <td class="cn cs"><?= number_format((int) ($inv['price_product'] ?? 0)) ?> <span class="cf">ت</span></td>
               <td class="cf"><?= safe_date($inv['time_sell'] ?? null, 'Y/m/d') ?></td>
               <td><span class="tag <?= $cls ?>"><?= $lbl ?></span></td>

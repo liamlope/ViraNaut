@@ -380,17 +380,182 @@ if (!function_exists('vira_render_text_custom_emojis')) {
     }
 }
 
+if (!function_exists('vira_text_has_telegram_html_tags')) {
+    function vira_text_has_telegram_html_tags(string $text): bool
+    {
+        return (bool) preg_match('/<(?:\/?)(?:b|strong|i|em|u|ins|s|strike|del|code|pre|blockquote|a|span|br)\b/i', $text);
+    }
+}
+
+if (!function_exists('vira_parse_telegram_html_to_entities')) {
+    /**
+     * تبدیل زیرمجموعه HTML تلگرام به entities (بدون parse_mode).
+     *
+     * @return array{text:string,entities:array<int,array<string,mixed>>}
+     */
+    function vira_parse_telegram_html_to_entities(string $text): array
+    {
+        if ($text === '' || !vira_text_has_telegram_html_tags($text)) {
+            return ['text' => $text, 'entities' => []];
+        }
+
+        $tagTypes = [
+            'b' => 'bold',
+            'strong' => 'bold',
+            'i' => 'italic',
+            'em' => 'italic',
+            'u' => 'underline',
+            'ins' => 'underline',
+            's' => 'strikethrough',
+            'strike' => 'strikethrough',
+            'del' => 'strikethrough',
+            'code' => 'code',
+            'pre' => 'pre',
+            'blockquote' => 'blockquote',
+        ];
+
+        $entities = [];
+        $out = '';
+        $stack = [];
+        $remaining = $text;
+
+        while ($remaining !== '') {
+            $tagPos = mb_strpos($remaining, '<', 0, 'UTF-8');
+            if ($tagPos === false) {
+                $out .= $remaining;
+                break;
+            }
+            if ($tagPos > 0) {
+                $out .= mb_substr($remaining, 0, $tagPos, 'UTF-8');
+                $remaining = mb_substr($remaining, $tagPos, null, 'UTF-8');
+            }
+            if (!preg_match('/^<(\/?)([a-z]+)([^>]*)>/iu', $remaining, $m)) {
+                $out .= mb_substr($remaining, 0, 1, 'UTF-8');
+                $remaining = mb_substr($remaining, 1, null, 'UTF-8');
+                continue;
+            }
+
+            $tagFull = $m[0];
+            $isClose = $m[1] === '/';
+            $tagName = strtolower($m[2]);
+            $attrs = $m[3];
+
+            if ($isClose) {
+                for ($i = count($stack) - 1; $i >= 0; $i--) {
+                    if (($stack[$i]['tag'] ?? '') !== $tagName) {
+                        continue;
+                    }
+                    $open = $stack[$i];
+                    array_splice($stack, $i, 1);
+                    $length = vira_utf16_strlen($out) - (int) $open['start'];
+                    if ($length > 0) {
+                        $entity = [
+                            'type' => $open['type'],
+                            'offset' => (int) $open['start'],
+                            'length' => $length,
+                        ];
+                        if (($open['url'] ?? '') !== '') {
+                            $entity['url'] = $open['url'];
+                        }
+                        $entities[] = $entity;
+                    }
+                    break;
+                }
+            } elseif ($tagName === 'br') {
+                $out .= "\n";
+            } elseif (isset($tagTypes[$tagName])) {
+                $stack[] = [
+                    'tag' => $tagName,
+                    'type' => $tagTypes[$tagName],
+                    'start' => vira_utf16_strlen($out),
+                    'url' => null,
+                ];
+            } elseif ($tagName === 'a' && preg_match('/href="([^"]*)"/i', $attrs, $hrefMatch)) {
+                $stack[] = [
+                    'tag' => $tagName,
+                    'type' => 'text_link',
+                    'start' => vira_utf16_strlen($out),
+                    'url' => html_entity_decode($hrefMatch[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+                ];
+            } elseif ($tagName === 'span' && stripos($attrs, 'tg-spoiler') !== false) {
+                $stack[] = [
+                    'tag' => $tagName,
+                    'type' => 'spoiler',
+                    'start' => vira_utf16_strlen($out),
+                    'url' => null,
+                ];
+            }
+
+            $remaining = mb_substr($remaining, mb_strlen($tagFull, 'UTF-8'), null, 'UTF-8');
+        }
+
+        return ['text' => $out, 'entities' => $entities];
+    }
+}
+
+if (!function_exists('vira_merge_message_entities')) {
+    /** @param array<int,array<string,mixed>> ...$groups */
+    function vira_merge_message_entities(array ...$groups): array
+    {
+        $merged = [];
+        foreach ($groups as $group) {
+            foreach ($group as $entity) {
+                if (is_array($entity) && isset($entity['type'], $entity['offset'], $entity['length'])) {
+                    $merged[] = $entity;
+                }
+            }
+        }
+        if ($merged === []) {
+            return [];
+        }
+        usort($merged, static function (array $a, array $b): int {
+            $cmp = ((int) $a['offset']) <=> ((int) $b['offset']);
+            return $cmp !== 0 ? $cmp : ((int) $a['length']) <=> ((int) $b['length']);
+        });
+        return $merged;
+    }
+}
+
 if (!function_exists('vira_prepare_outgoing_text')) {
     function vira_prepare_outgoing_text(string $text, ?string $parse_mode = 'HTML'): array
     {
         $rendered = vira_render_text_custom_emojis($text);
-        if (!$rendered['has_placeholders']) {
+        $plainText = (string) $rendered['text'];
+        $emojiEntities = [];
+        if ($rendered['entities'] !== null) {
+            $decoded = json_decode((string) $rendered['entities'], true);
+            if (is_array($decoded)) {
+                $emojiEntities = $decoded;
+            }
+        }
+
+        $useHtml = $parse_mode !== null
+            && $parse_mode !== ''
+            && strcasecmp((string) $parse_mode, 'HTML') === 0;
+        $hasHtmlTags = $useHtml && vira_text_has_telegram_html_tags($plainText);
+
+        if (!$rendered['has_placeholders'] && !$hasHtmlTags) {
             return ['text' => $text, 'parse_mode' => $parse_mode, 'entities' => null];
         }
-        if ($rendered['entities'] !== null) {
-            return ['text' => $rendered['text'], 'parse_mode' => null, 'entities' => $rendered['entities']];
+
+        $htmlParsed = $hasHtmlTags
+            ? vira_parse_telegram_html_to_entities($plainText)
+            : ['text' => $plainText, 'entities' => []];
+        $allEntities = vira_merge_message_entities($emojiEntities, $htmlParsed['entities']);
+
+        if ($allEntities !== []) {
+            return [
+                'text' => $htmlParsed['text'],
+                'parse_mode' => null,
+                'entities' => json_encode($allEntities, JSON_UNESCAPED_UNICODE),
+            ];
         }
-        return ['text' => $rendered['text'], 'parse_mode' => $parse_mode, 'entities' => null];
+
+        if ($rendered['entities'] !== null) {
+            return ['text' => $plainText, 'parse_mode' => null, 'entities' => $rendered['entities']];
+        }
+
+        return ['text' => $plainText, 'parse_mode' => $parse_mode, 'entities' => null];
     }
 }
 

@@ -103,8 +103,7 @@ function sendmessage($chat_id, $text, $keyboard, $parse_mode, $bot_token = null,
         ];
         if ($entities !== null && $entities !== '') {
             $data['entities'] = is_string($entities) ? $entities : json_encode($entities, JSON_UNESCAPED_UNICODE);
-        }
-        if ($parse_mode !== null && $parse_mode !== '') {
+        } elseif ($parse_mode !== null && $parse_mode !== '') {
             $data['parse_mode'] = $parse_mode;
         }
         return telegram('sendmessage', $data, $bot_token);
@@ -215,8 +214,7 @@ function Editmessagetext($chat_id, $message_id, $text, $keyboard, $parse_mode = 
     ];
     if ($entities !== null && $entities !== '') {
         $data['entities'] = is_string($entities) ? $entities : json_encode($entities, JSON_UNESCAPED_UNICODE);
-    }
-    if ($parse_mode !== null && $parse_mode !== '') {
+    } elseif ($parse_mode !== null && $parse_mode !== '') {
         $data['parse_mode'] = $parse_mode;
     }
     return telegram('editmessagetext', $data);

@@ -7,6 +7,10 @@ require_once __DIR__ . '/../botapi.php';
 require_once __DIR__ . '/../panels.php';
 require_once __DIR__ . '/../function.php';
 
+if (is_file(__DIR__ . '/../inc/panel_service_repair.php')) {
+    require_once __DIR__ . '/../inc/panel_service_repair.php';
+}
+
 class ServiceMonitor
 {
     private $Panel;
@@ -94,8 +98,12 @@ class ServiceMonitor
 
         // Get username data from panel
         $userData = $this->Panel->DataUser($invoice['Service_location'], $username);
-        if (!$userData || $userData['status'] == "Unsuccessful")
+        if (!$userData || $userData['status'] == "Unsuccessful") {
             return;
+        }
+        if (function_exists('vira_invoice_update_panel_snapshot')) {
+            vira_invoice_update_panel_snapshot((string) $invoice['id_invoice'], $userData);
+        }
         return [
             'invoice' => $invoice,
             'panel' => $panelInfo,

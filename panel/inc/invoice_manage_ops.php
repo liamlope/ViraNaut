@@ -50,6 +50,9 @@ function im_panel_snapshot(array $invoice): array
     if (!is_array($data) || ($data['status'] ?? '') === 'Unsuccessful') {
         return ['ok' => false, 'error' => 'user_not_in_panel', 'raw' => is_array($data) ? $data : []];
     }
+    if (function_exists('vira_invoice_update_panel_snapshot') && !empty($invoice['id_invoice'])) {
+        vira_invoice_update_panel_snapshot((string) $invoice['id_invoice'], $data);
+    }
     return ['ok' => true, 'data' => $data];
 }
 
@@ -269,10 +272,15 @@ function im_send_subscription(PDO $pdo, string $idInvoice): array
         return ['ok' => false, 'msg' => 'سفارش یافت نشد.'];
     }
     $snap = im_panel_snapshot($invoice);
-    if (!$snap['ok']) {
-        return ['ok' => false, 'msg' => 'اطلاعات پنل در دسترس نیست.'];
+    $url = $snap['ok'] ? trim((string) ($snap['data']['subscription_url'] ?? '')) : '';
+    if ($url === '') {
+        if (!function_exists('vira_invoice_subscription_url') && is_file(dirname(__DIR__, 2) . '/inc/panel_service_repair.php')) {
+            require_once dirname(__DIR__, 2) . '/inc/panel_service_repair.php';
+        }
+        if (function_exists('vira_invoice_subscription_url')) {
+            $url = vira_invoice_subscription_url($invoice, $snap['ok'] ? ($snap['data'] ?? null) : null);
+        }
     }
-    $url = trim((string) ($snap['data']['subscription_url'] ?? ''));
     if ($url === '') {
         return ['ok' => false, 'msg' => 'لینک اشتراک خالی است.'];
     }
@@ -283,9 +291,36 @@ function im_send_subscription(PDO $pdo, string $idInvoice): array
     return ['ok' => true, 'msg' => 'لینک اشتراک برای کاربر ارسال شد.'];
 }
 
+function im_repair_panel_service(PDO $pdo, string $idInvoice, string $adminUser): array
+{
+    $invoice = im_get_invoice($pdo, $idInvoice);
+    if (!$invoice) {
+        return ['ok' => false, 'msg' => 'سفارش یافت نشد.'];
+    }
+    if (!function_exists('vira_repair_invoice_on_panel')) {
+        require_once dirname(__DIR__, 2) . '/inc/panel_service_repair.php';
+    }
+    if (!function_exists('vira_ensure_manage_panel')) {
+        require_once dirname(__DIR__, 2) . '/function.php';
+    }
+    $result = vira_repair_invoice_on_panel($invoice, vira_ensure_manage_panel());
+    if ($result['ok']) {
+        um_channel_report(
+            "♻️ ادمین پنل وب سرویس حذف‌شده را بازیابی کرد.\n"
+            . "🪪 ادمین: {$adminUser}\n"
+            . "🛒 سفارش: {$idInvoice}\n"
+            . "👤 یوزرنیم: {$invoice['username']}",
+            'otherservice'
+        );
+    }
+    return $result;
+}
+
 function im_handle_action(PDO $pdo, string $idInvoice, string $action, string $adminUser): array
 {
     switch ($action) {
+        case 'repair_panel':
+            return im_repair_panel_service($pdo, $idInvoice, $adminUser);
         case 'remove':
             return im_remove_service($pdo, $idInvoice, false, $adminUser);
         case 'remove_refund':

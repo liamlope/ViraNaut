@@ -900,6 +900,9 @@ if ($text == "version") {
         step('home', $from_id);
         return;
     }
+    if (function_exists('vira_invoice_update_panel_snapshot') && !empty($nameloc['id_invoice'])) {
+        vira_invoice_update_panel_snapshot((string) $nameloc['id_invoice'], $DataUserOut);
+    }
     if ($DataUserOut['online_at'] == "online") {
         $lastonline = vira_online_status_label('online', $textbotlang);
     } elseif ($DataUserOut['online_at'] == "offline") {
@@ -6050,15 +6053,28 @@ if (preg_match('/Confirmpay_user_(\w+)_(\w+)/', $datain, $dataget)) {
     }
 }
 if (preg_match('/^sendresidcart-(.*)/', $datain, $dataget)) {
-    $timefivemin = time() - 120;
-    $timefivemin = date('Y/m/d H:i:s', intval($timefivemin));
-    $sql = "SELECT * FROM Payment_report WHERE id_user = '$from_id' AND Payment_Method = 'cart to cart' AND at_updated > '$timefivemin'";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute();
-    $paymentcount = $stmt->rowCount();
-    if ($paymentcount != 0 and !in_array($from_id, $admin_ids)) {
-        sendmessage($from_id, "❗ شما در ۲ دقیقه اخیر رسید ارسال کرده اید لطفا ۲ دقیقه دیگر رسید جدید را ارسال نمایید.", null, 'HTML');
-        return;
+    $currentOrder = (string) ($dataget[1] ?? '');
+    if ($currentOrder !== '' && !in_array($from_id, $admin_ids)) {
+        $cutoff = date('Y/m/d H:i:s', time() - 120);
+        $stmt = $pdo->prepare(
+            "SELECT COUNT(*) FROM Payment_report
+             WHERE id_user = :uid
+               AND Payment_Method = 'cart to cart'
+               AND payment_Status = 'waiting'
+               AND id_order != :oid
+               AND at_updated > :cutoff"
+        );
+        $stmt->execute([
+            ':uid' => (string) $from_id,
+            ':oid' => $currentOrder,
+            ':cutoff' => $cutoff,
+        ]);
+        if ((int) $stmt->fetchColumn() > 0) {
+            $cooldownMsg = $textbotlang['users']['Balance']['receiptCooldown']
+                ?? '❗ شما در ۲ دقیقه اخیر رسید ارسال کرده اید لطفا ۲ دقیقه دیگر رسید جدید را ارسال نمایید.';
+            sendmessage($from_id, $cooldownMsg, null, 'HTML');
+            return;
+        }
     }
     $payemntcheck = select("Payment_report", "*", "id_order", $dataget[1], "select");
     if ($payemntcheck['payment_Status'] == "paid") {
