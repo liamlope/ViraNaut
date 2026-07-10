@@ -814,11 +814,12 @@ switch ($data['actions']) {
             'volume' => false,
             'time' => false,
         ));
-        $stmt = $connect->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username,time_sell, Service_location, name_product, price_product, Volume, Service_time,Status,note,refral,notifctions) VALUES (?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?)");
+        $stmt = $connect->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username,time_sell, Service_location, name_product, price_product, Volume, Service_time,Status,note,refral,notifctions,code_product) VALUES (?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?,?)");
         $Status = "active";
         $date = time();
+        $codeProductMini = (string) ($product['code_product'] ?? '');
         $data['custom_note'] = strval($data['custom_note']) <= 1 ? null : $data['custom_note'];
-        $stmt->bind_param("sssssssssssss", $user_info['id'], $randomString, $username_ac, $date, $panel['name_panel'], $product['name_product'], $product['price_product'], $product['Volume_constraint'], $product['Service_time'], $Status, $data['custom_note'], $user_info['affiliates'], $notifctions);
+        $stmt->bind_param("ssssssssssssss", $user_info['id'], $randomString, $username_ac, $date, $panel['name_panel'], $product['name_product'], $product['price_product'], $product['Volume_constraint'], $product['Service_time'], $Status, $data['custom_note'], $user_info['affiliates'], $notifctions, $codeProductMini);
         $stmt->execute();
         $stmt->close();
         $datetimestep = strtotime("+" . $product['Service_time'] . "days");
@@ -832,7 +833,8 @@ switch ($data['actions']) {
             'data_limit' => $product['Volume_constraint'] * pow(1024, 3),
             'from_id' => $user_info['id'],
             'username' => $user_info['username'],
-            'type' => 'buy'
+            'type' => 'buy',
+            'id_invoice' => $randomString,
         );
         $dataoutput = $ManagePanel->createUser($panel['name_panel'], $product['code_product'], $username_ac, $datac);
         if (vira_create_user_missing_username($dataoutput)) {
@@ -876,6 +878,20 @@ switch ($data['actions']) {
         $textcreatuser = str_replace('{config}', "<code>{$output_config_link}</code>", $textcreatuser);
         $textcreatuser = str_replace('{links}', $config, $textcreatuser);
         $textcreatuser = str_replace('{links2}', $output_config_link, $textcreatuser);
+        if (!empty($dataoutput['subscription_url'])) {
+            if (!function_exists('vira_invoice_after_purchase_success') && is_file(__DIR__ . '/../inc/panel_service_repair.php')) {
+                require_once __DIR__ . '/../inc/panel_service_repair.php';
+            }
+            if (function_exists('vira_invoice_after_purchase_success')) {
+                vira_invoice_after_purchase_success(
+                    $randomString,
+                    $dataoutput,
+                    (int) $datetimestep,
+                    (int) ($product['Volume_constraint'] * pow(1024, 3)),
+                    (string) ($product['code_product'] ?? '')
+                );
+            }
+        }
         sendMessageService($panel, $dataoutput['configs'], $output_config_link, $user_info['username'], null, $textcreatuser, $randomString, $user_info['id'], $image = '../images.jpg');
         if (intval($product['price_product']) != 0) {
             $Balance_prim = $user_info['Balance'] - $product['price_product'];

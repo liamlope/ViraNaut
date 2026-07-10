@@ -2974,7 +2974,8 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
             'data_limit' => $get_invoice['Volume'] * pow(1024, 3),
             'from_id' => $Balance_id['id'],
             'username' => vira_user_tg_username($Balance_id),
-            'type' => 'buy'
+            'type' => 'buy',
+            'id_invoice' => $get_invoice['id_invoice'],
         );
         $dataoutput = $ManagePanel->createUser($marzban_list_get['name_panel'], $info_product['code_product'], $username_ac, $datac);
         if (vira_create_user_missing_username($dataoutput)) {
@@ -3031,6 +3032,21 @@ function DirectPayment($order_id, $image = 'images.jpg', bool $alreadyClaimed = 
         if ($marzban_list_get['type'] == "Manualsale" || $marzban_list_get['type'] == "ibsng" || $marzban_list_get['type'] == "mikrotik") {
             $textcreatuser = str_replace('{password}', $dataoutput['subscription_url'], $textcreatuser);
             update("invoice", "user_info", $dataoutput['subscription_url'], "id_invoice", $get_invoice['id_invoice']);
+        } elseif (!empty($dataoutput['subscription_url'])) {
+            if (!function_exists('vira_invoice_after_purchase_success') && is_file(__DIR__ . '/inc/panel_service_repair.php')) {
+                require_once __DIR__ . '/inc/panel_service_repair.php';
+            }
+            if (function_exists('vira_invoice_after_purchase_success')) {
+                vira_invoice_after_purchase_success(
+                    (string) $get_invoice['id_invoice'],
+                    $dataoutput,
+                    (int) $timestamp,
+                    (int) ($get_invoice['Volume'] * pow(1024, 3)),
+                    (string) ($info_product['code_product'] ?? '')
+                );
+            } elseif (function_exists('vira_invoice_persist_subscription_data')) {
+                vira_invoice_persist_subscription_data((string) $get_invoice['id_invoice'], (string) $dataoutput['subscription_url'], $dataoutput);
+            }
         }
         sendMessageService($marzban_list_get, $dataoutput['configs'], $output_config_link, $dataoutput['username'], $Shoppinginfo, $textcreatuser, $get_invoice['id_invoice'], $get_invoice['id_user'], $image);
         $partsdic = explode("_", $Balance_id['Processing_value_four'], $get_invoice['id_user']);
@@ -3180,9 +3196,8 @@ $textonebuy
             $scorenew = $Balance_id['score'] + 1;
             update("user", "score", $scorenew, "id", $Balance_id['id']);
         }
-        update("invoice", "Status", "active", "username", $get_invoice['username']);
+        update("invoice", "Status", "active", "id_invoice", $get_invoice['id_invoice']);
         if ($Payment_report['Payment_Method'] == "cart to cart" or $Payment_report['Payment_Method'] == "arze digital offline") {
-            update("invoice", "Status", "active", "id_invoice", $get_invoice['id_invoice']);
             $textconfrom = "✅ پرداخت تایید شده
  🛍خرید سرویس 
  ▫️نام کاربری کانفیگ :$username_ac
@@ -4964,10 +4979,18 @@ function vira_admin_run_exclusive(string $step): bool
 
 function vira_languagechange_from_json(?string $path_dir = null): array
 {
+    static $cachePath = '';
+    static $cacheMtime = 0;
+    static $cacheLang = [];
+
     if ($path_dir === null || $path_dir === '') {
         $path_dir = __DIR__ . '/text.json';
     } elseif (!str_contains(str_replace('\\', '/', $path_dir), '/')) {
         $path_dir = __DIR__ . '/' . ltrim($path_dir, '/');
+    }
+    $mtime = (int) (@filemtime($path_dir) ?: 0);
+    if ($cachePath === $path_dir && $cacheMtime === $mtime && $cacheLang !== []) {
+        return $cacheLang;
     }
     $raw = @file_get_contents($path_dir);
     $all = is_string($raw) ? json_decode($raw, true) : null;
@@ -4980,6 +5003,9 @@ function vira_languagechange_from_json(?string $path_dir = null): array
         $lang = [];
     }
     vira_apply_textbotlang_compat($lang);
+    $cachePath = $path_dir;
+    $cacheMtime = $mtime;
+    $cacheLang = $lang;
     return $lang;
 }
 

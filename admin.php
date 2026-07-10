@@ -7007,7 +7007,7 @@ n2", $backadmin, 'HTML');
     }
     $ManagePanel->RemoveUser($nameloc['Service_location'], $requestcheck['username']);
     update("cancel_service", "status", "accept", "username", $requestcheck['username']);
-    update("invoice", "status", "removedbyadmin", "username", $requestcheck['username']);
+    update("invoice", "Status", "removedbyadmin", "id_invoice", $nameloc['id_invoice']);
     sendmessage($from_id, "❌ مبلغ $pricelast تومان به موجودی کاربر اضافه گردید.", null, 'HTML');
     sendmessage($nameloc['id_user'], "✅ کاربری گرامی درخواست حذف شما با نام کاربری  {$nameloc['username']} موافقت گردید.", null, 'HTML');
     $text_report = "⭕️ یک ادمین سرویس کاربر که درخواست حذف داشت را تایید کرد
@@ -7043,7 +7043,7 @@ n2", $backadmin, 'HTML');
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $invoice['Service_location'], "select");
     $ManagePanel->RemoveUser($invoice['Service_location'], $requestcheck['username']);
     update("cancel_service", "status", "accept", "username", $requestcheck['username']);
-    update("invoice", "status", "removedbyadmin", "username", $requestcheck['username']);
+    update("invoice", "Status", "removedbyadmin", "id_invoice", $nameloc['id_invoice']);
     sendmessage($invoice['id_user'], "✅ کاربری گرامی درخواست حذف شما با نام کاربری  {$invoice['username']} موافقت گردید.", null, 'HTML');
     sendmessage($from_id, "📌 مبلغ  برای بازگشت وجه را ارسال نمایید", $backadmin, 'HTML');
     step("getpricebackremove", $from_id);
@@ -7340,7 +7340,7 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
         'volume' => false,
         'time' => false,
     ));
-    $stmt = $pdo->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username, time_sell, Service_location, name_product, price_product, Volume, Service_time, Status,notifctions) VALUES (:id_user, :id_invoice, :username, :time_sell, :Service_location, :name_product, :price_product, :Volume, :Service_time, :Status,:notifctions)");
+    $stmt = $pdo->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username, time_sell, Service_location, name_product, price_product, Volume, Service_time, Status,notifctions,code_product) VALUES (:id_user, :id_invoice, :username, :time_sell, :Service_location, :name_product, :price_product, :Volume, :Service_time, :Status,:notifctions,:code_product)");
     $Status = "active";
     $stmt->bindParam(':id_user', $user['Processing_value'], PDO::PARAM_STR);
     $stmt->bindParam(':id_invoice', $randomString, PDO::PARAM_STR);
@@ -7353,6 +7353,7 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     $stmt->bindParam(':Service_time', $info_product['Service_time'], PDO::PARAM_STR);
     $stmt->bindParam(':Status', $Status, PDO::PARAM_STR);
     $stmt->bindParam(':notifctions', $notifctions, PDO::PARAM_STR);
+    $stmt->bindParam(':code_product', $info_product['code_product'], PDO::PARAM_STR);
     $stmt->execute();
     $output_config_link = $marzban_list_get['sublink'] == "onsublink" ? $DataUserOut['subscription_url'] : "";
     $config = "";

@@ -4,6 +4,9 @@ declare(strict_types=1);
  * Shared agent business logic for agent-panel web + api/agent.php
  */
 require_once __DIR__ . '/../panels.php';
+if (is_file(__DIR__ . '/panel_service_repair.php')) {
+    require_once __DIR__ . '/panel_service_repair.php';
+}
 
 if (!function_exists('db_query')) {
     function db_query(PDO $pdo, string $sql, array $params = []): PDOStatement
@@ -383,12 +386,13 @@ function agent_create_invoice(string $agentId, string $username, array $panel, a
     $user = select('user', '*', 'id', $agentId, 'select');
     $notifctions = json_encode(['volume' => false, 'time' => false]);
     $stmt = $connect->prepare(
-        'INSERT IGNORE INTO invoice (id_user, id_invoice, username, time_sell, Service_location, name_product, price_product, Volume, Service_time, Status, note, refral, notifctions)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
+        'INSERT IGNORE INTO invoice (id_user, id_invoice, username, time_sell, Service_location, name_product, price_product, Volume, Service_time, Status, note, refral, notifctions, code_product)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
     );
     $status = 'unpaid';
+    $codeProduct = (string) ($product['code_product'] ?? '');
     $stmt->bind_param(
-        'ssssssssssss',
+        'ssssssssssssss',
         $agentId,
         $randomString,
         $username,
@@ -401,14 +405,15 @@ function agent_create_invoice(string $agentId, string $username, array $panel, a
         $status,
         $note,
         $user['affiliates'] ?? '0',
-        $notifctions
+        $notifctions,
+        $codeProduct
     );
     $stmt->execute();
     $stmt->close();
     return $randomString;
 }
 
-function agent_finalize_service(PDO $pdo, ManagePanel $mp, string $agentId, array $user, array $panel, array $product, string $username, int $price): array
+function agent_finalize_service(PDO $pdo, ManagePanel $mp, string $agentId, array $user, array $panel, array $product, string $username, int $price, ?string $idInvoice = null): array
 {
     $datetimestep = (int) $product['Service_time'] === 0 ? 0 : strtotime('+' . (int) $product['Service_time'] . ' days');
     if ($datetimestep > 0) {
@@ -421,6 +426,9 @@ function agent_finalize_service(PDO $pdo, ManagePanel $mp, string $agentId, arra
         'username' => $user['username'] ?? '',
         'type' => 'buy',
     ];
+    if ($idInvoice !== null && $idInvoice !== '') {
+        $datac['id_invoice'] = $idInvoice;
+    }
     try {
         if ($price > 0 && !agent_deduct_balance_atomic($pdo, $user, $price)) {
             return ['ok' => false, 'msg' => 'balance deduct failed'];
@@ -438,7 +446,20 @@ function agent_finalize_service(PDO $pdo, ManagePanel $mp, string $agentId, arra
         }
         return ['ok' => false, 'msg' => $out['msg'] ?? 'create failed'];
     }
-    update('invoice', 'Status', 'active', 'username', $username);
+    if ($idInvoice !== null && $idInvoice !== '') {
+        update('invoice', 'Status', 'active', 'id_invoice', $idInvoice);
+        if (!empty($out['subscription_url']) && function_exists('vira_invoice_after_purchase_success')) {
+            vira_invoice_after_purchase_success(
+                $idInvoice,
+                $out,
+                (int) $datetimestep,
+                (int) ($product['Volume_constraint'] * pow(1024, 3)),
+                (string) ($product['code_product'] ?? '')
+            );
+        }
+    } else {
+        update('invoice', 'Status', 'active', 'username', $username);
+    }
     agent_bump_username_counter($agentId, $panel);
     agent_log_action($pdo, $agentId, 'buy', $username, $product['name_product'] . ' @ ' . $panel['name_panel']);
     agent_notify_webhook($pdo, $agentId, 'purchase', ['username' => $username, 'product' => $product['name_product'], 'price' => $price]);
@@ -462,9 +483,9 @@ function agent_buy_service(PDO $pdo, array $user, string $panelName, string $pro
         return ['ok' => false, 'msg' => $preflight['msg'], 'needs_gateway' => $preflight['needs_gateway'], 'gateway_amount' => $preflight['gateway_amount']];
     }
     $username = $customUsername ?: agent_generate_username($agentId, $panel);
-    agent_create_invoice($agentId, $username, $panel, $product, $price);
+    $idInvoice = agent_create_invoice($agentId, $username, $panel, $product, $price);
     $mp = new ManagePanel();
-    return agent_finalize_service($pdo, $mp, $agentId, $user, $panel, $product, $username, $price);
+    return agent_finalize_service($pdo, $mp, $agentId, $user, $panel, $product, $username, $price, $idInvoice);
 }
 
 function agent_buy_custom(PDO $pdo, array $user, string $panelName, int $volumeGb, int $days, ?string $customUsername = null): array
@@ -493,9 +514,9 @@ function agent_buy_custom(PDO $pdo, array $user, string $panelName, int $volumeG
         'price_product' => $price,
     ];
     $username = $customUsername ?: agent_generate_username($agentId = (string) $user['id'], $panel);
-    agent_create_invoice($agentId, $username, $panel, $product, $price, 'custom');
+    $idInvoice = agent_create_invoice($agentId, $username, $panel, $product, $price, 'custom');
     $mp = new ManagePanel();
-    return agent_finalize_service($pdo, $mp, $agentId, $user, $panel, $product, $username, $price);
+    return agent_finalize_service($pdo, $mp, $agentId, $user, $panel, $product, $username, $price, $idInvoice);
 }
 
 function agent_buy_bulk(PDO $pdo, array $user, string $panelName, string $productCode, int $count): array

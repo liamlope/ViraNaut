@@ -536,6 +536,10 @@ try {
         if (mysqli_num_rows($Check_filde) != 1) {
             $result = $connect->query("ALTER TABLE invoice ADD time_cron VARCHAR(100)");
         }
+        $Check_filde = $connect->query("SHOW COLUMNS FROM invoice LIKE 'panel_sync_at'");
+        if (mysqli_num_rows($Check_filde) != 1) {
+            $result = $connect->query("ALTER TABLE invoice ADD panel_sync_at VARCHAR(100) NULL");
+        }
         $Check_filde = $connect->query("SHOW COLUMNS FROM invoice LIKE 'refral'");
         if (mysqli_num_rows($Check_filde) != 1) {
             $result = $connect->query("ALTER TABLE invoice ADD refral VARCHAR(100)");
@@ -559,6 +563,15 @@ try {
         $Check_filde = $connect->query("SHOW COLUMNS FROM invoice LIKE 'Status'");
         if (mysqli_num_rows($Check_filde) != 1) {
             $result = $connect->query("ALTER TABLE invoice ADD Status VARCHAR(100)");
+        }
+        $invoiceExtraCols = [
+            'code_product' => 'VARCHAR(128) NULL',
+        ];
+        foreach ($invoiceExtraCols as $colName => $colDef) {
+            $Check_filde = $connect->query("SHOW COLUMNS FROM invoice LIKE '{$colName}'");
+            if (mysqli_num_rows($Check_filde) != 1) {
+                $connect->query("ALTER TABLE invoice ADD {$colName} {$colDef}");
+            }
         }
     }
 } catch (Exception $e) {

@@ -39,19 +39,26 @@ function im_panel_snapshot(array $invoice): array
     if (empty($invoice['username']) || empty($invoice['Service_location'])) {
         return ['ok' => false, 'error' => 'missing_username'];
     }
-    if (!function_exists('vira_ensure_manage_panel')) {
-        require_once __DIR__ . '/../../function.php';
-    }
     if (!function_exists('formatBytes')) {
         require_once __DIR__ . '/../../function.php';
     }
+    if (!function_exists('vira_invoice_refresh_one_from_panel') && is_file(dirname(__DIR__, 2) . '/inc/panel_service_repair.php')) {
+        require_once dirname(__DIR__, 2) . '/inc/panel_service_repair.php';
+    }
+    if (!function_exists('vira_ensure_manage_panel')) {
+        require_once __DIR__ . '/../../function.php';
+    }
     $panel = vira_ensure_manage_panel();
+    if (function_exists('vira_invoice_refresh_one_from_panel')) {
+        $refresh = vira_invoice_refresh_one_from_panel($invoice, $panel, true);
+        if ($refresh['ok'] && !empty($refresh['data'])) {
+            return ['ok' => true, 'data' => $refresh['data']];
+        }
+        return ['ok' => false, 'error' => $refresh['error'] ?? 'user_not_in_panel', 'raw' => $refresh['data'] ?? []];
+    }
     $data = $panel->DataUser((string) $invoice['Service_location'], (string) $invoice['username']);
     if (!is_array($data) || ($data['status'] ?? '') === 'Unsuccessful') {
         return ['ok' => false, 'error' => 'user_not_in_panel', 'raw' => is_array($data) ? $data : []];
-    }
-    if (function_exists('vira_invoice_update_panel_snapshot') && !empty($invoice['id_invoice'])) {
-        vira_invoice_update_panel_snapshot((string) $invoice['id_invoice'], $data);
     }
     return ['ok' => true, 'data' => $data];
 }
@@ -85,7 +92,61 @@ function im_bot_status_map(): array
     ];
 }
 
-function im_build_panel_fields(array $panelData, array $textbotlang): array
+/**
+ * @return array{volume_remaining:string,days_remaining:string,expire_ts:int,volume_bytes:int}
+ */
+function im_invoice_remaining_summary(array $invoice, ?array $panelData = null): array
+{
+    if (!function_exists('formatBytes')) {
+        require_once __DIR__ . '/../../function.php';
+    }
+
+    $expireTs = 0;
+    if (is_array($panelData) && !empty($panelData['expire'])) {
+        $expireTs = (int) $panelData['expire'];
+    } elseif ((int) ($invoice['Service_time'] ?? 0) > 0) {
+        $sellTs = is_numeric($invoice['time_sell'] ?? null)
+            ? (int) $invoice['time_sell']
+            : strtotime((string) ($invoice['time_sell'] ?? ''));
+        $expireTs = $sellTs > 0 ? $sellTs + ((int) $invoice['Service_time'] * 86400) : 0;
+    }
+
+    $limit = 0;
+    $used = 0;
+    if (is_array($panelData)) {
+        $limit = (int) ($panelData['data_limit'] ?? 0);
+        $used = (int) ($panelData['used_traffic'] ?? 0);
+    } elseif ((int) ($invoice['Volume'] ?? 0) > 0) {
+        $limit = (int) $invoice['Volume'] * (int) pow(1024, 3);
+    }
+
+    $daysLabel = '—';
+    if ($expireTs > 0) {
+        $diff = max(0, $expireTs - time());
+        $days = (int) floor($diff / 86400);
+        $daysLabel = $days . ' روز';
+    } elseif (is_array($panelData) && ($panelData['expire'] ?? 0) == 0) {
+        $daysLabel = 'نامحدود';
+    }
+
+    $volumeLabel = '—';
+    $remainingBytes = 0;
+    if ($limit > 0) {
+        $remainingBytes = max(0, $limit - max(0, $used));
+        $volumeLabel = formatBytes($remainingBytes) . ' باقی';
+    } elseif ($limit === 0 && is_array($panelData)) {
+        $volumeLabel = 'نامحدود';
+    }
+
+    return [
+        'volume_remaining' => $volumeLabel,
+        'days_remaining' => $daysLabel,
+        'expire_ts' => $expireTs,
+        'volume_bytes' => $remainingBytes,
+    ];
+}
+
+function im_build_panel_fields(array $panelData, array $textbotlang, ?string $panelType = null): array
 {
     $status = (string) ($panelData['status'] ?? 'Unknown');
     $online = (string) ($panelData['online_at'] ?? '');
@@ -135,7 +196,7 @@ function im_build_panel_fields(array $panelData, array $textbotlang): array
         }
     }
 
-    return [
+    $fields = [
         ['label' => 'وضعیت پنل', 'value' => im_status_label($status, $textbotlang)],
         ['label' => 'حجم کل', 'value' => $totalTraffic],
         ['label' => 'مصرف‌شده', 'value' => $usedTraffic],
@@ -144,8 +205,11 @@ function im_build_panel_fields(array $panelData, array $textbotlang): array
         ['label' => 'آخرین اتصال', 'value' => $onlineLabel],
         ['label' => 'آخرین آپدیت ساب', 'value' => $subUpdated],
         ['label' => 'لینک اشتراک', 'value' => (string) ($panelData['subscription_url'] ?? '—'), 'mono' => true],
-        ['label' => 'کلاینت', 'value' => (string) ($panelData['sub_last_user_agent'] ?? '—'), 'mono' => true],
     ];
+    if ($panelType !== 'x-ui_single') {
+        $fields[] = ['label' => 'کلاینت', 'value' => (string) ($panelData['sub_last_user_agent'] ?? '—'), 'mono' => true];
+    }
+    return $fields;
 }
 
 function im_service_other_rows(PDO $pdo, string $username): array

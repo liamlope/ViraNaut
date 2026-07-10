@@ -2,6 +2,11 @@
 ini_set('error_log', 'error_log');
 date_default_timezone_set('Asia/Tehran');
 
+require_once __DIR__ . '/_cron_guard.php';
+if (!vira_cron_try_lock('notifications')) {
+    exit(0);
+}
+
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../botapi.php';
 require_once __DIR__ . '/../panels.php';
@@ -42,7 +47,7 @@ class ServiceMonitor
         foreach ($invoices as $invoice) {
             if ($invoice['time_cron'] != null) {
                 $time_cron = time() - $invoice['time_cron'];
-                if ($time_cron < 1600)
+                if ($time_cron < 840)
                     continue;
             }
             update("invoice", "time_cron", time(), "id_invoice", $invoice['id_invoice']);
@@ -73,8 +78,8 @@ class ServiceMonitor
 
     private function getActiveInvoices()
     {
-        $time_hours = time() - 3600;
-        $QUERY = "SELECT * FROM invoice WHERE (Status = 'active' OR Status = 'end_of_time' OR Status = 'end_of_volume' OR Status = 'sendedwarn' OR Status = 'send_on_hold') AND name_product != '{$this->textBotLang['Admin']['adminphp']['db_test_service_name']}' AND (time_cron <= '$time_hours' OR time_cron IS NULL) ORDER BY time_cron  LIMIT 30";
+        $time_hours = time() - 900;
+        $QUERY = "SELECT * FROM invoice WHERE (Status = 'active' OR Status = 'end_of_time' OR Status = 'end_of_volume' OR Status = 'sendedwarn' OR Status = 'send_on_hold') AND name_product != '{$this->textBotLang['Admin']['adminphp']['db_test_service_name']}' AND (time_cron <= '$time_hours' OR time_cron IS NULL) ORDER BY time_cron  LIMIT 80";
         $stmt = $this->pdo->prepare($QUERY);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -96,13 +101,19 @@ class ServiceMonitor
         if ($user == false)
             return false;
 
-        // Get username data from panel
+        // Get username data from panel (فقط همین سفارش — بدون sync/repair دسته‌ای؛ cron ساعتی جداگانه)
         $userData = $this->Panel->DataUser($invoice['Service_location'], $username);
         if (!$userData || $userData['status'] == "Unsuccessful") {
             return;
         }
-        if (function_exists('vira_invoice_update_panel_snapshot')) {
-            vira_invoice_update_panel_snapshot((string) $invoice['id_invoice'], $userData);
+        $panelType = (string) ($panelInfo['type'] ?? '');
+        $panelStatus = (string) ($userData['status'] ?? '');
+        if ($panelType === 'x-ui_single' && in_array($panelStatus, ['expired', 'limited'], true)) {
+            $newBotStatus = $panelStatus === 'limited' ? 'end_of_volume' : 'end_of_time';
+            if (($invoice['Status'] ?? '') !== $newBotStatus) {
+                update('invoice', 'Status', $newBotStatus, 'id_invoice', $invoice['id_invoice']);
+                $invoice['Status'] = $newBotStatus;
+            }
         }
         return [
             'invoice' => $invoice,
@@ -151,7 +162,7 @@ class ServiceMonitor
         ][$userData['status']];
         $remainingVolume = formatBytes($userData['data_limit'] - $userData['used_traffic']);
         if ($result) {
-            update("invoice", "status", "removeTime", "username", $username);
+            update("invoice", "Status", "removeTime", "id_invoice", $invoice['id_invoice']);
             $this->Panel->RemoveUser($invoice['Service_location'], $username);
             $message = sprintf($this->textBotLang['hardcoded']['notifServiceDeleted'], $invoice['username']);
             $reportMessage = sprintf($this->textBotLang['hardcoded']['notifDeleteCronInfo'], $invoice['username'], $statusText, $daysRemaining, $remainingVolume);
@@ -194,7 +205,7 @@ class ServiceMonitor
         ][$userData['status']];
         $remainingVolume = formatBytes($userData['data_limit'] - $userData['used_traffic']);
         if ($result) {
-            update("invoice", "status", "removevolume", "username", $username);
+            update("invoice", "Status", "removevolume", "id_invoice", $invoice['id_invoice']);
             $this->Panel->RemoveUser($invoice['Service_location'], $username);
             $message = sprintf($this->textBotLang['hardcoded']['notifServiceDeleted2'], $username);
             $reportMessage = sprintf($this->textBotLang['hardcoded']['notifVolumeDeleteCronInfo'], $username, $statusText, $daysRemaining, $remainingVolume, $userData['online_at']);

@@ -1,5 +1,9 @@
 <?php
 date_default_timezone_set('Asia/Tehran');
+require_once __DIR__ . '/_cron_guard.php';
+if (!vira_cron_try_lock('configtest')) {
+    exit(0);
+}
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../botapi.php';
 require_once __DIR__ . '/../panels.php';
@@ -16,7 +20,7 @@ $textbotlang = languagechange();
         $get_username_Check = $ManagePanel->DataUser($result['Service_location'],$result['username']);
     if (!in_array($get_username_Check['status'],['active','on_hold',"Unsuccessful","disabled"])) {
             $ManagePanel->RemoveUser($result['Service_location'],$resultt);
-        update("invoice","status","disabled","username",$resultt);
+        update("invoice","Status","disabled","id_invoice",$result['id_invoice']);
         if(intval($user['status_cron']) != 0){
          $Response = json_encode([
         'inline_keyboard' => [

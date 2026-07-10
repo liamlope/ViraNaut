@@ -34,7 +34,7 @@ $stmt->execute();
         if($service_other != 0)continue;
                 $text = sprintf($textbotlang['hardcoded']['onHoldReminderNotice'], $line, $setting['on_hold_day'], $setting['id_support']);
             sendmessage($resultss['id_user'], $text, null, 'HTML');
-            update("invoice","Status","send_on_hold", "username",$line);
+            update("invoice","Status","send_on_hold", "id_invoice",$invoice['id_invoice']);
             }
         }
         }

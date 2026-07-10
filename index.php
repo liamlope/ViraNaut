@@ -3,9 +3,10 @@ $version = file_get_contents('version');
 date_default_timezone_set('Asia/Tehran');
 ini_set('default_charset', 'UTF-8');
 ini_set('error_log', 'error_log');
-ini_set('memory_limit', '-1');
 @ini_set('max_execution_time', '300');
 require_once 'config.php';
+$_vira_mem = (isset($vira_webhook_memory) && is_string($vira_webhook_memory) && $vira_webhook_memory !== '') ? $vira_webhook_memory : '128M';
+ini_set('memory_limit', $_vira_mem);
 require_once 'botapi.php';
 require_once 'jdf.php';
 require_once 'function.php';
@@ -888,20 +889,34 @@ if ($text == "version") {
     if (!empty($marzban['name_panel'])) {
         update("user", "Processing_value_four", $marzban['name_panel'], "id", $from_id);
     }
-    $DataUserOut = $ManagePanel->DataUser($nameloc['Service_location'], $nameloc['username']);
-    if (isset($DataUserOut['msg']) && $DataUserOut['msg'] == "User not found") {
-        update("invoice", "Status", "disabledn", "id_invoice", $nameloc['id_invoice']);
-        sendmessage($from_id, $textbotlang['users']['stateus']['UserNotFound'], $keyboard, 'html');
-        step('home', $from_id);
-        return;
+    if (!function_exists('vira_invoice_refresh_one_from_panel') && is_file(__DIR__ . '/inc/panel_service_repair.php')) {
+        require_once __DIR__ . '/inc/panel_service_repair.php';
+    }
+    $DataUserOut = null;
+    if (function_exists('vira_invoice_refresh_one_from_panel')) {
+        $refresh = vira_invoice_refresh_one_from_panel($nameloc, $ManagePanel, true);
+        if ($refresh['ok'] && !empty($refresh['data'])) {
+            $DataUserOut = $refresh['data'];
+        } elseif (($refresh['error'] ?? '') === 'user_not_in_panel') {
+            update("invoice", "Status", "disabledn", "id_invoice", $nameloc['id_invoice']);
+            sendmessage($from_id, $textbotlang['users']['stateus']['UserNotFound'], $keyboard, 'html');
+            step('home', $from_id);
+            return;
+        }
+    }
+    if ($DataUserOut === null) {
+        $DataUserOut = $ManagePanel->DataUser($nameloc['Service_location'], $nameloc['username']);
+        if (isset($DataUserOut['msg']) && $DataUserOut['msg'] == "User not found") {
+            update("invoice", "Status", "disabledn", "id_invoice", $nameloc['id_invoice']);
+            sendmessage($from_id, $textbotlang['users']['stateus']['UserNotFound'], $keyboard, 'html');
+            step('home', $from_id);
+            return;
+        }
     }
     if ($DataUserOut['status'] == "Unsuccessful") {
         sendmessage($from_id, $textbotlang['users']['stateus']['panelNotConnected'], $keyboard, 'html');
         step('home', $from_id);
         return;
-    }
-    if (function_exists('vira_invoice_update_panel_snapshot') && !empty($nameloc['id_invoice'])) {
-        vira_invoice_update_panel_snapshot((string) $nameloc['id_invoice'], $DataUserOut);
     }
     if ($DataUserOut['online_at'] == "online") {
         $lastonline = vira_online_status_label('online', $textbotlang);
@@ -2574,9 +2589,9 @@ $textconnect
         $Balance_Low_user = $user['Balance'] - $Pricechange;
         update("user", "Balance", $Balance_Low_user, "id", $from_id);
     }
-    update("invoice", "Service_location", $marzban_list_get_new['name_panel'], "username", $nameloc['username']);
+    update("invoice", "Service_location", $marzban_list_get_new['name_panel'], "id_invoice", $nameloc['id_invoice']);
     if ($marzban_list_get_new['inboundid'] != null) {
-        update("invoice", "inboundid", $marzban_list_get_new['inboundid'], "username", $nameloc['username']);
+        update("invoice", "inboundid", $marzban_list_get_new['inboundid'], "id_invoice", $nameloc['id_invoice']);
     }
     Editmessagetext($from_id, $message_id, $textchangeloc, $keyboardextend);
     $balanceformatsell = number_format(select("user", "Balance", "id", $from_id, "select")['Balance'], 0);
@@ -3259,12 +3274,13 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
         'volume' => false,
         'time' => false,
     ));
-    $stmt = $connect->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username,time_sell, Service_location, name_product, price_product, Volume, Service_time,Status,notifctions) VALUES (?, ?,  ?, ?, ?, ?, ?,?,?,?,?)");
+    $stmt = $connect->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username,time_sell, Service_location, name_product, price_product, Volume, Service_time,Status,notifctions,code_product) VALUES (?, ?,  ?, ?, ?, ?, ?,?,?,?,?,?)");
     $Status = "active";
     $info_product['name_product'] = "سرویس تست";
     $info_product['price_product'] = "0";
+    $codeProductTest = 'usertest';
     $Status = "active";
-    $stmt->bind_param("sssssssssss", $from_id, $randomString, $username_ac, $date, $marzban_list_get['name_panel'], $info_product['name_product'], $info_product['price_product'], $marzban_list_get['val_usertest'], $marzban_list_get['time_usertest'], $Status, $notifctions);
+    $stmt->bind_param("ssssssssssss", $from_id, $randomString, $username_ac, $date, $marzban_list_get['name_panel'], $info_product['name_product'], $info_product['price_product'], $marzban_list_get['val_usertest'], $marzban_list_get['time_usertest'], $Status, $notifctions, $codeProductTest);
     $stmt->execute();
     $stmt->close();
     $dataoutput = $ManagePanel->createUser($marzban_list_get['name_panel'], "usertest", $username_ac, $datac);
@@ -3329,6 +3345,13 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
     if ($marzban_list_get['type'] == "ibsng" || $marzban_list_get['type'] == "mikrotik") {
         $textcreatuser = str_replace('{password}', $dataoutput['subscription_url'], $textcreatuser);
         update("invoice", "user_info", $dataoutput['subscription_url'], "id_invoice", $randomString);
+    } elseif (!empty($dataoutput['subscription_url'])) {
+        if (!function_exists('vira_invoice_persist_subscription_data') && is_file(__DIR__ . '/inc/panel_service_repair.php')) {
+            require_once __DIR__ . '/inc/panel_service_repair.php';
+        }
+        if (function_exists('vira_invoice_persist_subscription_data')) {
+            vira_invoice_persist_subscription_data($randomString, (string) $dataoutput['subscription_url'], $dataoutput);
+        }
     }
     sendMessageService($marzban_list_get, $dataoutput['configs'], $output_config_link, $dataoutput['username'], $usertestinfo, $textcreatuser, $randomString);
     sendmessage($from_id, $textbotlang['users']['selectoption'], $keyboard, 'HTML');
@@ -4238,9 +4261,10 @@ $textinvite
         'volume' => false,
         'time' => false,
     ));
-    $stmt = $connect->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username,time_sell, Service_location, name_product, price_product, Volume, Service_time,Status,note,refral,notifctions) VALUES (?,  ?, ?, ?, ?, ?, ?,?,?,?,?,?,?)");
+    $stmt = $connect->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username,time_sell, Service_location, name_product, price_product, Volume, Service_time,Status,note,refral,notifctions,code_product) VALUES (?,  ?, ?, ?, ?, ?, ?,?,?,?,?,?,?,?)");
     $Status = "unpaid";
-    $stmt->bind_param("sssssssssssss", $from_id, $randomString, $username_ac, $date, $marzban_list_get['name_panel'], $info_product['name_product'], $priceproduct, $info_product['Volume_constraint'], $info_product['Service_time'], $Status, $userdate['nameconfig'], $user['affiliates'], $notifctions);
+    $codeProductInsert = (string) ($info_product['code_product'] ?? '');
+    $stmt->bind_param("ssssssssssssss", $from_id, $randomString, $username_ac, $date, $marzban_list_get['name_panel'], $info_product['name_product'], $priceproduct, $info_product['Volume_constraint'], $info_product['Service_time'], $Status, $userdate['nameconfig'], $user['affiliates'], $notifctions, $codeProductInsert);
     $stmt->execute();
     $stmt->close();
     if ($priceproduct > $user['Balance'] && $user['agent'] != "n2" && intval($priceproduct) != 0) {
@@ -4328,7 +4352,8 @@ $textinvite
         'data_limit' => $info_product['Volume_constraint'] * pow(1024, 3),
         'from_id' => $from_id,
         'username' => $username,
-        'type' => 'buy'
+        'type' => 'buy',
+        'id_invoice' => $randomString,
     );
     $Shoppinginfo = [
         'inline_keyboard' => [
@@ -4381,7 +4406,7 @@ $textinvite
         step('home', $from_id);
         return;
     }
-    update("invoice", "Status", "active", "username", $username_ac);
+    update("invoice", "Status", "active", "id_invoice", $randomString);
     $output_config_link = "";
     $config = "";
     $output_config_link = $marzban_list_get['sublink'] == "onsublink" ? $dataoutput['subscription_url'] : "";
@@ -4408,6 +4433,22 @@ $textinvite
     $textcreatuser = str_replace('{links2}', $output_config_link, $textcreatuser);
     if (intval($info_product['Volume_constraint']) == 0) {
         $textcreatuser = str_replace('گیگابایت', "", $textcreatuser);
+    }
+    if (!empty($dataoutput['subscription_url'])) {
+        if (!function_exists('vira_invoice_after_purchase_success') && is_file(__DIR__ . '/inc/panel_service_repair.php')) {
+            require_once __DIR__ . '/inc/panel_service_repair.php';
+        }
+        if (function_exists('vira_invoice_after_purchase_success')) {
+            vira_invoice_after_purchase_success(
+                $randomString,
+                $dataoutput,
+                (int) $datetimestep,
+                (int) ($info_product['Volume_constraint'] * pow(1024, 3)),
+                (string) ($info_product['code_product'] ?? '')
+            );
+        } elseif (function_exists('vira_invoice_persist_subscription_data')) {
+            vira_invoice_persist_subscription_data($randomString, (string) $dataoutput['subscription_url'], $dataoutput);
+        }
     }
     if ($marzban_list_get['type'] == "Manualsale" || $marzban_list_get['type'] == "ibsng" || $marzban_list_get['type'] == "mikrotik") {
         $textcreatuser = str_replace('{password}', $dataoutput['subscription_url'], $textcreatuser);
@@ -4980,9 +5021,10 @@ $textonebuy
             step('home', $from_id);
             return;
         }
-        $stmt = $connect->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username,time_sell, Service_location, name_product, price_product, Volume, Service_time,Status,notifctions) VALUES (?, ?, ?, ?, ?, ?, ?,?,?,?,?)");
+        $stmt = $connect->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username,time_sell, Service_location, name_product, price_product, Volume, Service_time,Status,notifctions,code_product) VALUES (?, ?, ?, ?, ?, ?, ?,?,?,?,?,?)");
         $Status = "active";
-        $stmt->bind_param("sssssssssss", $from_id, $randomString, $username_acc, $date, $user['Processing_value'], $info_product['name_product'], $info_product['price_product'], $info_product['Volume_constraint'], $info_product['Service_time'], $Status, $notifctions);
+        $bulkCodeProduct = (string) ($info_product['code_product'] ?? '');
+        $stmt->bind_param("ssssssssssss", $from_id, $randomString, $username_acc, $date, $user['Processing_value'], $info_product['name_product'], $info_product['price_product'], $info_product['Volume_constraint'], $info_product['Service_time'], $Status, $notifctions, $bulkCodeProduct);
         $stmt->execute();
         $stmt->close();
         $config = "";

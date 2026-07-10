@@ -11,9 +11,19 @@ if (is_file(__DIR__ . '/../inc/panel_service_repair.php')) {
 $dayOptions = vira_optimize_day_options();
 $daysExpireDefault = 90;
 $daysUnpaidDefault = 30;
+$taskCatalog = vira_optimize_task_catalog();
+$defaultTasks = vira_optimize_default_tasks();
 
 $optFlash = null;
 $optFlashOk = null;
+
+$postTasks = [];
+foreach (array_keys($taskCatalog) as $taskKey) {
+    $postTasks['task_' . $taskKey] = !empty($_POST['task_' . $taskKey]);
+}
+$postTasks['telegram_backup'] = !isset($_POST['telegram_backup']) || $_POST['telegram_backup'] === '1';
+$postTasks['days_expire'] = $_POST['days_expire'] ?? $daysExpireDefault;
+$postTasks['days_unpaid'] = $_POST['days_unpaid'] ?? $daysUnpaidDefault;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['opt_action'])) {
     csrf_check_post();
@@ -21,33 +31,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['opt_action'])) {
         $optFlash = 'تأیید عملیات الزامی است.';
         $optFlashOk = false;
     } else {
-        $daysExpire = vira_optimize_sanitize_days($_POST['days_expire'] ?? $daysExpireDefault, $daysExpireDefault);
-        $daysUnpaid = vira_optimize_sanitize_days($_POST['days_unpaid'] ?? $daysUnpaidDefault, $daysUnpaidDefault);
+        $optOptions = vira_optimize_parse_options($postTasks);
         $act = (string) $_POST['opt_action'];
         try {
             if ($act === 'full') {
-                @ini_set('max_execution_time', '300');
+                @ini_set('max_execution_time', '600');
                 $botRoot = realpath(__DIR__ . '/..') ?: dirname(__DIR__);
-                $details = vira_optimize_run($pdo, $botRoot, $daysExpire, $daysUnpaid);
+                $details = vira_optimize_run($pdo, $botRoot, $optOptions);
                 $optFlashOk = true;
+                $backupNote = !empty($details['telegram_backup']['ok']) ? ' — بکاپ به تلگرام ارسال شد' : '';
                 $optFlash = sprintf(
-                    'بهینه‌سازی انجام شد — %d مورد حذف شد (%d سرویس تمام‌شده، %d سفارش بلااستفاده، %d پرداخت قدیمی، %d Unpaid)',
+                    'بهینه‌سازی انجام شد — %d مورد حذف شد%s',
                     (int) $details['total_removed'],
-                    (int) $details['expired_deleted'],
-                    (int) $details['junk_deleted'],
-                    (int) $details['payments_deleted'],
-                    (int) $details['unpaid_payments_deleted']
+                    $backupNote
                 );
             } elseif ($act === 'cleanup') {
-                $cleanup = vira_optimize_cleanup_payments($pdo, $daysExpire, $daysUnpaid);
+                $cleanup = vira_optimize_cleanup_payments(
+                    $pdo,
+                    (int) $optOptions['days_expire'],
+                    (int) $optOptions['days_unpaid'],
+                    !empty($optOptions['tasks']['failed_payments']),
+                    !empty($optOptions['tasks']['unpaid_payments'])
+                );
                 $n = (int) $cleanup['payments_deleted'] + (int) $cleanup['unpaid_payments_deleted'];
                 $optFlashOk = true;
-                $optFlash = sprintf(
-                    'پاکسازی پرداخت انجام شد — %d رکورد (منقضی/رد: %d روز، Unpaid: %d روز)',
-                    $n,
-                    $daysExpire,
-                    $daysUnpaid
-                );
+                $optFlash = sprintf('پاکسازی پرداخت — %d رکورد', $n);
             } elseif ($act === 'repair_panel') {
                 if (!function_exists('vira_repair_all_missing_panel_services')) {
                     throw new RuntimeException('ماژول بازیابی پنل در دسترس نیست.');
@@ -56,11 +64,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['opt_action'])) {
                 $repairStats = vira_repair_all_missing_panel_services();
                 $optFlashOk = true;
                 $optFlash = sprintf(
-                    'بازیابی پنل انجام شد — %d بررسی، %d بازیابی، %d موجود، %d خطا',
-                    (int) $repairStats['checked'],
-                    (int) $repairStats['repaired'],
-                    (int) $repairStats['skipped'],
-                    (int) $repairStats['errors']
+                    'sync/بازیابی پنل — %d بررسی، %d sync، %d بازیابی، %d خطا',
+                    (int) ($repairStats['checked'] ?? 0),
+                    (int) ($repairStats['synced'] ?? 0),
+                    (int) ($repairStats['repaired'] ?? 0),
+                    (int) ($repairStats['errors'] ?? 0)
                 );
             } else {
                 $optFlash = 'عملیات نامعتبر.';
@@ -73,13 +81,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['opt_action'])) {
     }
 }
 
-$previewDaysExpire = vira_optimize_sanitize_days($_POST['days_expire'] ?? $daysExpireDefault, $daysExpireDefault);
-$previewDaysUnpaid = vira_optimize_sanitize_days($_POST['days_unpaid'] ?? $daysUnpaidDefault, $daysUnpaidDefault);
-$preview = vira_optimize_preview($pdo, $previewDaysExpire, $previewDaysUnpaid);
-$previewTotal = (int) $preview['expired_services']
-    + (int) $preview['junk_orders']
-    + (int) $preview['old_payments']
-    + (int) $preview['old_unpaid_payments'];
+$previewOptions = vira_optimize_parse_options($_SERVER['REQUEST_METHOD'] === 'POST' ? $postTasks : []);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    foreach (array_keys($taskCatalog) as $taskKey) {
+        $previewOptions['tasks'][$taskKey] = true;
+    }
+    $previewOptions['telegram_backup'] = true;
+}
+$previewDaysExpire = (int) $previewOptions['days_expire'];
+$previewDaysUnpaid = (int) $previewOptions['days_unpaid'];
+$preview = vira_optimize_preview($pdo, $previewOptions);
+$previewTotal = (int) ($preview['selected_total'] ?? 0);
+$previewCounts = $preview['counts'] ?? [];
 
 $pageTitle = 'بهینه‌سازی';
 $pageLede = 'پیش‌نمایش پیش‌فرض — اجرای واقعی فقط با تأیید دوباره.';
@@ -90,11 +103,9 @@ $extraJs = [];
 $footerInlineJs = <<<'JS'
 window.ViraOptimizePage = (function () {
     var FULL_STEPS = [
-        'حذف سرویس‌های تمام‌شده',
-        'حذف سفارش‌های بلااستفاده',
-        'پاکسازی پرداخت‌های منقضی و رد شده',
-        'پاکسازی پرداخت‌های Unpaid',
-        'پاکسازی درخواست‌های لغو',
+        'ارسال بکاپ دیتابیس به تلگرام',
+        'حذف موارد انتخاب‌شده',
+        'پاکسازی پرداخت‌های قدیمی',
         'بهینه‌سازی فایل‌های لاگ',
         'بهینه‌سازی جداول دیتابیس'
     ];
@@ -113,6 +124,27 @@ window.ViraOptimizePage = (function () {
             days_expire: se ? se.value : '90',
             days_unpaid: su ? su.value : '30'
         };
+    }
+
+    function getSelectedTasks() {
+        var out = { telegram_backup: el('taskTelegramBackup') && el('taskTelegramBackup').checked ? '1' : '0' };
+        document.querySelectorAll('[data-opt-task]').forEach(function (cb) {
+            if (cb.checked) {
+                out['task_' + cb.getAttribute('data-opt-task')] = '1';
+            }
+        });
+        return out;
+    }
+
+    function mergeTaskPayload(base) {
+        var tasks = getSelectedTasks();
+        var k;
+        for (k in tasks) {
+            if (Object.prototype.hasOwnProperty.call(tasks, k)) {
+                base[k] = tasks[k];
+            }
+        }
+        return base;
     }
 
     function showResult(text, ok) {
@@ -193,6 +225,16 @@ window.ViraOptimizePage = (function () {
         var h2 = form.querySelector('[name="days_unpaid"]');
         if (h1) h1.value = d.days_expire;
         if (h2) h2.value = d.days_unpaid;
+        form.querySelectorAll('[data-form-task]').forEach(function (inp) { inp.remove(); });
+        var tasks = getSelectedTasks();
+        Object.keys(tasks).forEach(function (k) {
+            var inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = k;
+            inp.value = tasks[k];
+            inp.setAttribute('data-form-task', '1');
+            form.appendChild(inp);
+        });
         form.submit();
     }
 
@@ -233,11 +275,11 @@ window.ViraOptimizePage = (function () {
                     which: 'all',
                     doneTitle: 'بهینه‌سازی کامل شد'
                 }, function (opts) {
-                    return window.viraBotTools.post('optimize_run', {
+                    return window.viraBotTools.post('optimize_run', mergeTaskPayload({
                         confirm: 'yes',
                         days_expire: d.days_expire,
                         days_unpaid: d.days_unpaid
-                    }, opts);
+                    }), opts);
                 }).then(function (r) {
                     if (!r || !r.ok) {
                         showResult((r && r.msg) || 'خطا در بهینه‌سازی', false);
@@ -310,17 +352,35 @@ window.ViraOptimizePage = (function () {
         if (lu) lu.textContent = d.days_unpaid;
         var statsBox = el('optStats');
         if (statsBox) statsBox.classList.add('is-loading');
-        var url = window.viraBotTools.base() + 'api/bot_tools.php?action=optimize_stats'
-            + '&days_expire=' + encodeURIComponent(d.days_expire)
-            + '&days_unpaid=' + encodeURIComponent(d.days_unpaid);
+        var qs = mergeTaskPayload({
+            days_expire: d.days_expire,
+            days_unpaid: d.days_unpaid
+        });
+        var url = window.viraBotTools.base() + 'api/bot_tools.php?action=optimize_stats';
+        var parts = [];
+        Object.keys(qs).forEach(function (k) {
+            parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(qs[k]));
+        });
+        url += (parts.length ? '?' + parts.join('&') : '');
         fetch(url, { credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (res) {
                 if (!res.ok || !res.stats) return;
+                var st = res.stats;
                 document.querySelectorAll('[data-stat]').forEach(function (node) {
                     var key = node.getAttribute('data-stat');
-                    if (res.stats[key] !== undefined) node.textContent = res.stats[key];
+                    if (st[key] !== undefined) node.textContent = st[key];
                 });
+                if (st.selected_total !== undefined) {
+                    var tot = document.querySelector('.opt-preview-total-val');
+                    if (tot) tot.textContent = String(st.selected_total);
+                }
+                if (st.counts) {
+                    Object.keys(st.counts).forEach(function (k) {
+                        var elc = document.querySelector('[data-count-task="' + k + '"]');
+                        if (elc) elc.textContent = String(st.counts[k]);
+                    });
+                }
             })
             .finally(function () {
                 if (statsBox) statsBox.classList.remove('is-loading');
@@ -339,7 +399,7 @@ window.ViraOptimizePage = (function () {
             }
             runWithProgress({
                 title: 'در حال بازیابی سرویس‌های گم‌شده در پنل…',
-                steps: ['بررسی سفارش‌ها', 'اتصال به پنل‌ها', 'بازیابی کاربران حذف‌شده', 'به‌روزرسانی snapshot'],
+                steps: ['بررسی سفارش‌ها', 'اتصال به پنل‌ها', 'بازیابی کاربران حذف‌شده'],
                 which: 'repair',
                 doneTitle: 'بازیابی انجام شد',
                 stepMs: 900
@@ -371,6 +431,9 @@ window.ViraOptimizePage = (function () {
         var su = el('daysUnpaid');
         if (se) se.addEventListener('change', refreshPreview);
         if (su) su.addEventListener('change', refreshPreview);
+        document.querySelectorAll('[data-opt-task], #taskTelegramBackup').forEach(function (cb) {
+            cb.addEventListener('change', refreshPreview);
+        });
         if (!window.viraBotTools) {
             showJsError('هشدار: اسکریپت API لود نشد. دکمه‌ها در حالت ساده (POST) کار می‌کنند.');
         }
@@ -410,7 +473,7 @@ window.ViraOptimizePage = window.ViraOptimizePage || {
 
     <div class="card opt-hero">
         <div class="opt-hero-title">بهینه‌سازی ربات</div>
-        <p class="opt-hero-lede">سرویس‌های تمام‌شده و سفارش‌های بلااستفاده حذف می‌شوند. بازهٔ پاکسازی پرداخت‌ها قابل انتخاب است.</p>
+        <p class="opt-hero-lede">مشاهده وضعیت در ربات = فقط همان سرویس. cron ساعتی = همه سفارش‌ها. بهینه‌سازی با انتخاب ادمین + بکاپ تلگرام.</p>
     </div>
 
     <div class="card opt-preview-card">
@@ -470,27 +533,36 @@ window.ViraOptimizePage = window.ViraOptimizePage || {
                     </select>
                 </label>
             </div>
-            <p class="field-hint" style="margin-top:8px">گزینه‌ها: ۷، ۳۰ یا ۹۰ روز — فقط رکوردهای قدیمی‌تر از بازه انتخابی حذف می‌شوند.</p>
+            <p class="field-hint" style="margin-top:8px">بازه: ۷، ۳۰، ۹۰، ۱۸۰ یا ۳۶۵ روز — فقط رکوردهای قدیمی‌تر حذف می‌شوند.</p>
         </div>
     </div>
 
     <div class="card">
-        <div class="card-head"><div class="card-title">چه چیزهایی پاک می‌شود؟</div></div>
+        <div class="card-head"><div class="card-title">انتخاب موارد حذف (قابل تنظیم)</div></div>
         <div class="card-body">
-            <ul class="opt-list">
-                <li>سرویس‌های تمام‌شده: پایان زمان، پایان حجم، removeTime، removevolume</li>
-                <li>سفارش‌های پرداخت‌نشده، غیرفعال، حذف‌شده توسط ادمین/کاربر</li>
-                <li>اکانت‌های تست غیرفعال</li>
-                <li>تراکنش‌های منقضی/رد شده قدیمی‌تر از بازهٔ انتخابی</li>
-                <li>درخواست پرداخت Unpaid قدیمی‌تر از بازهٔ انتخابی</li>
-                <li>درخواست‌های لغو سرویس (تأیید/رد شده)</li>
-                <li>کوتاه‌کردن فایل‌های error_log و log.txt (اگر بزرگ باشند)</li>
-                <li>بهینه‌سازی جداول invoice، Payment_report، user</li>
-            </ul>
-            <ul class="opt-list" style="margin-top:14px">
-                <li class="is-protected">کاربران، موجودی کیف پول، تنظیمات، محصولات، پنل‌ها</li>
-                <li class="is-protected">سرویس‌های فعال (active، sendedwarn، send_on_hold)</li>
-                <li class="is-protected">پرداخت‌های موفق (paid) — حفظ می‌شوند</li>
+            <p class="field-hint" style="margin-top:0">فقط گزینه‌های تیک‌خورده در بهینه‌سازی اجرا می‌شوند. پیش از اجرا بکاپ SQL به تلگرام ارسال می‌شود.</p>
+            <div class="opt-task-grid" style="display:grid;gap:10px;margin-top:12px">
+                <?php foreach ($taskCatalog as $taskKey => $meta): ?>
+                <label class="opt-task-row" style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;cursor:pointer">
+                    <input type="checkbox" data-opt-task="<?= htmlspecialchars($taskKey) ?>" checked style="margin-top:3px">
+                    <span>
+                        <strong><?= htmlspecialchars($meta['label']) ?></strong>
+                        <span class="field-hint" style="display:block;margin-top:2px">پیش‌نمایش: <span data-count-task="<?= htmlspecialchars($taskKey) ?>"><?= (int) ($previewCounts[$taskKey] ?? 0) ?></span> مورد</span>
+                    </span>
+                </label>
+                <?php endforeach; ?>
+                <label class="opt-task-row" style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--ok);border-radius:10px;cursor:pointer;background:rgba(34,197,94,.06)">
+                    <input type="checkbox" id="taskTelegramBackup" checked style="margin-top:3px">
+                    <span>
+                        <strong>ارسال بکاپ دیتابیس به تلگرام قبل از اجرا</strong>
+                        <span class="field-hint" style="display:block;margin-top:2px">به کانال گزارش (موضوع backupfile) — اگر ناموفق باشد بهینه‌سازی لغو می‌شود</span>
+                    </span>
+                </label>
+            </div>
+            <ul class="opt-list" style="margin-top:16px">
+                <li class="is-protected">کاربران، موجودی، تنظیمات، محصولات، پنل‌ها — حذف نمی‌شوند</li>
+                <li class="is-protected">سرویس‌های فعال (active، sendedwarn، send_on_hold) — حذف نمی‌شوند</li>
+                <li class="is-protected">پرداخت‌های موفق (paid) — حذف نمی‌شوند</li>
             </ul>
 
             <div class="opt-actions">
@@ -499,7 +571,7 @@ window.ViraOptimizePage = window.ViraOptimizePage || {
             </div>
 
             <div id="optExecuteZone" class="opt-execute-zone" hidden>
-                <p class="field-hint">پیش از اجرا از <a href="backup.php">پشتیبان‌گیری</a> بکاپ بگیرید.</p>
+                <p class="field-hint">بکاپ خودکار به تلگرام ارسال می‌شود (اگر تیک خورده باشد). سپس موارد انتخاب‌شده حذف می‌شوند.</p>
                 <div class="opt-actions">
                     <button type="button" class="btn btn-no" id="runFullExecute" onclick="return ViraOptimizePage.runFullExecute(event)"><?= icon('trash', 14) ?> اجرای واقعی بهینه‌سازی</button>
                     <button type="button" class="btn btn-no btn-sm" id="runCleanupOnly" onclick="return ViraOptimizePage.runCleanup(event)">فقط پاکسازی پرداخت‌ها</button>
@@ -522,7 +594,7 @@ window.ViraOptimizePage = window.ViraOptimizePage || {
             </form>
 
             <div id="optimizeResult" class="opt-result" hidden></div>
-            <p class="opt-safe-note">⚠️ این عملیات قابل بازگشت نیست. قبل از اجرا از منوی پشتیبان‌گیری، بکاپ بگیرید.</p>
+            <p class="opt-safe-note">⚠️ حذف برگشت‌ناپذیر است. بکاپ تلگرام را فعال نگه دارید.</p>
         </div>
     </div>
 
@@ -530,16 +602,16 @@ window.ViraOptimizePage = window.ViraOptimizePage || {
         <div class="card-head">
             <div>
                 <div class="card-title">بازیابی سرویس‌های پنل VPN</div>
-                <div class="card-subtitle">سرویس‌های حذف‌شده از پنل با همان sub و حجم/زمان باقی‌مانده دوباره ساخته می‌شوند</div>
+                <div class="card-subtitle">سرویس‌های حذف‌شده از پنل با همان username و لینک ذخیره‌شده دوباره ساخته می‌شوند</div>
             </div>
         </div>
         <div class="card-body">
             <ul class="opt-list">
                 <li>فقط سفارش‌های فعال/قابل بازیابی بررسی می‌شوند (نه سرویس تست)</li>
-                <li>اگر کاربر در پنل موجود باشد، فقط snapshot به‌روز می‌شود</li>
-                <li>بازیابی تکی هر سفارش از صفحه جزئیات سفارش همچنان در دسترس است</li>
+                <li>اگر کاربر در پنل موجود باشد، رد می‌شود</li>
+                <li>از همان اطلاعات سفارش (حجم، زمان، لینک) برای بازیابی استفاده می‌شود</li>
             </ul>
-            <p class="field-hint" style="margin-top:10px">این عملیات خودکار اجرا نمی‌شود — فقط با فشار دادن دکمه زیر.</p>
+            <p class="field-hint" style="margin-top:10px">cron ساعتی (<code>invoice_panel_sync.php</code>) همه سفارش‌ها را sync می‌کند — جدا از وقتی کاربر وضعیت می‌بیند.</p>
             <div class="opt-actions" style="margin-top:14px">
                 <button type="button" class="btn btn-primary" id="runPanelRepair" onclick="return ViraOptimizePage.runPanelRepair && ViraOptimizePage.runPanelRepair(event)"><?= icon('server', 14) ?> بازیابی همه سرویس‌های گم‌شده</button>
             </div>

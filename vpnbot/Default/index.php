@@ -1102,7 +1102,7 @@ if ($text == $text_bot_var['btn_keyboard']['buy'] && $setting['active_step_note'
         step('home', $from_id);
         return;
     }
-    update("invoice", "Status", "active", "username", $username_ac);
+    update("invoice", "Status", "active", "id_invoice", $randomString);
     $configqr = "";
     $output_config_link = "";
     $config = "";

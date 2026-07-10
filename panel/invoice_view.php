@@ -19,7 +19,13 @@ if (!$invoice) {
 
 $panelSnap = im_panel_snapshot($invoice);
 $panelData = $panelSnap['ok'] ? ($panelSnap['data'] ?? []) : [];
-$panelFields = $panelSnap['ok'] ? im_build_panel_fields($panelData, $textbotlang) : [];
+$panelRow = null;
+if (!empty($invoice['Service_location'])) {
+    $panelRow = db_fetch($pdo, 'SELECT type FROM marzban_panel WHERE name_panel = ? LIMIT 1', [$invoice['Service_location']]);
+}
+$panelType = is_array($panelRow) ? (string) ($panelRow['type'] ?? '') : '';
+$panelFields = $panelSnap['ok'] ? im_build_panel_fields($panelData, $textbotlang, $panelType) : [];
+$remainingSummary = im_invoice_remaining_summary($invoice, $panelSnap['ok'] ? $panelData : null);
 $serviceOthers = im_service_other_rows($pdo, (string) ($invoice['username'] ?? ''));
 
 if (!function_exists('vira_invoice_subscription_url') && is_file(__DIR__ . '/../inc/panel_service_repair.php')) {
@@ -30,16 +36,7 @@ $subscriptionUrl = function_exists('vira_invoice_subscription_url')
     : trim((string) ($invoice['user_info'] ?? ''));
 
 $panelExpireLabel = '—';
-$panelExpireTs = (int) ($invoice['panel_expire'] ?? 0);
-if ($panelExpireTs > 0) {
-    im_ensure_jdf();
-    $panelExpireLabel = function_exists('jdate')
-        ? jdate('Y/m/d H:i', $panelExpireTs)
-        : date('Y/m/d H:i', $panelExpireTs);
-    if ($panelExpireTs < time()) {
-        $panelExpireLabel .= ' (منقضی)';
-    }
-} elseif ($panelSnap['ok'] && !empty($panelData['expire'])) {
+if ($panelSnap['ok'] && !empty($panelData['expire'])) {
     $panelExpireTs = (int) $panelData['expire'];
     im_ensure_jdf();
     $panelExpireLabel = function_exists('jdate')
@@ -48,6 +45,10 @@ if ($panelExpireTs > 0) {
 }
 
 $panelMissing = !$panelSnap['ok'];
+
+$productDisplay = function_exists('vira_textbot_display')
+    ? vira_textbot_display((string) ($invoice['name_product'] ?? '—'))
+    : (string) ($invoice['name_product'] ?? '—');
 
 $botStatus = (string) ($invoice['Status'] ?? '');
 [$statusCls, $statusLbl] = im_bot_status_map()[$botStatus] ?? ['tag-plain', $botStatus ?: '—'];
@@ -86,23 +87,22 @@ include __DIR__ . '/inc/layout_head.php';
 <div class="card fade-up um-manage-card" style="margin-bottom:16px">
   <div class="card-head">
     <div>
-      <h2 style="margin:0;font-size:1rem">🛒 <?= htmlspecialchars($invoice['name_product'] ?? '—') ?></h2>
+      <h2 style="margin:0;font-size:1rem">🛒 <?= htmlspecialchars($productDisplay) ?></h2>
       <p class="cf" style="margin:4px 0 0;font-size:.78rem">کد سفارش: <code><?= htmlspecialchars($id) ?></code></p>
     </div>
-    <span class="tag <?= $statusCls ?>"><?= htmlspecialchars($statusLbl) ?></span>
+    <span class="tag <?= $statusCls ?>" title="وضعیت ربات">ربات: <?= htmlspecialchars($statusLbl) ?></span>
   </div>
 
   <div class="um-actions">
     <a class="um-action" href="invoice_view.php?id=<?= urlencode($id) ?>">
       <strong>♻️ بروزرسانی</strong>
-      <span>بارگذاری مجدد اطلاعات پنل</span>
+      <span>بارگذاری مجدد؛ اگر سرویس از پنل حذف شده باشد خودکار بازیابی می‌شود</span>
     </a>
     <?php if ($panelMissing): ?>
-      <a class="um-action um-action-ok" href="<?= $actionBase ?>&action=repair_panel"
-         onclick="return confirm('سرویس در پنل یافت نشد. با همان لینک و حجم/زمان باقی‌مانده دوباره ساخته شود؟')">
-        <strong>♻️ بازیابی در پنل</strong>
-        <span>ساخت مجدد سرویس حذف‌شده از پنل VPN</span>
-      </a>
+      <div class="um-action" style="opacity:.85;cursor:default">
+        <strong>⚠️ سرویس در پنل نیست</strong>
+        <span>بازیابی خودکار انجام نشد — زمان/حجم سفارش کافی نیست یا پنل در دسترس نیست</span>
+      </div>
     <?php endif; ?>
     <?php if ($canToggle): ?>
       <a class="um-action um-action-ok" href="<?= $actionBase ?>&action=toggle_status"
@@ -135,6 +135,14 @@ include __DIR__ . '/inc/layout_head.php';
 </div>
 
 <div class="stats u-stats fade-up" style="margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+  <div class="stat ok">
+    <div class="stat-lbl">حجم باقی‌مانده</div>
+    <div class="stat-val" style="font-size:.82rem"><?= htmlspecialchars($remainingSummary['volume_remaining']) ?></div>
+  </div>
+  <div class="stat warn">
+    <div class="stat-lbl">زمان باقی‌مانده</div>
+    <div class="stat-val" style="font-size:.82rem"><?= htmlspecialchars($remainingSummary['days_remaining']) ?></div>
+  </div>
   <div class="stat">
     <div class="stat-lbl">کاربر</div>
     <div class="stat-val cm" style="font-size:.9rem"><?= htmlspecialchars((string) ($invoice['id_user'] ?? '—')) ?></div>
@@ -148,20 +156,16 @@ include __DIR__ . '/inc/layout_head.php';
     <div class="stat-val" style="font-size:.82rem"><?= htmlspecialchars($invoice['Service_location'] ?? '—') ?></div>
   </div>
   <div class="stat">
-    <div class="stat-lbl">قیمت</div>
+    <div class="stat-lbl">قیمت خرید</div>
     <div class="stat-val cn"><?= number_format((int) ($invoice['price_product'] ?? 0)) ?> <span class="cf">ت</span></div>
   </div>
   <div class="stat">
-    <div class="stat-lbl">حجم / زمان</div>
+    <div class="stat-lbl">خرید اولیه</div>
     <div class="stat-val" style="font-size:.78rem"><?= htmlspecialchars($volumeLabel) ?> · <?= htmlspecialchars($timeLabel) ?></div>
   </div>
   <div class="stat">
     <div class="stat-lbl">تاریخ خرید</div>
     <div class="stat-val cf" style="font-size:.78rem"><?= im_format_time($invoice['time_sell'] ?? null) ?></div>
-  </div>
-  <div class="stat">
-    <div class="stat-lbl">انقضا (پنل)</div>
-    <div class="stat-val cf" style="font-size:.78rem"><?= htmlspecialchars($panelExpireLabel) ?></div>
   </div>
 </div>
 
@@ -171,10 +175,10 @@ include __DIR__ . '/inc/layout_head.php';
     <h3 style="margin:0;font-size:.92rem">🔗 لینک اشتراک (نمایش ادمین)</h3>
   </div>
   <div class="card-body" style="padding:12px 16px">
-    <p class="field-hint" style="margin:0 0 8px">این لینک فقط در پنل وب نمایش داده می‌شود؛ برای ارسال به کاربر از دکمه «ارسال لینک اشتراک» استفاده کنید.</p>
+    <p class="field-hint" style="margin:0 0 8px">همان لینکی که هنگام خرید ذخیره شده؛ برای ارسال به کاربر از دکمه «ارسال لینک اشتراک» استفاده کنید.</p>
     <code style="display:block;word-break:break-all;font-size:.75rem;line-height:1.5;padding:10px;background:var(--sf2);border-radius:8px"><?= htmlspecialchars($subscriptionUrl) ?></code>
     <?php if ($panelMissing): ?>
-      <p class="cf" style="margin:10px 0 0;font-size:.8rem;color:var(--warn)">⚠️ کاربر در پنل VPN یافت نشد — لینک بالا از آخرین ذخیره ربات است. برای فعال‌سازی مجدد «بازیابی در پنل» را بزنید.</p>
+      <p class="cf" style="margin:10px 0 0;font-size:.8rem;color:var(--warn)">⚠️ سرویس در پنل VPN نیست — با «بروزرسانی» بازیابی خودکار امتحان می‌شود.</p>
     <?php endif; ?>
   </div>
 </div>
@@ -188,7 +192,7 @@ include __DIR__ . '/inc/layout_head.php';
         <dt>وضعیت ربات</dt><dd><span class="tag <?= $statusCls ?>"><?= htmlspecialchars($statusLbl) ?></span>
           <span class="cf" style="font-size:.72rem;display:block;margin-top:4px">وضعیت داخل ربات است، نه تاریخ انقضای پنل.</span>
         </dd>
-        <dt>محصول</dt><dd><?= htmlspecialchars($invoice['name_product'] ?? '—') ?></dd>
+        <dt>محصول</dt><dd><?= htmlspecialchars($productDisplay) ?></dd>
         <dt>یادداشت</dt><dd><?= htmlspecialchars($invoice['note'] ?? '—') ?></dd>
         <dt>کد محصول</dt><dd><code><?= htmlspecialchars($invoice['code_product'] ?? '—') ?></code></dd>
       </dl>
@@ -201,6 +205,7 @@ include __DIR__ . '/inc/layout_head.php';
       <?php if (!$panelSnap['ok']): ?>
         <p class="cf" style="font-size:.85rem;color:var(--no)">کاربر در پنل یافت نشد یا خطا در اتصال.</p>
       <?php else: ?>
+        <p class="cf" style="font-size:.72rem;margin:0 0 8px">وضعیت پنل VPN (زنده)</p>
         <dl class="kv-list">
           <?php foreach ($panelFields as $field): ?>
             <dt><?= htmlspecialchars($field['label']) ?></dt>

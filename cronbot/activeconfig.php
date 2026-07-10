@@ -1,6 +1,10 @@
 <?php
 ini_set('error_log', 'error_log');
 date_default_timezone_set('Asia/Tehran');
+require_once __DIR__ . '/_cron_guard.php';
+if (!vira_cron_try_lock('activeconfig')) {
+    exit(0);
+}
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../botapi.php';
 require_once __DIR__ . '/../panels.php';

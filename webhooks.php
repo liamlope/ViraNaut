@@ -56,9 +56,9 @@ if(intval($user['status_cron']) != 0){
             ]);
         }
     if($invoice['Status'] === "end_of_volume"){
-        update("invoice","Status","sendedwarn", "username",$invoice['username']);    
+        update("invoice","Status","sendedwarn", "id_invoice",$invoice['id_invoice']);    
     }else{
-        update("invoice","Status","end_of_volume", "username",$invoice['username']);
+        update("invoice","Status","end_of_volume", "id_invoice",$invoice['id_invoice']);
     }
 }
 elseif ($data['action'] == "reached_days_left"){
@@ -102,9 +102,9 @@ if(intval($user['status_cron']) != 0){
             ]);
             }
         if($invoice['Status'] === "end_of_volume"){
-                update("invoice","Status","sendedwarn", "username",$invoice['username']);    
+                update("invoice","Status","sendedwarn", "id_invoice",$invoice['id_invoice']);    
         }else{
-            update("invoice","Status","end_of_time", "username",$invoice['username']);
+            update("invoice","Status","end_of_time", "id_invoice",$invoice['id_invoice']);
                 }
 }
 elseif(in_array($data['action'],["user_expired","user_limited"])){
@@ -117,7 +117,7 @@ elseif(in_array($data['action'],["user_expired","user_limited"])){
         if($panel['inboundstatus'] == "oninbounddisable"){
         if($data['data_limit_reset_strategy'] == "no_reset"){
         $inbound = explode("*", $panel['inbound_deactive']);
-        update("invoice","uuid",json_encode($data['proxies']), "username",$line);
+        update("invoice","uuid",json_encode($data['proxies']), "id_invoice",$invoice['id_invoice']);
         $proxies = []; 
         $proxies[$inbound[0]] = new stdClass();;
         $inbounds[$inbound[0]][] = $inbound[1];

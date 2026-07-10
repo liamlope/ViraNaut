@@ -184,9 +184,8 @@ if ($action === 'broadcast_batch' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($action === 'optimize_stats') {
     try {
-        $daysExpire = vira_optimize_sanitize_days($_GET['days_expire'] ?? $_POST['days_expire'] ?? 90, 90);
-        $daysUnpaid = vira_optimize_sanitize_days($_GET['days_unpaid'] ?? $_POST['days_unpaid'] ?? 30, 30);
-        bt_json(true, '', ['stats' => vira_optimize_preview($pdo, $daysExpire, $daysUnpaid)]);
+        $options = vira_optimize_parse_options(array_merge($_GET, $_POST));
+        bt_json(true, '', ['stats' => vira_optimize_preview($pdo, $options)]);
     } catch (Throwable $e) {
         bt_json(false, $e->getMessage());
     }
@@ -197,18 +196,15 @@ if ($action === 'optimize_run' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($_POST['confirm']) || $_POST['confirm'] !== 'yes') {
         bt_json(false, 'تأیید الزامی است');
     }
-    @ini_set('max_execution_time', '300');
+    @ini_set('max_execution_time', '600');
     try {
         $botRoot = realpath(__DIR__ . '/../..') ?: (__DIR__ . '/../..');
-        $daysExpire = vira_optimize_sanitize_days($_POST['days_expire'] ?? 90, 90);
-        $daysUnpaid = vira_optimize_sanitize_days($_POST['days_unpaid'] ?? 30, 30);
-        $details = vira_optimize_run($pdo, $botRoot, $daysExpire, $daysUnpaid);
-        $msg = sprintf(
-            'بهینه‌سازی انجام شد — %d مورد حذف شد (%d سرویس تمام‌شده، %d سفارش بلااستفاده)',
-            (int) $details['total_removed'],
-            (int) $details['expired_deleted'],
-            (int) $details['junk_deleted']
-        );
+        $options = vira_optimize_parse_options($_POST);
+        $details = vira_optimize_run($pdo, $botRoot, $options);
+        $msg = sprintf('بهینه‌سازی انجام شد — %d مورد حذف شد', (int) $details['total_removed']);
+        if (!empty($details['telegram_backup']['ok'])) {
+            $msg .= ' — بکاپ به تلگرام ارسال شد';
+        }
         bt_json(true, $msg, ['details' => $details]);
     } catch (Throwable $e) {
         bt_json(false, $e->getMessage());
@@ -252,11 +248,11 @@ if ($action === 'repair_panel_services' && $_SERVER['REQUEST_METHOD'] === 'POST'
     try {
         $stats = vira_repair_all_missing_panel_services();
         bt_json(true, sprintf(
-            'بازیابی انجام شد — %d بررسی، %d بازیابی، %d موجود، %d خطا',
-            (int) $stats['checked'],
-            (int) $stats['repaired'],
-            (int) $stats['skipped'],
-            (int) $stats['errors']
+            'sync/بازیابی — %d بررسی، %d sync، %d بازیابی، %d خطا',
+            (int) ($stats['checked'] ?? 0),
+            (int) ($stats['synced'] ?? 0),
+            (int) ($stats['repaired'] ?? 0),
+            (int) ($stats['errors'] ?? 0)
         ), ['stats' => $stats]);
     } catch (Throwable $e) {
         bt_json(false, $e->getMessage());

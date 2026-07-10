@@ -39,7 +39,11 @@ class ManagePanel
             return $Output;
         }
         if ($Get_Data_Panel['subvip'] == "onsubvip") {
-            $inoice = select("invoice", "*", "username", $usernameC, "select");
+            if (!empty($Data_Config['id_invoice'])) {
+                $inoice = select("invoice", "*", "id_invoice", $Data_Config['id_invoice'], "select");
+            } else {
+                $inoice = select("invoice", "*", "username", $usernameC, "select");
+            }
         } else {
             $inoice = false;
         }
@@ -214,6 +218,8 @@ class ManagePanel
                     $Output['status'] = 'successful';
                     $Output['username'] = $usernameC;
                     $Output['subscription_url'] = $subUrl;
+                    $Output['sub_id'] = $subId;
+                    $Output['panel_sub_url'] = $subUrl;
                     $Output['configs'] = $links_user;
                     if ($inoice != false) {
                         $Output['subscription_url'] = "https://$domainhosts/sub/" . $inoice['id_invoice'];
@@ -335,7 +341,11 @@ class ManagePanel
             if ($expire != 0) {
                 setjob($Get_Data_Panel['name_panel'], "date", date('Y-m-d H:i:s', $expire), $data_Output['public_key']);
             }
-            update("invoice", "user_info", json_encode($data_Output), "username", $usernameC);
+            if (!empty($Data_Config['id_invoice'])) {
+                update("invoice", "user_info", json_encode($data_Output), "id_invoice", $Data_Config['id_invoice']);
+            } else {
+                update("invoice", "user_info", json_encode($data_Output), "username", $usernameC);
+            }
             if (!$response['status']) {
                 $Output['status'] = 'Unsuccessful';
                 $Output['msg'] = $data_Output['msg'];
@@ -694,6 +704,7 @@ class ManagePanel
                 'used_traffic' => $user_data['up'] + $user_data['down'],
                 'links' => $links_user,
                 'subscription_url' => $linksub,
+                'sub_id' => (string) ($user_data['subId'] ?? ''),
                 'sub_updated_at' => null,
                 'sub_last_user_agent' => null,
             );
@@ -1992,11 +2003,13 @@ class ManagePanel
         $inbound_id = isset($panel['inboundid']) ? $panel['inboundid'] : 1;
         $inbounds = is_string($panel['inbounds']) ? json_decode($panel['inbounds']) : "{}";
         $inbounds = $product['inbounds'] != null ? json_decode($product['inbounds']) : $inbounds;
-        if ($panel['type'] != "WGDashboard") {
-            update("invoice", 'user_info', null, "username", $username);
+        if ($panel['type'] != "WGDashboard" && is_array($invoice) && !empty($invoice['id_invoice'])) {
+            update("invoice", 'user_info', null, "id_invoice", $invoice['id_invoice']);
         }
-        update("invoice", 'uuid', null, "username", $username);
-        update("invoice", 'Status', "active", "username", $username);
+        if (is_array($invoice) && !empty($invoice['id_invoice'])) {
+            update("invoice", 'uuid', null, "id_invoice", $invoice['id_invoice']);
+            update("invoice", 'Status', "active", "id_invoice", $invoice['id_invoice']);
+        }
         if ($Method_extend == $textbotlang['keyboard']['resetVolumeTime']) {
             $reset = $this->ResetUserDataUsage($username, $panel['name_panel']);
             if ($reset['status'] == false) {
@@ -2207,11 +2220,13 @@ class ManagePanel
         $new_limit = $limit_volume_new == 0 ? 0 : ($limit_volume_new * pow(1024, 3)) + $old_limit_volume;
         $inbound_id = isset($panel['inboundid']) ? $panel['inboundid'] : 1;
         $inbounds = is_string($panel['inbounds']) ? json_decode($panel['inbounds']) : "{}";
-        if ($panel['type'] != "WGDashboard") {
-            update("invoice", 'user_info', null, "username", $username_account);
+        if ($panel['type'] != "WGDashboard" && is_array($invoice) && !empty($invoice['id_invoice'])) {
+            update("invoice", 'user_info', null, "id_invoice", $invoice['id_invoice']);
         }
-        update("invoice", 'uuid', null, "username", $username_account);
-        update("invoice", 'Status', "active", "username", $username_account);
+        if (is_array($invoice) && !empty($invoice['id_invoice'])) {
+            update("invoice", 'uuid', null, "id_invoice", $invoice['id_invoice']);
+            update("invoice", 'Status', "active", "id_invoice", $invoice['id_invoice']);
+        }
         if ($panel['type'] == "marzban") {
             $data = array(
                 'data_limit' => $new_limit,
@@ -2347,11 +2362,13 @@ class ManagePanel
         $new_limit = $limit_time_new == 0 ? 0 : $limit_time_new * 86400 + $old_limit_time;
         $inbound_id = isset($panel['inboundid']) ? $panel['inboundid'] : 1;
         $inbounds = is_string($panel['inbounds']) ? json_decode($panel['inbounds']) : "{}";
-        if ($panel['type'] != "WGDashboard") {
-            update("invoice", 'user_info', null, "username", $username_account);
+        if ($panel['type'] != "WGDashboard" && is_array($invoice) && !empty($invoice['id_invoice'])) {
+            update("invoice", 'user_info', null, "id_invoice", $invoice['id_invoice']);
         }
-        update("invoice", 'uuid', null, "username", $username_account);
-        update("invoice", 'Status', "active", "username", $username_account);
+        if (is_array($invoice) && !empty($invoice['id_invoice'])) {
+            update("invoice", 'uuid', null, "id_invoice", $invoice['id_invoice']);
+            update("invoice", 'Status', "active", "id_invoice", $invoice['id_invoice']);
+        }
         if ($panel['type'] == "marzban") {
             $data = array(
                 'expire' => $new_limit,

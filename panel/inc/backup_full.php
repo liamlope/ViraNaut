@@ -36,6 +36,7 @@ function vira_backup_cron_job_lines(): array
     return [
         "*/15 * * * * curl -fsS https://{$host}/cronbot/statusday.php",
         "*/1 * * * * curl -fsS https://{$host}/cronbot/NoticationsService.php",
+        "0 * * * * curl -fsS https://{$host}/cronbot/invoice_panel_sync.php",
         "*/1 * * * * curl -fsS https://{$host}/cronbot/card_receipt_prompt.php",
         "*/5 * * * * curl -fsS https://{$host}/cronbot/payment_expire.php",
         "*/1 * * * * curl -fsS https://{$host}/cronbot/sendmessage.php",
@@ -203,6 +204,91 @@ function vira_backup_send_zip_download(): void
     readfile($path);
     @unlink($path);
     exit;
+}
+
+/**
+ * ارسال بکاپ SQL دیتابیس به کانال گزارش تلگرام (مثل backupbot.php)
+ *
+ * @return array{ok:bool,msg:string,bytes?:int}
+ */
+function vira_backup_send_database_telegram(PDO $pdo, string $caption = ''): array
+{
+    global $dbhost, $dbname, $usernamedb, $passworddb;
+
+    if (!function_exists('select')) {
+        require_once vira_project_root() . '/function.php';
+    }
+    if (!function_exists('telegram')) {
+        require_once vira_project_root() . '/botapi.php';
+    }
+
+    $setting = select('setting', '*');
+    $chatId = trim((string) ($setting['Channel_Report'] ?? ''));
+    if ($chatId === '') {
+        return ['ok' => false, 'msg' => 'Channel_Report در تنظیمات خالی است.'];
+    }
+
+    $threadRow = select('topicid', 'idreport', 'report', 'backupfile', 'select');
+    $topicId = is_array($threadRow) ? trim((string) ($threadRow['idreport'] ?? '')) : '';
+
+    $tmpSql = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'vira_opt_backup_' . date('Y-m-d_His') . '_' . bin2hex(random_bytes(3)) . '.sql';
+    $written = false;
+
+    $host = ($dbhost ?? '') !== '' ? $dbhost : 'localhost';
+    $cmd = 'mysqldump -h ' . escapeshellarg((string) $host)
+        . ' -u ' . escapeshellarg((string) $usernamedb)
+        . ' -p' . escapeshellarg((string) $passworddb)
+        . ' --no-tablespaces --ssl-mode=DISABLED '
+        . escapeshellarg((string) $dbname)
+        . ' > ' . escapeshellarg($tmpSql) . ' 2>&1';
+    $output = [];
+    $code = 0;
+    @exec($cmd, $output, $code);
+    if ($code === 0 && is_file($tmpSql) && filesize($tmpSql) > 32) {
+        $written = true;
+    } else {
+        @unlink($tmpSql);
+        $sql = vira_backup_export_sql_php($pdo);
+        if ($sql !== '' && @file_put_contents($tmpSql, $sql) !== false) {
+            $written = true;
+        }
+    }
+
+    if (!$written || !is_file($tmpSql)) {
+        @unlink($tmpSql);
+        return ['ok' => false, 'msg' => 'ساخت فایل بکاپ SQL ناموفق بود.'];
+    }
+
+    $size = (int) filesize($tmpSql);
+    if ($size > 48 * 1024 * 1024) {
+        @unlink($tmpSql);
+        return ['ok' => false, 'msg' => 'حجم بکاپ برای تلگرام زیاد است (' . round($size / 1048576, 1) . 'MB). ابتدا دستی بکاپ بگیرید.'];
+    }
+
+    $cap = trim($caption);
+    if ($cap === '') {
+        $cap = 'بکاپ دیتابیس';
+    }
+    $cap .= "\n" . date('Y/m/d H:i:s');
+
+    $payload = [
+        'chat_id' => $chatId,
+        'document' => new CURLFile($tmpSql, 'application/sql', 'database_' . date('Y-m-d_His') . '.sql'),
+        'caption' => $cap,
+    ];
+    if ($topicId !== '' && $topicId !== '0') {
+        $payload['message_thread_id'] = $topicId;
+    }
+
+    $resp = telegram('sendDocument', $payload);
+    @unlink($tmpSql);
+
+    if (!is_array($resp) || empty($resp['ok'])) {
+        $err = is_array($resp) ? (string) ($resp['description'] ?? 'خطای تلگرام') : 'خطای تلگرام';
+        return ['ok' => false, 'msg' => $err];
+    }
+
+    return ['ok' => true, 'msg' => 'بکاپ به تلگرام ارسال شد.', 'bytes' => $size];
 }
 
 function vira_backup_extract_zip(string $zipPath): string

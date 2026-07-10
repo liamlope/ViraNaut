@@ -939,6 +939,35 @@ viranaut_panel_fix() {
   viranaut_panel_smoke_test "$BOT_DIR" "$domain"
 }
 
+# پس از update: بازیابی خودکار سرویس‌های حذف‌شده از پنل
+viranaut_invoice_data_integrity() {
+  local BOT_DIR="${1%/}"
+  local script="$BOT_DIR/cronbot/invoice_integrity_after_update.php"
+  [ -f "$script" ] || return 0
+  if ! command -v php >/dev/null 2>&1; then
+    warn "php CLI not found — skip invoice data integrity."
+    return 0
+  fi
+  msg "Auto-repair missing panel services ..."
+  local out rc=0
+  out=$(cd "$BOT_DIR" && VIRA_SKIP_WEBHOOK=1 php "$script" 2>&1) || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    warn "Panel repair script exit $rc"
+    [ -n "$out" ] && echo "$out" | tail -3 | sed 's/^/    /'
+    return 0
+  fi
+  local line
+  line=$(echo "$out" | grep -E '^(INVOICE_SYNC|INVOICE_POST_UPDATE):' | tail -1)
+  if [ -n "$line" ]; then
+    line="${line#INVOICE_SYNC:}"
+    line="${line#INVOICE_POST_UPDATE:}"
+    line="${line//_/ }"
+    echo -e "  ${GREEN}✓${NC} Panel repair: ${line}"
+  else
+    echo -e "  ${GREEN}✓${NC} Panel repair done."
+  fi
+}
+
 viranaut_finish_bot_update() {
   local BOT_DIR="${1%/}"
   local CONFIG_PATH="$BOT_DIR/config.php"
@@ -956,10 +985,12 @@ viranaut_finish_bot_update() {
   fi
 
   viranaut_db_migrate "$BOT_DIR"
+  viranaut_invoice_data_integrity "$BOT_DIR" 2>/dev/null || true
   viranaut_ensure_panel_integrity "$BOT_DIR" 2>/dev/null || true
   vira_ensure_bot_permissions "$BOT_DIR"
   viranaut_sync_manage_script_from_bot "$BOT_DIR"
   setup_cron_jobs 2>/dev/null || true
+  vira_apply_server_low_resource_tuning 2>/dev/null || true
   systemctl reload apache2 2>/dev/null || true
 
   msg "Panel check ..."
@@ -1087,6 +1118,10 @@ PHP
   if [ -f "$BOT_DIR/function.php" ] && [ ! -f "$BOT_DIR/functions.php" ]; then
     printf '%s\n' '<?php require_once __DIR__ . "/function.php";' >"$BOT_DIR/functions.php"
   fi
+  if ! grep -q 'vira_webhook_memory' "$cfg" 2>/dev/null; then
+    sed -i '/\$request_exec_timeout/a \$vira_webhook_memory = '\''128M'\'';' "$cfg" 2>/dev/null || \
+      sed -i '1a \$vira_webhook_memory = '\''128M'\'';' "$cfg" 2>/dev/null || true
+  fi
 }
 
 # Rewrite $domainhosts in config.php if it has leading/trailing spaces, CR, or https:// prefix (matches install.sh)
@@ -1141,6 +1176,7 @@ try { \$pdo = new PDO(\$dsn, \$usernamedb, \$passworddb, \$options); } catch (\P
 \$adminnumber = '$admin';
 \$domainhosts = '$domain';
 \$usernamebot = '$userbot';
+\$vira_webhook_memory = '128M';
 
 PHP
   vira_apply_php_core_fixes "$(dirname "$cfg")"
@@ -1578,6 +1614,7 @@ VHOST
   CONFIG_FILE="$BOT_DIR/config.php"
 
   setup_cron_jobs
+  vira_apply_server_low_resource_tuning 2>/dev/null || true
   vira_save_active_dir "$BOT_DIR"
   resolve_project_paths
   vira_reload_services "$BOT_DIR"
@@ -2111,29 +2148,14 @@ vira_backup_zip_is_panel() {
 }
 
 vira_write_meta_cron_jobs() {
-  local out="$1" domain="$2"
-  [ -n "$domain" ] || domain="YOUR_DOMAIN"
-  domain=$(vira_normalize_domainhosts "$domain")
+  local out="$1" dir="${2:-}"
+  [ -n "$dir" ] || dir="${PROJECT_DIR:-}"
+  dir="${dir%/}"
   mkdir -p "$(dirname "$out")"
-  cat >"$out" <<CRON
-*/15 * * * * curl -fsS https://${domain}/cronbot/statusday.php
-*/1 * * * * curl -fsS https://${domain}/cronbot/croncard.php
-*/1 * * * * curl -fsS https://${domain}/cronbot/NoticationsService.php
-*/5 * * * * curl -fsS https://${domain}/cronbot/payment_expire.php
-*/1 * * * * curl -fsS https://${domain}/cronbot/sendmessage.php
-*/3 * * * * curl -fsS https://${domain}/cronbot/plisio.php
-*/1 * * * * curl -fsS https://${domain}/cronbot/activeconfig.php
-*/1 * * * * curl -fsS https://${domain}/cronbot/disableconfig.php
-*/1 * * * * curl -fsS https://${domain}/cronbot/iranpay1.php
-0 */5 * * * curl -fsS https://${domain}/cronbot/backupbot.php
-*/2 * * * * curl -fsS https://${domain}/cronbot/gift.php
-*/30 * * * * curl -fsS https://${domain}/cronbot/expireagent.php
-*/15 * * * * curl -fsS https://${domain}/cronbot/on_hold.php
-*/2 * * * * curl -fsS https://${domain}/cronbot/configtest.php
-*/15 * * * * curl -fsS https://${domain}/cronbot/uptime_node.php
-*/15 * * * * curl -fsS https://${domain}/cronbot/uptime_panel.php
-*/1 * * * * curl -fsS https://${domain}/cronbot/lottery.php
-CRON
+  {
+    echo "# ViraNaut low-resource cron schedule (PHP CLI — same as setup_cron_jobs)"
+    vira_cron_schedule_lines "$dir"
+  } >"$out"
 }
 
 # cronbot queue files, text.json — same idea as panel backup
@@ -2845,7 +2867,7 @@ viranaut_create_backup_zip() {
   [ -f "$BOT_DIR/text.json" ] && cp "$BOT_DIR/text.json" "$TMP_DIR/text.json"
   [ "$VERBOSE" = "1" ] && [ -f "$BOT_DIR/text.json" ] && echo -e "  ${GREEN}✓${NC} text.json saved"
   [ -f "$BOT_DIR/version" ] && cp "$BOT_DIR/version" "$TMP_DIR/version"
-  vira_write_meta_cron_jobs "$TMP_DIR/meta/cron_jobs.txt" "$domain"
+  vira_write_meta_cron_jobs "$TMP_DIR/meta/cron_jobs.txt" "$BOT_DIR"
 
   cat > "$TMP_DIR/backup_info.txt" <<INFO
 ViraNaut Backup
@@ -3931,6 +3953,60 @@ do_diagnose_bot() {
   fi
   echo ""
 
+  echo -e "  ${CYAN}9b) Server resources (RAM/CPU/cron)${NC}"
+  local _ram_mb _cpus _swap _cron_n _php_n _low_res
+  _ram_mb=$(vira_server_total_ram_mb)
+  _cpus=$(nproc 2>/dev/null || echo "?")
+  _swap=$(free -m 2>/dev/null | awk '/Swap:/ {print $2}' || echo 0)
+  echo -e "    RAM total:   ${_ram_mb} MB"
+  echo -e "    CPU cores:   ${_cpus}"
+  echo -e "    Swap:        ${_swap} MB"
+  free -m 2>/dev/null | awk '/Mem:/ {printf "    RAM used:    %d MB / %d MB (avail %d MB)\n", $3, $2, $7}' || true
+  _cron_n=$(crontab -l 2>/dev/null | grep -c 'cronbot/' || echo 0)
+  echo -e "    Cron jobs:   ${_cron_n} line(s) for cronbot/"
+  if crontab -l 2>/dev/null | grep 'cronbot/' | grep -q 'curl '; then
+    warn "Duplicate curl-based cronbot entries found — run update to switch to PHP CLI schedule"
+  fi
+  local _dup_scripts _script
+  for _script in NoticationsService croncard invoice_panel_sync activeconfig; do
+    _dup_scripts=$(crontab -l 2>/dev/null | grep -c "$_script" || echo 0)
+    if [ "$_dup_scripts" -gt 1 ] 2>/dev/null; then
+      warn "Script $_script appears $_dup_scripts times in crontab"
+    fi
+  done
+  if crontab -l 2>/dev/null | grep -F 'NoticationsService' | grep -qv '\*/15'; then
+    warn "NoticationsService not on */15 schedule — run ViraNaut_manage.sh update"
+  fi
+  _php_n=$(ps aux 2>/dev/null | grep -E '[p]hp.*cronbot/' | wc -l || echo 0)
+  echo -e "    PHP cron now: ${_php_n} process(es)"
+  if [ "$_php_n" -gt 2 ] 2>/dev/null; then
+    warn "Multiple PHP cron processes — check flock or stagger schedules"
+  fi
+  echo "    Top memory (PHP/apache/mysql):"
+  ps aux --sort=-%mem 2>/dev/null | grep -E '[p]hp|[a]pache|[m]ysql|[m]ariadb' | head -5 | awk '{printf "      %s MB  %s\n", int($6/1024), $11}' || true
+  _low_res="off"
+  if [ -f /etc/mysql/mariadb.conf.d/99-viranaut.cnf ] || [ -f /etc/mysql/mysql.conf.d/99-viranaut.cnf ]; then
+    _low_res="on"
+  elif [ -f /etc/php/8.2/apache2/conf.d/99-viranaut-opcache.ini ] 2>/dev/null; then
+    _low_res="on"
+  else
+    for _ini in /etc/php/*/apache2/conf.d/99-viranaut-opcache.ini; do
+      [ -f "$_ini" ] && _low_res="on" && break
+    done
+  fi
+  if [ "$_ram_mb" -le 1024 ]; then
+    echo -e "    Low-resource tuning: ${_low_res} (recommended for ≤1GB RAM)"
+    [ "$_low_res" = "off" ] && echo "      Tip: run ViraNaut_manage.sh update to apply MySQL/OPcache/swap tuning"
+  else
+    echo -e "    Low-resource tuning: ${_low_res} (optional — RAM > 1GB)"
+  fi
+  if [ -f "$PROJECT_DIR/config.php" ]; then
+    local _mem_cfg
+    _mem_cfg=$(grep -E 'vira_webhook_memory' "$PROJECT_DIR/config.php" 2>/dev/null | head -1 | sed -E "s/.*['\"]([^'\"]+)['\"].*/\1/")
+    echo -e "    Webhook memory: ${_mem_cfg:-128M (default)}"
+  fi
+  echo ""
+
   echo -e "  ${CYAN}10) App error_log${NC}"
   if [ -f "$PROJECT_DIR/error_log" ]; then
     echo -e "  ${GREEN}✓${NC} Exists — last 3 lines:"
@@ -4111,28 +4187,127 @@ do_logs() {
 }
 
 # ============================================================
-#  Helper: Setup cron jobs (non-destructive)
+#  Low-resource: cron schedule, PHP OPcache, MySQL/Apache tuning
+# ============================================================
+vira_server_total_ram_mb() {
+  awk '/MemTotal:/ { printf "%d\n", int($2 / 1024); exit }' /proc/meminfo 2>/dev/null || echo 0
+}
+
+vira_cron_schedule_lines() {
+  local dir="${1%/}"
+  local php_bin="php"
+  command -v php >/dev/null 2>&1 || php_bin="/usr/bin/php"
+  printf '%s\n' \
+    "*/15 * * * * $php_bin $dir/cronbot/NoticationsService.php >/dev/null 2>&1" \
+    "*/2 * * * * $php_bin $dir/cronbot/croncard.php >/dev/null 2>&1" \
+    "*/1 * * * * $php_bin $dir/cronbot/sendmessage.php >/dev/null 2>&1" \
+    "*/5 * * * * $php_bin $dir/cronbot/activeconfig.php >/dev/null 2>&1" \
+    "*/5 * * * * $php_bin $dir/cronbot/disableconfig.php >/dev/null 2>&1" \
+    "*/10 * * * * $php_bin $dir/cronbot/lottery.php >/dev/null 2>&1" \
+    "*/10 * * * * $php_bin $dir/cronbot/gift.php >/dev/null 2>&1" \
+    "*/15 * * * * $php_bin $dir/cronbot/configtest.php >/dev/null 2>&1" \
+    "*/30 * * * * $php_bin $dir/cronbot/uptime_panel.php >/dev/null 2>&1" \
+    "*/30 * * * * $php_bin $dir/cronbot/uptime_node.php >/dev/null 2>&1" \
+    "*/15 * * * * $php_bin $dir/cronbot/payment_expire.php >/dev/null 2>&1" \
+    "*/15 * * * * $php_bin $dir/cronbot/invoice_panel_sync.php >/dev/null 2>&1" \
+    "*/15 * * * * $php_bin $dir/cronbot/on_hold.php >/dev/null 2>&1" \
+    "*/15 * * * * $php_bin $dir/cronbot/iranpay1.php >/dev/null 2>&1" \
+    "*/15 * * * * $php_bin $dir/cronbot/plisio.php >/dev/null 2>&1" \
+    "*/30 * * * * $php_bin $dir/cronbot/expireagent.php >/dev/null 2>&1" \
+    "0 * * * * $php_bin $dir/cronbot/statusday.php >/dev/null 2>&1" \
+    "0 3 * * * $php_bin $dir/cronbot/backupbot.php >/dev/null 2>&1"
+}
+
+vira_tune_php_low_resource() {
+  local ini_body
+  ini_body='; ViraNaut low-resource OPcache
+opcache.enable=1
+opcache.enable_cli=1
+opcache.memory_consumption=64
+opcache.interned_strings_buffer=8
+opcache.max_accelerated_files=10000
+opcache.revalidate_freq=60
+'
+  local ini_dir
+  for ini_dir in /etc/php/*/apache2/conf.d /etc/php/*/cli/conf.d /etc/php/*/fpm/conf.d; do
+    [ -d "$ini_dir" ] || continue
+    echo "$ini_body" >"${ini_dir}/99-viranaut-opcache.ini" 2>/dev/null || true
+  done
+}
+
+vira_apply_server_low_resource_tuning() {
+  local ram="${1:-0}"
+  [ "$ram" -eq 0 ] && ram=$(vira_server_total_ram_mb)
+  if [ "${VIRA_LOW_RESOURCE:-}" != "1" ] && [ "$ram" -gt 1024 ]; then
+    return 0
+  fi
+
+  local pool_mb=64
+  [ "$ram" -ge 900 ] && pool_mb=128
+
+  vira_tune_php_low_resource
+
+  if [ -d /etc/mysql/mariadb.conf.d ] || [ -d /etc/mysql/mysql.conf.d ]; then
+    local mysql_d
+    for mysql_d in /etc/mysql/mariadb.conf.d /etc/mysql/mysql.conf.d; do
+      [ -d "$mysql_d" ] || continue
+      cat >"${mysql_d}/99-viranaut.cnf" <<MYSQL
+[mysqld]
+innodb_buffer_pool_size = ${pool_mb}M
+max_connections = 30
+table_open_cache = 64
+performance_schema = OFF
+MYSQL
+    done
+    systemctl restart mysql 2>/dev/null || systemctl restart mariadb 2>/dev/null || true
+  fi
+
+  if apache2ctl -M 2>/dev/null | grep -q mpm_prefork; then
+    local mpm_conf="/etc/apache2/mods-available/mpm_prefork.conf"
+    if [ -f "$mpm_conf" ]; then
+      sed -i 's/^[[:space:]]*MaxRequestWorkers.*/MaxRequestWorkers 5/' "$mpm_conf" 2>/dev/null || true
+      grep -q '^MaxRequestWorkers' "$mpm_conf" 2>/dev/null || echo 'MaxRequestWorkers 5' >>"$mpm_conf"
+      sed -i 's/^[[:space:]]*MaxConnectionsPerChild.*/MaxConnectionsPerChild 500/' "$mpm_conf" 2>/dev/null || true
+      grep -q '^MaxConnectionsPerChild' "$mpm_conf" 2>/dev/null || echo 'MaxConnectionsPerChild 500' >>"$mpm_conf"
+    fi
+  fi
+
+  local fpm_pool
+  for fpm_pool in /etc/php/*/fpm/pool.d/www.conf; do
+    [ -f "$fpm_pool" ] || continue
+    local max_children=4
+    [ "$ram" -ge 900 ] && max_children=6
+    sed -i "s/^[;[:space:]]*pm.max_children.*/pm.max_children = $max_children/" "$fpm_pool" 2>/dev/null || true
+    grep -q '^pm.max_children' "$fpm_pool" 2>/dev/null || echo "pm.max_children = $max_children" >>"$fpm_pool"
+  done
+
+  if ! swapon --show 2>/dev/null | grep -q .; then
+    if [ ! -f /swapfile ] && [ -w / ]; then
+      fallocate -l 1G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=1024 status=none 2>/dev/null || true
+      if [ -f /swapfile ]; then
+        chmod 600 /swapfile
+        mkswap /swapfile >/dev/null 2>&1 || true
+        swapon /swapfile 2>/dev/null || true
+        grep -qF '/swapfile' /etc/fstab 2>/dev/null || echo '/swapfile none swap sw 0 0' >>/etc/fstab
+      fi
+    fi
+  fi
+
+  systemctl reload apache2 2>/dev/null || systemctl restart apache2 2>/dev/null || true
+}
+
+# ============================================================
+#  Helper: Setup cron jobs (replaces all ViraNaut cronbot lines)
 # ============================================================
 setup_cron_jobs() {
-  VIRA_CRON_LINES=(
-    "* * * * * php $PROJECT_DIR/cronbot/NoticationsService.php >/dev/null 2>&1"
-    "*/1 * * * * php $PROJECT_DIR/cronbot/croncard.php >/dev/null 2>&1"
-    "*/5 * * * * php $PROJECT_DIR/cronbot/uptime_panel.php >/dev/null 2>&1"
-    "*/5 * * * * php $PROJECT_DIR/cronbot/uptime_node.php >/dev/null 2>&1"
-    "*/10 * * * * php $PROJECT_DIR/cronbot/expireagent.php >/dev/null 2>&1"
-    "*/10 * * * * php $PROJECT_DIR/cronbot/payment_expire.php >/dev/null 2>&1"
-    "0 * * * * php $PROJECT_DIR/cronbot/statusday.php >/dev/null 2>&1"
-    "0 3 * * * php $PROJECT_DIR/cronbot/backupbot.php >/dev/null 2>&1"
-    "*/15 * * * * php $PROJECT_DIR/cronbot/iranpay1.php >/dev/null 2>&1"
-    "*/15 * * * * php $PROJECT_DIR/cronbot/plisio.php >/dev/null 2>&1"
-  )
+  resolve_project_paths
+  local dir="${PROJECT_DIR%/}"
+  local TMP_CRON line
   TMP_CRON=$(mktemp)
-  crontab -l 2>/dev/null | grep -Fv 'cronbot/croncard.php' | grep -Fv 'cronbot/card_receipt_prompt.php' > "$TMP_CRON" || true
-  for cron_line in "${VIRA_CRON_LINES[@]}"; do
-    if ! grep -Fqx "$cron_line" "$TMP_CRON"; then
-      echo "$cron_line" >> "$TMP_CRON"
-    fi
-  done
+  crontab -l 2>/dev/null | grep -Fv 'cronbot/' | grep -Fv '/cronbot/' >"$TMP_CRON" || true
+  while IFS= read -r line; do
+    [ -n "$line" ] && echo "$line" >>"$TMP_CRON"
+  done < <(vira_cron_schedule_lines "$dir")
   crontab "$TMP_CRON"
   rm -f "$TMP_CRON"
 }

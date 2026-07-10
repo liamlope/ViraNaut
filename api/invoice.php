@@ -316,7 +316,7 @@ switch ($action) {
             'time' => false,
         ));
         // Use a single, consistent database connection (`$pdo`)
-        $stmt = $pdo->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username, time_sell, Service_location, name_product, price_product, Volume, Service_time, Status,notifctions) VALUES (:id_user, :id_invoice, :username, :time_sell, :service_location, :name_product, :price_product, :volume, :service_time, :status, :notifctions)");
+        $stmt = $pdo->prepare("INSERT IGNORE INTO invoice (id_user, id_invoice, username, time_sell, Service_location, name_product, price_product, Volume, Service_time, Status,notifctions,code_product) VALUES (:id_user, :id_invoice, :username, :time_sell, :service_location, :name_product, :price_product, :volume, :service_time, :status, :notifctions, :code_product)");
 
         // Generate a random invoice ID
         $randomString = bin2hex(random_bytes(4));
@@ -332,7 +332,8 @@ switch ($action) {
             ':volume' => $product['Volume_constraint'],
             ':service_time' => $product['Service_time'],
             ':status' => 'active',
-            ':notifctions' => $notifctions
+            ':notifctions' => $notifctions,
+            ':code_product' => $product['code_product'] ?? '',
         ]);
 
         sendJsonResponse(true, "Successful");
