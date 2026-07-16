@@ -3946,15 +3946,33 @@ $textinvite
     }
 } elseif (preg_match('/^categorynames_(.*)/', $datain, $dataget)) {
     $categorynames = $dataget[1];
-    $categorynames = select("category", "remark", "id", $categorynames, "select")['remark'];
-    $userdate = json_decode($user['Processing_value'], true);
+    $categoryRow = select("category", "remark", "id", $categorynames, "select");
+    if (!is_array($categoryRow) || empty($categoryRow['remark'])) {
+        sendmessage($from_id, "❌ دسته‌بندی یافت نشد. لطفاً دوباره از منوی خرید شروع کنید.", $backuser, 'HTML');
+        step('home', $from_id);
+        return;
+    }
+    $categorynames = $categoryRow['remark'];
+    $userdate = json_decode((string) ($user['Processing_value'] ?? ''), true);
+    if (!is_array($userdate) || empty($userdate['name_panel'])) {
+        sendmessage($from_id, "❌ اطلاعات سفارش نامعتبر است. لطفاً دوباره از منوی خرید شروع کنید.", $backuser, 'HTML');
+        step('home', $from_id);
+        return;
+    }
     if (isset($userdate['monthproduct'])) {
         $query = "SELECT * FROM product WHERE (Location = '{$userdate['name_panel']}' OR Location = '/all') AND agent= '{$user['agent']}' AND category = '$categorynames' AND Service_time = '{$userdate['monthproduct']}'";
     } else {
         $query = "SELECT * FROM product WHERE (Location = '{$userdate['name_panel']}' OR Location = '/all') AND agent= '{$user['agent']}' AND category = '$categorynames'";
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
-    $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
+    if (!is_array($marzban_list_get)) {
+        sendmessage($from_id, "❌ پنل انتخاب‌شده یافت نشد. لطفاً دوباره تلاش کنید.", $backuser, 'HTML');
+        step('home', $from_id);
+        return;
+    }
+    $customvolumeRaw = $marzban_list_get['customvolume'] ?? '';
+    $customvolumeArr = is_string($customvolumeRaw) ? json_decode($customvolumeRaw, true) : null;
+    $statuscustomvolume = is_array($customvolumeArr) ? ($customvolumeArr[$user['agent']] ?? '0') : '0';
     if ($marzban_list_get['MethodUsername'] == $textbotlang['users']['customusername'] || $marzban_list_get['MethodUsername'] == "نام کاربری دلخواه + عدد رندوم") {
         $datakeyboard = "prodcutservices_";
     } else {
@@ -4349,7 +4367,7 @@ $textinvite
     }
     $datac = array(
         'expire' => $datetimestep,
-        'data_limit' => $info_product['Volume_constraint'] * pow(1024, 3),
+        'data_limit' => (int) ($info_product['Volume_constraint'] ?? 0) * pow(1024, 3),
         'from_id' => $from_id,
         'username' => $username,
         'type' => 'buy',
@@ -4419,9 +4437,11 @@ $textinvite
     $datatextbot['textafterpay'] = $marzban_list_get['type'] == "Manualsale" ? $datatextbot['textmanual'] : $datatextbot['textafterpay'];
     $datatextbot['textafterpay'] = $marzban_list_get['type'] == "WGDashboard" ? $datatextbot['text_wgdashboard'] : $datatextbot['textafterpay'];
     $datatextbot['textafterpay'] = $marzban_list_get['type'] == "ibsng" || $marzban_list_get['type'] == "mikrotik" ? $datatextbot['textafterpayibsng'] : $datatextbot['textafterpay'];
-    if (intval($info_product['Service_time']) == 0)
+    $volumeGbNumeric = (int) ($info_product['Volume_constraint'] ?? 0);
+    $serviceTimeNumeric = (int) ($info_product['Service_time'] ?? 0);
+    if ($serviceTimeNumeric == 0)
         $info_product['Service_time'] = $textbotlang['users']['stateus']['Unlimited'];
-    if (intval($info_product['Volume_constraint']) == 0)
+    if ($volumeGbNumeric == 0)
         $info_product['Volume_constraint'] = $textbotlang['users']['stateus']['Unlimited'];
     $textcreatuser = str_replace('{username}', "<code>{$dataoutput['username']}</code>", $datatextbot['textafterpay']);
     $textcreatuser = str_replace('{name_service}', $info_product['name_product'], $textcreatuser);
@@ -4431,7 +4451,7 @@ $textinvite
     $textcreatuser = str_replace('{config}', "<code>{$output_config_link}</code>", $textcreatuser);
     $textcreatuser = str_replace('{links}', $config, $textcreatuser);
     $textcreatuser = str_replace('{links2}', $output_config_link, $textcreatuser);
-    if (intval($info_product['Volume_constraint']) == 0) {
+    if ($volumeGbNumeric == 0) {
         $textcreatuser = str_replace('گیگابایت', "", $textcreatuser);
     }
     if (!empty($dataoutput['subscription_url'])) {
@@ -4443,7 +4463,7 @@ $textinvite
                 $randomString,
                 $dataoutput,
                 (int) $datetimestep,
-                (int) ($info_product['Volume_constraint'] * pow(1024, 3)),
+                (int) ($volumeGbNumeric * pow(1024, 3)),
                 (string) ($info_product['code_product'] ?? '')
             );
         } elseif (function_exists('vira_invoice_persist_subscription_data')) {
@@ -4969,7 +4989,7 @@ $textonebuy
     }
     $datac = array(
         'expire' => strtotime(date("Y-m-d H:i:s", $datep)),
-        'data_limit' => $info_product['Volume_constraint'] * pow(1024, 3),
+        'data_limit' => (int) ($info_product['Volume_constraint'] ?? 0) * pow(1024, 3),
         'from_id' => $from_id,
         'username' => $username,
         'type' => 'buyomdh'
