@@ -1598,7 +1598,7 @@ function vira_card_sms_process_and_approve(string $smsText, ?string $bankCode = 
         $matchStmt = $pdo->prepare(
             "SELECT id_order, id_user FROM Payment_report
              WHERE Payment_Method = 'cart to cart'
-               AND payment_Status = 'Unpaid'
+               AND payment_Status IN ('Unpaid', 'waiting')
                AND {$decSql}
                AND (CAST(price AS UNSIGNED) * 10) = :rial
                AND time >= :cutoff
@@ -1803,10 +1803,13 @@ function vira_card_is_sms_auto_pending(?string $dec): bool
     return $dec === 'sms_auto' || str_starts_with($dec, 'sms_auto:');
 }
 
-/** SQL: فقط فاکتورهای با مارکر sms_auto — نه legacy خالی */
+/** SQL: فاکتورهای واجد تأیید خودکار SMS (پنجره SMS یا بعد از ارسال رسید دستی) */
 function vira_card_sms_match_dec_sql_clause(): string
 {
-    return "(dec_not_confirmed = 'sms_auto' OR dec_not_confirmed LIKE 'sms_auto:%')";
+    return "(dec_not_confirmed = 'sms_auto'
+        OR dec_not_confirmed LIKE 'sms_auto:%'
+        OR dec_not_confirmed = 'receipt_ready'
+        OR dec_not_confirmed = 'receipt_submitted')";
 }
 
 /** حداکثر سن فاکتور برای تطبیق SMS (۷۲ ساعت) */
@@ -1818,10 +1821,15 @@ function vira_card_sms_match_max_age_sec(): int
 /** آیا این فاکتور هنوز واجد تأیید خودکار SMS است؟ */
 function vira_card_sms_may_auto_approve(array $row): bool
 {
-    if ((string) ($row['payment_Status'] ?? '') !== 'Unpaid') {
+    $status = (string) ($row['payment_Status'] ?? '');
+    if (!in_array($status, ['Unpaid', 'waiting'], true)) {
         return false;
     }
-    return vira_card_is_sms_auto_pending($row['dec_not_confirmed'] ?? '');
+    $dec = trim((string) ($row['dec_not_confirmed'] ?? ''));
+    if (in_array($dec, ['receipt_ready', 'receipt_submitted'], true)) {
+        return true;
+    }
+    return vira_card_is_sms_auto_pending($dec);
 }
 
 function vira_card_sms_auto_receipt_due(?string $dec, array $row): bool
@@ -1846,7 +1854,8 @@ function vira_card_sms_auto_receipt_due(?string $dec, array $row): bool
 
 function vira_card_receipt_prompt_sql_pending(): string
 {
-    return vira_card_sms_match_dec_sql_clause();
+    // فقط پنجره SMS — نه receipt_submitted/ready (جدا از تطبیق SMS)
+    return "(dec_not_confirmed = 'sms_auto' OR dec_not_confirmed LIKE 'sms_auto:%')";
 }
 
 /** فاکتورهایی که زمان تأخیر دکمه رسیدشان رسیده (برای cron) */
@@ -1910,7 +1919,7 @@ function vira_card_try_claim_receipt_prompt(string $orderId): bool
     if ($orderId === '') {
         return false;
     }
-    $pending = vira_card_sms_match_dec_sql_clause();
+    $pending = vira_card_receipt_prompt_sql_pending();
     $stmt = $pdo->prepare(
         "UPDATE Payment_report SET dec_not_confirmed = 'receipt_ready'
          WHERE id_order = :oid
