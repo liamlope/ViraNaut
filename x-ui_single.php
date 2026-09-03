@@ -1173,11 +1173,14 @@ function addClient($namepanel, $usernameac, $Expire, $Total, $Uuid, $Flow, $subi
         );
     }
     $timeservice = vira_xui_expiry_ms($name_product, $marzban_list_get, $Expire);
+    $productRow = ($name_product !== false && $name_product !== '')
+        ? select('product', '*', 'name_product', $name_product, 'select')
+        : null;
+    $limitIp = (is_array($productRow) && isset($productRow['limit_ip']))
+        ? max(0, (int) $productRow['limit_ip'])
+        : 0;
 
     if (vira_xui_panel_uses_clients_api($marzban_list_get, $cookiePath)) {
-        $productRow = ($name_product !== false && $name_product !== '')
-            ? select('product', '*', 'name_product', $name_product, 'select')
-            : null;
         $inboundCheck = vira_xui_resolve_inbounds_for_client($marzban_list_get, $cookiePath, $productRow, $inboundid);
         if (!empty($inboundCheck['error'])) {
             vira_xui_panel_log('addClient inbound validation: ' . $inboundCheck['error']);
@@ -1206,7 +1209,7 @@ function addClient($namepanel, $usernameac, $Expire, $Total, $Uuid, $Flow, $subi
                 'enable' => true,
                 'tgId' => 0,
                 'subId' => $subid,
-                'limitIp' => 0,
+                'limitIp' => $limitIp,
                 'reset' => 0,
                 'comment' => (string) $note,
             ),
@@ -1233,6 +1236,7 @@ function addClient($namepanel, $usernameac, $Expire, $Total, $Uuid, $Flow, $subi
                     'enable' => true,
                     'tgId' => '',
                     'subId' => $subid,
+                    'limitIp' => $limitIp,
                     'reset' => 0,
                     'comment' => $note,
                 ),

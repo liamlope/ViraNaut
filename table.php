@@ -485,6 +485,7 @@ try {
         addFieldToTable("product", "agent", "f", "varchar(50)");
         addFieldToTable("product", "code_product", null, "varchar(50)");
         addFieldToTable("product", "btn_style", null, "VARCHAR(20)");
+        addFieldToTable("product", "limit_ip", "0", "INT");
     }
 } catch (Exception $e) {
     file_put_contents('error_log', $e->getMessage());

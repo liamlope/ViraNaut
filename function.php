@@ -4697,7 +4697,23 @@ function vira_json_agent_scalar($jsonValue, string $agent, $default = 0)
 
 function vira_default_keyboardmain_json(): string
 {
-    return '{"keyboard":[[{"text":"text_sell"},{"text":"text_extend"}],[{"text":"text_usertest"},{"text":"text_wheel_luck"}],[{"text":"text_Purchased_services"},{"text":"accountwallet"}],[{"text":"text_affiliates"},{"text":"text_Tariff_list"}],[{"text":"text_support"},{"text":"text_help"}]]}';
+    // Compact glass-style main menu (styles apply when inlinebtnmain=oninline)
+    return json_encode([
+        'keyboard' => [
+            [
+                ['text' => 'text_sell', 'style' => 'primary'],
+                ['text' => 'text_usertest', 'style' => 'success'],
+            ],
+            [
+                ['text' => 'text_Purchased_services', 'style' => 'primary'],
+                ['text' => 'accountwallet', 'style' => 'success'],
+            ],
+            [
+                ['text' => 'text_extend'],
+                ['text' => 'text_support', 'style' => 'danger'],
+            ],
+        ],
+    ], JSON_UNESCAPED_UNICODE);
 }
 
 /** مقادیر پیش‌فرض جدول setting (مطابق table.php) */
