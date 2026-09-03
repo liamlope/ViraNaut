@@ -1567,6 +1567,11 @@ function keyboardTimeCategory($name_panel, $agent, $callback_data = "producttime
             ['text' => $textbotlang['Admin']['month']['7day'], 'callback_data' => "{$callback_data}7"]
         ];
     }
+    if (in_array("15", $montheproduct)) {
+        $monthkeyboard['inline_keyboard'][] = [
+            ['text' => $textbotlang['Admin']['month']['15day'] ?? '⏳ پانزده روزه', 'callback_data' => "{$callback_data}15"]
+        ];
+    }
     if (in_array("31", $montheproduct)) {
         $monthkeyboard['inline_keyboard'][] = [
             ['text' => $textbotlang['Admin']['month']['1'], 'callback_data' => "{$callback_data}31"]
