@@ -1475,9 +1475,10 @@ $keyboardlinkapp = json_encode([
 ]);
 function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $statuscustom = false, $backuser = "backuser", $valuetow = null, $customvolume = "customsellvolume")
 {
-    global $pdo, $textbotlang, $from_id;
+    global $pdo, $textbotlang, $from_id, $setting;
     $product = ['inline_keyboard' => []];
-    $statusshowprice = select("shopSetting", "*", "Namevalue", "statusshowprice", "select")['value'];
+    $statusshowprice = select("shopSetting", "*", "Namevalue", "statusshowprice", "select")['value'] ?? '';
+    $includeDays = (($setting['statuscategory'] ?? '') !== 'oncategory');
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     if ($valuetow != null) {
@@ -1486,37 +1487,46 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
         $valuetow = "";
     }
     while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $hide_panel = json_decode($result['hide_panel'], true);
-        if (in_array($location, $hide_panel))
+        $hide_panel = json_decode($result['hide_panel'] ?? '{}', true);
+        if (!is_array($hide_panel)) {
+            $hide_panel = [];
+        }
+        if (in_array($location, $hide_panel, true)) {
             continue;
+        }
         $stmts2 = $pdo->prepare("SELECT * FROM invoice WHERE Status != 'Unpaid' AND id_user = :id_user");
         $stmts2->bindValue(':id_user', $from_id);
         $stmts2->execute();
         $countorder = $stmts2->rowCount();
-        if ($result['one_buy_status'] == "1" && $countorder != 0)
+        if ($result['one_buy_status'] == "1" && $countorder != 0) {
             continue;
+        }
         if (intval($pricediscount) != 0) {
             $resultper = ($result['price_product'] * $pricediscount) / 100;
             $result['price_product'] = $result['price_product'] - $resultper;
         }
         $appendPrice = ($statusshowprice == "onshowprice");
+        $label = function_exists('vira_product_smart_label')
+            ? vira_product_smart_label($result, $includeDays)
+            : (string) $result['name_product'];
         $product['inline_keyboard'][] = [
             function_exists('vira_telegram_product_button')
                 ? vira_telegram_product_button(
-                    (string) $result['name_product'],
+                    $label,
                     "{$datakeyboard}{$result['code_product']}{$valuetow}",
                     $result['price_product'],
                     $appendPrice,
                     $result['btn_style'] ?? null
                 )
                 : ['text' => $appendPrice
-                    ? $result['name_product'] . ' - ' . number_format($result['price_product']) . 'تومان'
-                    : $result['name_product'],
+                    ? $label . ' - ' . number_format((int) $result['price_product']) . ' تومان'
+                    : $label,
                     'callback_data' => "{$datakeyboard}{$result['code_product']}{$valuetow}"],
         ];
     }
-    if ($statuscustom)
+    if ($statuscustom) {
         $product['inline_keyboard'][] = [['text' => $textbotlang['users']['customsellvolume']['title'], 'callback_data' => $customvolume]];
+    }
     $product['inline_keyboard'][] = [
         ['text' => $textbotlang['users']['stateus']['backinfo'], 'callback_data' => $backuser],
     ];
@@ -1524,18 +1534,35 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
 }
 function KeyboardCategory($location, $agent, $backuser = "backuser")
 {
-    global $pdo, $textbotlang;
+    global $pdo, $textbotlang, $user;
     $stmt = $pdo->prepare("SELECT * FROM category");
     $stmt->execute();
-    $list_category = ['inline_keyboard' => [],];
+    $list_category = ['inline_keyboard' => []];
+    $userdate = [];
+    if (isset($user['Processing_value'])) {
+        $decoded = json_decode((string) $user['Processing_value'], true);
+        if (is_array($decoded)) {
+            $userdate = $decoded;
+        }
+    }
+    $month = isset($userdate['monthproduct']) ? (string) $userdate['monthproduct'] : '';
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $stmts = $pdo->prepare("SELECT * FROM product WHERE (Location = :location OR Location = '/all') AND category = :category AND agent = :agent");
-        $stmts->bindParam(':location', $location, PDO::PARAM_STR);
-        $stmts->bindParam(':category', $row['remark'], PDO::PARAM_STR);
-        $stmts->bindParam(':agent', $agent);
+        if ($month !== '') {
+            $stmts = $pdo->prepare("SELECT id FROM product WHERE (Location = :location OR Location = '/all') AND category = :category AND agent = :agent AND Service_time = :month LIMIT 1");
+            $stmts->bindParam(':location', $location, PDO::PARAM_STR);
+            $stmts->bindParam(':category', $row['remark'], PDO::PARAM_STR);
+            $stmts->bindParam(':agent', $agent);
+            $stmts->bindParam(':month', $month, PDO::PARAM_STR);
+        } else {
+            $stmts = $pdo->prepare("SELECT id FROM product WHERE (Location = :location OR Location = '/all') AND category = :category AND agent = :agent LIMIT 1");
+            $stmts->bindParam(':location', $location, PDO::PARAM_STR);
+            $stmts->bindParam(':category', $row['remark'], PDO::PARAM_STR);
+            $stmts->bindParam(':agent', $agent);
+        }
         $stmts->execute();
-        if ($stmts->rowCount() == 0)
+        if ($stmts->rowCount() == 0) {
             continue;
+        }
         $list_category['inline_keyboard'][] = [
             function_exists('vira_telegram_inline_button')
                 ? vira_telegram_inline_button((string) $row['remark'], 'categorynames_' . $row['id'], $row['btn_style'] ?? null)

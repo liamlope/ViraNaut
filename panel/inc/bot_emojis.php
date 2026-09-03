@@ -740,7 +740,7 @@ if (!function_exists('vira_telegram_product_button')) {
         $resolved = vira_resolve_keyboard_button($name);
         $text = $resolved['text'] !== '' ? $resolved['text'] : $name;
         if ($appendPrice) {
-            $text .= ' - ' . number_format((int) $price) . 'تومان';
+            $text .= ' - ' . number_format((int) $price) . ' تومان';
         }
         $btn = [
             'text' => $text,
@@ -750,6 +750,30 @@ if (!function_exists('vira_telegram_product_button')) {
             $btn['icon_custom_emoji_id'] = $resolved['icon_custom_emoji_id'];
         }
         return vira_telegram_apply_btn_style($btn, $style);
+    }
+}
+
+if (!function_exists('vira_product_smart_label')) {
+    /**
+     * نام کوتاه محصول + مشخصات از فیلدهای سیستم (حجم/روز).
+     * اگر دسته‌بندی زمانی روشن باشد، روز تکرار نمی‌شود.
+     */
+    function vira_product_smart_label(array $product, bool $includeDays = true): string
+    {
+        $name = trim((string) ($product['name_product'] ?? ''));
+        $vol = (int) ($product['Volume_constraint'] ?? 0);
+        $days = (int) ($product['Service_time'] ?? 0);
+        $parts = [];
+        if ($name !== '') {
+            $parts[] = $name;
+        }
+        if ($vol > 0) {
+            $parts[] = $vol . ' گیگ';
+        }
+        if ($includeDays && $days > 0) {
+            $parts[] = $days . ' روز';
+        }
+        return $parts !== [] ? implode(' · ', $parts) : $name;
     }
 }
 
