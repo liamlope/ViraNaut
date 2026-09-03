@@ -1522,7 +1522,7 @@ do_install() {
   [[ "$BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]] || { err "Invalid bot token."; return 1; }
 
   if [ -z "$ADMIN_ID" ] && [ "${VIRANAUT_AUTO_YES:-0}" != "1" ]; then
-    echo "  آیدی عددی تلگرام را فقط از @IDFindeerBot بگیرید: https://t.me/IDFindeerBot"
+    echo "  آیدی عددی تلگرام: @IDFindeerBot — https://t.me/IDFindeerBot"
     read -p "  Admin Telegram ID: " ADMIN_ID
   fi
   [[ "$ADMIN_ID" =~ ^-?[0-9]+$ ]] || { err "Invalid admin ID."; return 1; }
