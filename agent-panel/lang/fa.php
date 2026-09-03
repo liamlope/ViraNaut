@@ -2,7 +2,7 @@
 return [
     'dashboard' => 'داشبورد',
     'login_title' => 'ورود پنل نمایندگی',
-    'login_hint' => 'آیدی عددی خود را از @IDFindeerBot دریافت کنید.',
+    'login_hint' => 'آیدی عددی خود را فقط از @IDFindeerBot دریافت کنید.',
     'remember_me' => 'مرا به خاطر بسپار',
     'balance' => 'موجودی',
     'buy_new' => 'خرید جدید',

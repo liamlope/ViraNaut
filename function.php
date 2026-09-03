@@ -140,7 +140,7 @@ if (!function_exists('vira_idfindeer_hint_html')) {
     /** راهنمای دریافت آیدی عددی تلگرام (HTML) */
     function vira_idfindeer_hint_html(): string
     {
-        return "\n\n🆔 آیدی عددی را از <a href=\"https://t.me/IDFindeerBot\">@IDFindeerBot</a> دریافت کنید.";
+        return "\n\n🆔 آیدی عددی را فقط از <a href=\"https://t.me/IDFindeerBot\">@IDFindeerBot</a> دریافت کنید.";
     }
 }
 
@@ -148,7 +148,7 @@ if (!function_exists('vira_idfindeer_hint_plain')) {
     /** راهنمای دریافت آیدی عددی تلگرام (متن ساده) */
     function vira_idfindeer_hint_plain(): string
     {
-        return "\n\n🆔 آیدی عددی را از @IDFindeerBot بگیرید.";
+        return "\n\n🆔 آیدی عددی را فقط از @IDFindeerBot دریافت کنید.";
     }
 }
 

@@ -3243,16 +3243,12 @@ $caption";
     update("textbot", "text", $text, "id_text", "text_roll");
     step('home', $from_id);
 } elseif ($text == "📣 گزارشات ربات" && $adminrulecheck['rule'] == "administrator") {
-    $textreports = "📣در این بخش میتوانید آیدی عددی گروه را برای ارسال اعلان ارسال نمایید
-آموزش تنظیم گروه :
-1 - ابتدا یک گروه  بسازید 
-2 - ربات  @myidbot را عضو گروه کنید و دستور /getgroupid@myidbot داخل گروه ارسال کنید 
-3 - حالت تاپیک یا انجمن گروه را از تنظیمات گروه روشن کنید4
-4 - ربات خودتان را ادمین گروه کنید 
-5 - آیدی عددی ارسال شده را در ربات ارسال کنید.
-
-آیدی عددی فعلی شما: {$setting['Channel_Report']}"
-        . vira_idfindeer_hint_html();
+    $currentReportId = htmlspecialchars((string)($setting['Channel_Report'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $tutorial = $textbotlang['Admin']['adminphp']['ask_send_admin_tutorial'] ?? '';
+    if ($tutorial === '') {
+        $tutorial = "📣 آیدی عددی گروه اعلان را ارسال کنید.\n\nآیدی فعلی: <code>%s</code>" . vira_idfindeer_hint_html();
+    }
+    $textreports = sprintf($tutorial, $currentReportId);
     sendmessage($from_id, $textreports, $backadmin, 'HTML');
     step('addchannelid', $from_id);
 } elseif ($user['step'] == "addchannelid") {
